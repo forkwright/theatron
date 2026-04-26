@@ -27,7 +27,11 @@ impl ToastSeverity {
             Self::Info => "var(--status-info)",
             Self::Success => "var(--status-success)",
             Self::Warning => "var(--status-warning)",
-            Self::Error => "var(--aima)",
+            // WHY: status-error (functional failure) not aima (vital/blood
+            // dye). Per DESIGN-TOKENS.md: aima is for things that demand
+            // immediate response (vital state); status-error is for "this
+            // thing failed" (functional failure). Toasts report failures.
+            Self::Error => "var(--status-error)",
         }
     }
 
@@ -38,7 +42,7 @@ impl ToastSeverity {
             Self::Info => "var(--status-info-bg)",
             Self::Success => "var(--status-success-bg)",
             Self::Warning => "var(--status-warning-bg)",
-            Self::Error => "var(--aima-bg)",
+            Self::Error => "var(--status-error-bg)",
         }
     }
 }
