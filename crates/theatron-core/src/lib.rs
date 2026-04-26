@@ -9,11 +9,22 @@
 //!
 //! See `~/dev/kanon/projects/chalkeion/{vision,STATE,ROADMAP}.md` for
 //! the broader plan.
+//!
+//! ## Modules seeded
+//!
+//! - [`theme`] — `ThemeMode` enum (Dark/Light/System), `ThemeProvider`
+//!   component with `data-theme` attribute binding, OS preference
+//!   detection (GTK_THEME + COLORFGBG heuristics). Extracted verbatim
+//!   from aletheia/proskenion/src/theme.rs.
 
-#![warn(missing_docs, clippy::all, clippy::pedantic)]
+#![warn(clippy::all, clippy::pedantic)]
 
-/// Placeholder. Phase 1+2 work fills this in iteratively against
-/// proskenion refactor.
+pub mod theme;
+
+pub use theme::{ResolvedTheme, ThemeMode, ThemeProvider};
+
+/// Crate version for telemetry / version-gate use.
+#[must_use]
 pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
