@@ -1,0 +1,12 @@
+[package]
+name = "theatron-example-minimal"
+description = "Smallest possible theatron desktop app — Dioxus + Blitz, theme provider, single window"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+theatron-core = { workspace = true }
+dioxus = { workspace = true }
+dioxus-native = { workspace = true }

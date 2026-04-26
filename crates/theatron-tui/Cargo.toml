@@ -1,0 +1,15 @@
+[package]
+name = "theatron-tui"
+description = "Ratatui shared primitives + Elm state/update/view dispatcher (extracted from aletheia/koilon Phase 1+2)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+
+[dependencies]
+ratatui = { workspace = true }
+crossterm = { workspace = true }
+serde = { workspace = true }

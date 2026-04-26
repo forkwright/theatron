@@ -1,0 +1,14 @@
+[package]
+name = "theatron-markdown"
+description = "pulldown-cmark + syntect for native rendering. Sandbox-safe HTML output."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+
+[dependencies]
+pulldown-cmark = { workspace = true }
+syntect = { workspace = true }
