@@ -22,6 +22,8 @@
 pub mod activity_row;
 pub mod code_block;
 pub mod conn_indicator;
+pub mod diff_hunk;
+pub mod diff_line;
 pub mod metric_tile;
 pub mod queue_table;
 pub mod sparkline;
@@ -33,6 +35,8 @@ pub mod virtual_list;
 pub use activity_row::{ActivityRow, ActivityStatus, RowDensity};
 pub use code_block::CodeBlock;
 pub use conn_indicator::{ConnectionIndicator, IndicatorTone};
+pub use diff_hunk::DiffHunkView;
+pub use diff_line::DiffLineView;
 pub use metric_tile::{DeltaDirection, DeltaTone, MetricDelta, MetricTile};
 pub use queue_table::{QueueColumn, QueueItem, QueueTable};
 pub use sparkline::{Sparkline, SparklineShape, SparklineTone, bar_positions, polyline_points};
