@@ -1,12 +1,19 @@
-//! theatron-net — HTTP client base, SSE/streaming via reqwest+tokio+eventsource-stream pattern, mDNS discovery
+//! theatron-net — HTTP client base, SSE streaming, mDNS discovery for
+//! Dioxus + Blitz fleet desktop apps.
 //!
 //! Phase 1+2 deliverable. See `~/dev/kanon/projects/chalkeion/{vision,STATE,ROADMAP}.md`
 //! for the broader plan.
+//!
+//! ## Modules
+//!
+//! - [`sse`] — owned SSE wire-protocol parser. Wraps any
+//!   `Stream<Item = Result<Bytes, _>>` and yields parsed
+//!   [`SseEvent`](sse::SseEvent)s. Extracted from aletheia/skene
+//!   (W4). Used by chalkeion + future fleet desktop surfaces to
+//!   consume kanon-server SSE feeds without parser duplication.
 
 #![warn(missing_docs, clippy::all, clippy::pedantic)]
 
-/// Placeholder. Phase 1+2 work fills this in iteratively against
-/// proskenion refactor.
-pub fn version() -> &'static str {
-    env!("CARGO_PKG_VERSION")
-}
+pub mod sse;
+
+pub use sse::{SseEvent, SseStream};

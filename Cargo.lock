@@ -5984,6 +5984,7 @@ dependencies = [
  "pulldown-cmark",
  "serde",
  "serde_json",
+ "theatron-markdown",
  "tokio",
 ]
 
@@ -6034,8 +6035,10 @@ dependencies = [
 name = "theatron-net"
 version = "0.1.0"
 dependencies = [
+ "bytes",
  "dioxus",
  "eventsource-stream",
+ "futures-core",
  "futures-util",
  "reqwest",
  "serde",
