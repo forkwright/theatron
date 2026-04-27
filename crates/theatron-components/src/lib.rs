@@ -19,6 +19,7 @@
 //!   `EventHandler<ToastAction>` callbacks replacing aletheia's
 //!   `use_toast` hook + `NavAction` parser
 
+pub mod activity_row;
 pub mod conn_indicator;
 pub mod metric_tile;
 pub mod sparkline;
@@ -27,6 +28,7 @@ pub mod table;
 pub mod toast;
 pub mod virtual_list;
 
+pub use activity_row::{ActivityRow, ActivityStatus, RowDensity};
 pub use conn_indicator::{ConnectionIndicator, IndicatorTone};
 pub use metric_tile::{DeltaDirection, DeltaTone, MetricDelta, MetricTile};
 pub use sparkline::{Sparkline, SparklineShape, SparklineTone, bar_positions, polyline_points};
