@@ -19,10 +19,12 @@
 //!   `EventHandler<ToastAction>` callbacks replacing aletheia's
 //!   `use_toast` hook + `NavAction` parser
 
+pub mod status_pill;
 pub mod table;
 pub mod toast;
 pub mod virtual_list;
 
+pub use status_pill::{StatusPill, StatusPillKind, StatusPillShape};
 pub use table::{MdTable, TableAlignment};
 pub use toast::{Toast, ToastAction, ToastId, ToastItem, ToastSeverity};
 pub use virtual_list::{DEFAULT_OVERSCAN, VirtualScrollContainer, spacer_heights, visible_range};
