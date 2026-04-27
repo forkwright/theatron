@@ -5,6 +5,20 @@
 //! spawns one task per component instance; the task is cancelled
 //! automatically when the component unmounts (dioxus drops scope-bound
 //! tasks).
+//!
+//! ## Lagged subscribers
+//!
+//! The broadcast channels are sized at 64 events. If a subscriber's
+//! handler closure blocks long enough that 64 events queue up,
+//! [`tokio::sync::broadcast::Receiver::recv`] returns
+//! `Err(RecvError::Lagged(n))`. The hooks log the lag count via
+//! [`tracing::warn`] and continue running — events that overflowed
+//! the window are dropped, but the subscription survives.
+//!
+//! Tray events are user-driven (clicks, menu selections), so the
+//! 64-event window is comfortable in practice. If a consumer hits
+//! sustained Lagged warnings, the handler is too slow — move work
+//! onto a separate task.
 
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 use dioxus_core::{consume_context, spawn, use_hook};
@@ -34,8 +48,19 @@ pub fn use_tray_icon_event_handler(mut handler: impl FnMut(&tray_icon::TrayIconE
     use_hook(move || {
         let mut rx = tx.subscribe();
         spawn(async move {
-            while let Ok(event) = rx.recv().await {
-                handler(&event);
+            loop {
+                match rx.recv().await {
+                    Ok(event) => handler(&event),
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                        // Slow handler — n events dropped from the broadcast
+                        // window. Subscription is still healthy; keep going.
+                        tracing::warn!(
+                            target: "mekhane",
+                            "tray_icon handler lagged, {n} event(s) dropped"
+                        );
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                }
             }
         });
     });
@@ -56,8 +81,17 @@ pub fn use_tray_menu_event_handler(mut handler: impl FnMut(&tray_icon::menu::Men
     use_hook(move || {
         let mut rx = tx.subscribe();
         spawn(async move {
-            while let Ok(event) = rx.recv().await {
-                handler(&event);
+            loop {
+                match rx.recv().await {
+                    Ok(event) => handler(&event),
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                        tracing::warn!(
+                            target: "mekhane",
+                            "tray_menu handler lagged, {n} event(s) dropped"
+                        );
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                }
             }
         });
     });

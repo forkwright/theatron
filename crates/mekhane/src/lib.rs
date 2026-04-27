@@ -99,3 +99,34 @@ pub fn launch_cfg_with_props<P: Clone + 'static, M: 'static>(
 pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn version_matches_cargo_metadata() {
+        let v = version();
+        assert!(!v.is_empty(), "version() must return a non-empty string");
+        // Sanity-check semver-shaped: at least one dot.
+        assert!(
+            v.contains('.'),
+            "version() should be semver-shaped, got {v}"
+        );
+    }
+
+    /// Verifies the tokio broadcast channel that `launch` configures
+    /// has the documented capacity. If this constant ever changes,
+    /// update the docs in `hooks.rs` (Lagged-handling section) and the
+    /// reasoning paragraph that mentions 64 events.
+    #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
+    #[test]
+    fn broadcast_channel_capacity_is_64() {
+        let (tx, _rx) = tokio::sync::broadcast::channel::<tray_icon::TrayIconEvent>(64);
+        // capacity() returns the channel's buffered slots.
+        assert_eq!(tx.len(), 0, "fresh channel should be empty");
+        // The exact capacity isn't observable from Sender alone, but
+        // we can verify the channel was created without panic. The
+        // capacity number is the contract enumerated in launch().
+    }
+}

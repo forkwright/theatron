@@ -10,6 +10,7 @@ members = [
     "crates/parodos",
     "crates/dokimasia",
     "examples/minimal",
+    "examples/tray_smoke",
 ]
 
 [workspace.package]
@@ -67,6 +68,9 @@ futures-core = "0.3"
 # Async runtime
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
 futures-util = "0.3"
+
+# Logging
+tracing = "0.1"
 
 # Markdown / syntax highlighting
 pulldown-cmark = "0.13"

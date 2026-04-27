@@ -1,0 +1,12 @@
+# theatron LICENSE fingerprint
+#
+# theatron is dual-licensed Apache-2.0 OR MIT. The kanon basanos
+# CANONICAL_HASHES table doesn't include this dual-license combo
+# (its built-in entries are AGPL-3.0 and PolyForm Shield only), so
+# this fingerprint file declares the SHA256 of theatron's repo-root
+# LICENSE file instead.
+#
+# Workflow: if LICENSE is updated, recompute via `sha2sum LICENSE`
+# and update this hash. The kanon `MANIFEST/license-spdx-match`
+# rule checks LICENSE's actual SHA256 against the entries here.
+35b128f73616b8294c1de04ce59801160ada359fb9ca5878864ddf7f7ec253e0

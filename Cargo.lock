@@ -4005,6 +4005,7 @@ dependencies = [
  "dioxus-core",
  "dioxus-native",
  "tokio",
+ "tracing",
  "tray-icon",
 ]
 
@@ -6659,6 +6660,14 @@ dependencies = [
  "dioxus",
  "dioxus-native",
  "themelion",
+]
+
+[[package]]
+name = "theatron-example-tray-smoke"
+version = "0.1.0"
+dependencies = [
+ "dioxus",
+ "mekhane",
 ]
 
 [[package]]

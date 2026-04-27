@@ -41,10 +41,35 @@ pub fn init_tray_icon(
 
 /// Returns a default tray menu containing only a "Quit" item dispatched
 /// by the OS.
+///
+/// If the OS rejects the menu-item append (rare; usually a session-bus
+/// failure on Linux), the returned menu is empty and a `tracing::warn`
+/// is logged. Consumers needing a non-empty guarantee should build
+/// their own menu and inspect the result.
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 #[must_use]
 pub fn default_tray_icon() -> tray_icon::menu::Menu {
     let menu = tray_icon::menu::Menu::new();
-    let _ = menu.append_items(&[&tray_icon::menu::PredefinedMenuItem::quit(None)]);
+    if let Err(e) = menu.append_items(&[&tray_icon::menu::PredefinedMenuItem::quit(None)]) {
+        tracing::warn!(
+            target: "mekhane",
+            "default_tray_icon: failed to append Quit item: {e}"
+        );
+    }
     menu
+}
+
+#[cfg(test)]
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_tray_icon_returns_menu() {
+        // Constructs the default tray menu without panicking.
+        // We don't assert on the populated state — the OS may reject
+        // PredefinedMenuItem::quit on a CI environment without a
+        // session bus — but the function must not panic.
+        let _ = default_tray_icon();
+    }
 }

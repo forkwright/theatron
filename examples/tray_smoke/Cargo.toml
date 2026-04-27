@@ -1,0 +1,11 @@
+[package]
+name = "theatron-example-tray-smoke"
+description = "Compiles + clippy-clean smoke test for mekhane's launch + tray-event hooks. Not run in CI; build-only."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+mekhane = { workspace = true }
+dioxus = { workspace = true }
