@@ -21,6 +21,7 @@
 
 pub mod conn_indicator;
 pub mod metric_tile;
+pub mod sparkline;
 pub mod status_pill;
 pub mod table;
 pub mod toast;
@@ -28,6 +29,7 @@ pub mod virtual_list;
 
 pub use conn_indicator::{ConnectionIndicator, IndicatorTone};
 pub use metric_tile::{DeltaDirection, DeltaTone, MetricDelta, MetricTile};
+pub use sparkline::{Sparkline, SparklineShape, SparklineTone, bar_positions, polyline_points};
 pub use status_pill::{StatusPill, StatusPillKind, StatusPillShape};
 pub use table::{MdTable, TableAlignment};
 pub use toast::{Toast, ToastAction, ToastId, ToastItem, ToastSeverity};
