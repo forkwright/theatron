@@ -7,6 +7,6 @@ license.workspace = true
 publish = false
 
 [dependencies]
-theatron-core = { workspace = true }
+themelion = { workspace = true }
 dioxus = { workspace = true }
 dioxus-native = { workspace = true }

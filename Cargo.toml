@@ -1,14 +1,14 @@
 [workspace]
 resolver = "3"
 members = [
-    "crates/theatron-core",
-    "crates/theatron-platform",
-    "crates/theatron-net",
-    "crates/theatron-components",
-    "crates/theatron-markdown",
-    "crates/theatron-blitz",
-    "crates/theatron-tui",
-    "crates/theatron-lint",
+    "crates/themelion",
+    "crates/bathron",
+    "crates/keryx",
+    "crates/skeue",
+    "crates/gramma",
+    "crates/mekhane",
+    "crates/parodos",
+    "crates/dokimasia",
     "examples/minimal",
 ]
 
@@ -22,15 +22,24 @@ rust-version = "1.85"
 authors = ["forkwright"]
 
 [workspace.dependencies]
-# Theatron crates (path)
-theatron-core = { version = "0.1.0", path = "crates/theatron-core" }
-theatron-platform = { version = "0.1.0", path = "crates/theatron-platform" }
-theatron-net = { version = "0.1.0", path = "crates/theatron-net" }
-theatron-components = { version = "0.1.0", path = "crates/theatron-components" }
-theatron-markdown = { version = "0.1.0", path = "crates/theatron-markdown" }
-theatron-blitz = { version = "0.1.0", path = "crates/theatron-blitz" }
-theatron-tui = { version = "0.1.0", path = "crates/theatron-tui" }
-theatron-lint = { version = "0.1.0", path = "crates/theatron-lint" }
+# Theatron crates (path).
+#
+# WHY no `theatron-` prefix: per fleet naming rule (memory:
+# feedback_no_parent_child_crate_names) sub-crates take standalone
+# Greek names. Names below are all ASCII transliterations of Greek
+# words named for what each crate does (themelion = θεμέλιον,
+# foundation; mekhane = μηχανή, stage machinery; skeue = σκευή,
+# props/equipment; gramma = γράμμα, written character; keryx = κῆρυξ,
+# herald/messenger; bathron = βάθρον, pedestal; parodos = πάροδος,
+# stage entrance; dokimasia = δοκιμασία, examination).
+themelion = { version = "0.1.0", path = "crates/themelion" }
+bathron = { version = "0.1.0", path = "crates/bathron" }
+keryx = { version = "0.1.0", path = "crates/keryx" }
+skeue = { version = "0.1.0", path = "crates/skeue" }
+gramma = { version = "0.1.0", path = "crates/gramma" }
+mekhane = { version = "0.1.0", path = "crates/mekhane" }
+parodos = { version = "0.1.0", path = "crates/parodos" }
+dokimasia = { version = "0.1.0", path = "crates/dokimasia" }
 
 # UI framework
 # WHY: Pin dioxus to an exact patch version, fleet-wide. Dioxus
@@ -42,7 +51,12 @@ theatron-lint = { version = "0.1.0", path = "crates/theatron-lint" }
 # Bump deliberately, never via auto-resolution. proskenion/Cargo.toml
 # uses the same exact pin.
 dioxus = "=0.7.6"
+dioxus-core = "=0.7.6"
+dioxus-hooks = "=0.7.6"
 dioxus-native = "=0.7.6"
+
+# OS integration crates (used by mekhane).
+tray-icon = "0.21"
 
 # Network / streaming
 reqwest = { version = "0.13", default-features = false, features = ["rustls", "stream"] }
@@ -69,7 +83,7 @@ snafu = "0.8"
 ratatui = "0.29"
 crossterm = "0.28"
 
-# Lint (theatron-lint)
+# Lint (dokimasia)
 syn = { version = "2", features = ["full", "parsing", "extra-traits", "visit"] }
 proc-macro2 = { version = "1", features = ["span-locations"] }
 regex = "1"

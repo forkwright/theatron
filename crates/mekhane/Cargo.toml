@@ -1,0 +1,19 @@
+[package]
+name = "mekhane"
+description = "μηχανή (stage machinery) — windowing, event loop, OS hooks (tray, hotkeys, native menus). Wraps unmodified Dioxus + Blitz; tray support layered as composition."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+
+[dependencies]
+dioxus = { workspace = true }
+dioxus-core = { workspace = true }
+dioxus-native = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }
+
+[target.'cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))'.dependencies]
+tray-icon = { workspace = true }
