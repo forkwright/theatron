@@ -19,11 +19,13 @@
 //!   `EventHandler<ToastAction>` callbacks replacing aletheia's
 //!   `use_toast` hook + `NavAction` parser
 
+pub mod conn_indicator;
 pub mod status_pill;
 pub mod table;
 pub mod toast;
 pub mod virtual_list;
 
+pub use conn_indicator::{ConnectionIndicator, IndicatorTone};
 pub use status_pill::{StatusPill, StatusPillKind, StatusPillShape};
 pub use table::{MdTable, TableAlignment};
 pub use toast::{Toast, ToastAction, ToastId, ToastItem, ToastSeverity};
