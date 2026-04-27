@@ -14,14 +14,14 @@
 //!
 //! - [`theme`] — `ThemeMode` enum (Dark/Light/System), `ThemeProvider`
 //!   component with `data-theme` attribute binding, OS preference
-//!   detection (GTK_THEME + COLORFGBG heuristics). Extracted verbatim
-//!   from aletheia/proskenion/src/theme.rs.
+//!   detection (`GTK_THEME` + `COLORFGBG` heuristics). Extracted verbatim
+//!   from `aletheia/proskenion/src/theme.rs`.
 
 #![warn(clippy::all, clippy::pedantic)]
 
 pub mod theme;
 
-pub use theme::{ResolvedTheme, ThemeMode, ThemeProvider};
+pub use theme::{ResolvedTheme, ThemeMode, ThemeProvider, ThemeToggle};
 
 /// Crate version for telemetry / version-gate use.
 #[must_use]
