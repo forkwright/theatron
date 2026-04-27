@@ -32,7 +32,7 @@ const CSS: &str = r#"
 [data-theme="dark"] {
     --bg: #12110f;
     --bg-surface: #1a1816;
-    --text: #e8e6e3;
+    --text-primary: #e8e6e3;
     --text-muted: #8a8680;
     --border: #2e2b27;
     --accent: #9A7B4F;
@@ -51,7 +51,7 @@ const CSS: &str = r#"
     --text-sm: 0.833rem;
     --weight-medium: 500;
 }
-html, body, #main { padding: 0; margin: 0; background: var(--bg); color: var(--text); }
+html, body, #main { padding: 0; margin: 0; background: var(--bg); color: var(--text-primary); }
 body { font-family: ui-sans-serif, system-ui, sans-serif; }
 .container { padding: var(--space-4); }
 h1 { color: var(--accent); margin: 0 0 var(--space-3) 0; }

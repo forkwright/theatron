@@ -134,10 +134,13 @@ fn meta_contains_test(meta: &syn::Meta) -> bool {
     match meta {
         syn::Meta::Path(p) => p.is_ident("test"),
         syn::Meta::List(list) => {
-            // `any(...)`, `all(...)`, `not(...)` — recurse into inner metas.
-            // `not(test)` evaluates to "code only when NOT testing"; we
-            // match it conservatively (skip the item) so we never lint
-            // intentionally-test-fixture code in either polarity.
+            // `not(test)` means "compile when NOT testing" — that's production
+            // code and MUST be linted. Recurse only through `all(...)` /
+            // `any(...)` combinators, never through `not(...)`. (Caught by
+            // QA wave 2 #13 R-01.)
+            if list.path.is_ident("not") {
+                return false;
+            }
             list.parse_args_with(
                 syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated,
             )
@@ -374,6 +377,23 @@ fn helper() {
             diags.is_empty(),
             "cfg(test) on functions must be skipped, got: {diags:?}"
         );
+    }
+
+    #[test]
+    fn cfg_not_test_is_production_code_and_lints() {
+        // `cfg(not(test))` evaluates to "compile when NOT testing" — that's
+        // production code. Must be linted. (Caught by QA wave 2 #13 R-01.)
+        let src = r#"
+#[cfg(not(test))]
+const PROD: &str = "color: var(--definitely-bad);";
+"#;
+        let diags = lint_rust(&registry(), src, Path::new("a.rs"));
+        assert_eq!(
+            diags.len(),
+            1,
+            "cfg(not(test)) is PRODUCTION code, must lint, got: {diags:?}"
+        );
+        assert_eq!(diags[0].token.as_deref(), Some("--definitely-bad"));
     }
 
     #[test]

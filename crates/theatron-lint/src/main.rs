@@ -136,7 +136,13 @@ fn render_human(diagnostics: &[Diagnostic]) -> Result<(), Box<dyn std::error::Er
     let mut file_ids: HashMap<PathBuf, usize> = HashMap::new();
     for d in diagnostics {
         if !file_ids.contains_key(&d.file) {
-            let source = std::fs::read_to_string(&d.file).unwrap_or_default();
+            // Use lossy decode + read() so the renderer agrees with the
+            // linter's view of invalid-UTF-8 files. read_to_string would
+            // fail and produce an empty source, breaking the codespan
+            // label (caught by QA wave 2 #13 R-02).
+            let source = std::fs::read(&d.file)
+                .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
+                .unwrap_or_default();
             let id = files.add(d.file.display().to_string(), source);
             file_ids.insert(d.file.clone(), id);
         }
