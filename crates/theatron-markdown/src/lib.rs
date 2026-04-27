@@ -1,12 +1,17 @@
-//! theatron-markdown — pulldown-cmark + syntect for native rendering. Sandbox-safe HTML output.
+//! theatron-markdown — pulldown-cmark + syntect for native rendering.
 //!
 //! Phase 1+2 deliverable. See `~/dev/kanon/projects/chalkeion/{vision,STATE,ROADMAP}.md`
 //! for the broader plan.
+//!
+//! ## Modules
+//!
+//! - [`highlight`] — source-code syntax highlighting via syntect.
+//!   Returns line-by-line styled spans (no Dioxus dependency). The
+//!   Dioxus component that renders these spans lives in
+//!   `theatron_components::CodeBlock`.
 
 #![warn(missing_docs, clippy::all, clippy::pedantic)]
 
-/// Placeholder. Phase 1+2 work fills this in iteratively against
-/// proskenion refactor.
-pub fn version() -> &'static str {
-    env!("CARGO_PKG_VERSION")
-}
+pub mod highlight;
+
+pub use highlight::{HighlightedSpan, detect_language, highlight_code};

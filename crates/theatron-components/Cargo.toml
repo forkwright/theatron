@@ -10,6 +10,8 @@ rust-version.workspace = true
 authors.workspace = true
 
 [dependencies]
+theatron-markdown = { workspace = true }
+
 dioxus = { workspace = true }
 pulldown-cmark = { workspace = true }
 serde = { workspace = true }
