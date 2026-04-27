@@ -45,7 +45,7 @@ dioxus = "=0.7.6"
 dioxus-native = "=0.7.6"
 
 # Network / streaming
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "stream"] }
 eventsource-stream = "0.2"
 bytes = "1"
 futures-core = "0.3"
