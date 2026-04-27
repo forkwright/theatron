@@ -147,18 +147,13 @@ pub fn ToastItem(
     let color = toast.severity.css_color();
     let bg = toast.severity.css_bg();
 
-    // WHY: Auto-dismiss timer. Spawn a task that sleeps then fires the
-    // dismiss callback. Runs once per toast mount.
+    // WHY: Auto-dismiss timer. tokio::time::sleep yields the executor
+    // (std::thread::sleep would block the worker thread for the full
+    // duration, starving every other Dioxus task on the same thread —
+    // this was a known stand-in from the W1 spike).
     if let Some(duration) = toast.auto_dismiss {
-        #[expect(
-            clippy::as_conversions,
-            reason = "toast duration under u64::MAX milliseconds"
-        )]
-        let ms = duration.as_millis() as u64;
         spawn(async move {
-            // Note: spike uses std::thread::sleep stand-in;
-            // theatron-components proper will use tokio::time::sleep.
-            std::thread::sleep(std::time::Duration::from_millis(ms));
+            tokio::time::sleep(duration).await;
             on_dismiss.call(toast_id);
         });
     }

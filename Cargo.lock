@@ -5984,6 +5984,7 @@ dependencies = [
  "pulldown-cmark",
  "serde",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]
