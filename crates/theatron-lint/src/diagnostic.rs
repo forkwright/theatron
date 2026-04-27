@@ -81,6 +81,24 @@ impl Diagnostic {
             token: Some(token),
         }
     }
+
+    /// Construct a file-level warning (e.g. read failure, walker error).
+    /// Position is set to (1, 1) and span is empty since there is no
+    /// in-file position to point at.
+    #[must_use]
+    pub fn file_warning(file: PathBuf, message: String) -> Self {
+        Self {
+            file,
+            line: 1,
+            column: 1,
+            byte_offset: 0,
+            byte_len: 0,
+            severity: Severity::Warning,
+            code: "file-read-error".to_string(),
+            message,
+            token: None,
+        }
+    }
 }
 
 #[cfg(test)]

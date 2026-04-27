@@ -4,8 +4,19 @@
 //! produces a [`Diagnostic`] for any token that is not in the supplied
 //! [`TokenRegistry`].
 //!
-//! Position tracking precomputes line-start byte offsets in a single pass,
-//! then locates each match in O(log lines) via binary search.
+//! ## Why we mask before regex-scanning
+//!
+//! A naive regex over raw CSS source flags `var(--token)` references
+//! that appear inside CSS strings (`content: "var(--missing)"`) or
+//! comments (`/* var(--missing) */`) — false positives. It also misses
+//! `var(--token /* note */)` because the regex requires `\s*[,)]`
+//! immediately after the token name — false negative.
+//!
+//! [`mask_strings_and_comments`] replaces the bytes inside CSS strings
+//! and comments with whitespace (preserving newlines for line/col
+//! accuracy), and the regex then runs over the masked source. Positions
+//! reported in diagnostics still index into the original source because
+//! masking preserves byte offsets exactly.
 
 use std::path::Path;
 use std::sync::OnceLock;
@@ -25,9 +36,10 @@ fn var_regex() -> &'static Regex {
 /// Lint a CSS source string, returning one diagnostic per undocumented
 /// token reference.
 pub(crate) fn lint_css(registry: &TokenRegistry, source: &str, path: &Path) -> Vec<Diagnostic> {
+    let masked = mask_strings_and_comments(source);
     let line_starts = build_line_index(source);
     let mut diagnostics = Vec::new();
-    for caps in var_regex().captures_iter(source) {
+    for caps in var_regex().captures_iter(&masked) {
         let m = caps.get(1).expect("capture group 1 is present in regex");
         let token = m.as_str();
         if registry.contains(token) {
@@ -44,6 +56,70 @@ pub(crate) fn lint_css(registry: &TokenRegistry, source: &str, path: &Path) -> V
         ));
     }
     diagnostics
+}
+
+/// Replace bytes inside CSS strings (`"…"`, `'…'`) and CSS block
+/// comments (`/* … */`) with spaces, preserving newlines and the source
+/// length. Used to suppress false positives and avoid mid-token comment
+/// false negatives in [`lint_css`].
+///
+/// Used by `rust.rs` too, because string-literal *contents* in Rust may
+/// embed CSS strings that should not be scanned (e.g.
+/// `style: "background: \"var(--ok)\""`).
+pub(crate) fn mask_strings_and_comments(source: &str) -> String {
+    let bytes = source.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        // CSS block comment: /* … */
+        if bytes[i] == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'*' {
+            out.push(b' ');
+            out.push(b' ');
+            i += 2;
+            while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                out.push(if bytes[i] == b'\n' { b'\n' } else { b' ' });
+                i += 1;
+            }
+            // Consume closing */ if present.
+            if i + 1 < bytes.len() {
+                out.push(b' ');
+                out.push(b' ');
+                i += 2;
+            } else {
+                // Unterminated comment — mask the rest.
+                while i < bytes.len() {
+                    out.push(if bytes[i] == b'\n' { b'\n' } else { b' ' });
+                    i += 1;
+                }
+            }
+        // Quoted string: "…" or '…' with backslash escapes.
+        } else if bytes[i] == b'"' || bytes[i] == b'\'' {
+            let quote = bytes[i];
+            out.push(b' ');
+            i += 1;
+            while i < bytes.len() && bytes[i] != quote {
+                if bytes[i] == b'\\' && i + 1 < bytes.len() {
+                    // Mask backslash + next byte (handles \", \\, \n, etc.).
+                    out.push(b' ');
+                    out.push(if bytes[i + 1] == b'\n' { b'\n' } else { b' ' });
+                    i += 2;
+                } else {
+                    out.push(if bytes[i] == b'\n' { b'\n' } else { b' ' });
+                    i += 1;
+                }
+            }
+            // Consume closing quote if present (or run off end).
+            if i < bytes.len() {
+                out.push(b' ');
+                i += 1;
+            }
+        } else {
+            out.push(bytes[i]);
+            i += 1;
+        }
+    }
+    debug_assert_eq!(out.len(), bytes.len(), "mask must preserve source length");
+    String::from_utf8(out).expect("mask only emits ASCII bytes (space/newline) in masked regions")
 }
 
 /// Precompute a vector of byte offsets where each line starts.
@@ -152,5 +228,77 @@ mod tests {
         let src = "a { color: var(--bad); border: 1px solid var(--bad); }";
         let diags = lint_css(&registry(), src, Path::new("a.css"));
         assert_eq!(diags.len(), 2);
+    }
+
+    // ---- Masker correctness (caught by QA swarm A01 critical findings) ---
+
+    #[test]
+    fn ignores_var_inside_double_quoted_string() {
+        // Pre-fix: this would have flagged --missing as undocumented.
+        let src = "div { content: \"var(--missing)\"; }";
+        let diags = lint_css(&registry(), src, Path::new("a.css"));
+        assert!(
+            diags.is_empty(),
+            "var() inside a string is not a token reference"
+        );
+    }
+
+    #[test]
+    fn ignores_var_inside_single_quoted_string() {
+        let src = "div { content: 'var(--missing)'; }";
+        let diags = lint_css(&registry(), src, Path::new("a.css"));
+        assert!(diags.is_empty());
+    }
+
+    #[test]
+    fn ignores_var_inside_block_comment() {
+        let src = "div { /* var(--missing) example */ color: red; }";
+        let diags = lint_css(&registry(), src, Path::new("a.css"));
+        assert!(diags.is_empty());
+    }
+
+    #[test]
+    fn detects_token_with_inline_comment_between_token_and_paren() {
+        // Pre-fix: regex required `\s*[,)]` and missed this.
+        let src = "div { color: var(--missing /* with comment */); }";
+        let diags = lint_css(&registry(), src, Path::new("a.css"));
+        assert_eq!(diags.len(), 1, "expected to detect through the comment");
+        assert_eq!(diags[0].token.as_deref(), Some("--missing"));
+    }
+
+    #[test]
+    fn handles_escaped_quote_inside_string() {
+        // Backslash-escape the quote — the masker must not exit the string early.
+        let src = r#"div { content: "say \"var(--missing)\""; }"#;
+        let diags = lint_css(&registry(), src, Path::new("a.css"));
+        assert!(diags.is_empty());
+    }
+
+    #[test]
+    fn unterminated_string_is_masked_to_eof() {
+        // Hostile input — we must not panic and must not flag inside the string.
+        let src = "div { content: \"var(--missing)";
+        let diags = lint_css(&registry(), src, Path::new("a.css"));
+        assert!(diags.is_empty());
+    }
+
+    #[test]
+    fn unterminated_comment_is_masked_to_eof() {
+        let src = "div { /* var(--missing)";
+        let diags = lint_css(&registry(), src, Path::new("a.css"));
+        assert!(diags.is_empty());
+    }
+
+    #[test]
+    fn masking_preserves_byte_offsets_for_line_col() {
+        // The diagnostic position must still point at the real --missing
+        // even though earlier bytes were masked.
+        let src = "/* leading */ div { color: var(--missing); }\n";
+        let diags = lint_css(&registry(), src, Path::new("a.css"));
+        assert_eq!(diags.len(), 1);
+        assert_eq!(
+            &src[diags[0].byte_offset..diags[0].byte_offset + diags[0].byte_len],
+            "--missing"
+        );
     }
 }

@@ -87,7 +87,7 @@ fn run(args: &Args) -> Result<ExitCode, Box<dyn std::error::Error>> {
 
     let mut all_diagnostics = Vec::new();
     for path in &args.paths {
-        all_diagnostics.extend(linter.lint_path(path)?);
+        all_diagnostics.extend(linter.lint_path(path));
     }
 
     let error_count = all_diagnostics

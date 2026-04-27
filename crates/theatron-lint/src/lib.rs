@@ -31,26 +31,19 @@ pub use diagnostic::{Diagnostic, Severity};
 pub use linter::{LintConfig, Linter};
 pub use tokens::TokenRegistry;
 
-/// Errors returned by linter setup and file IO.
+/// Errors returned by linter setup. Per-file IO failures are reported as
+/// `Severity::Warning` diagnostics rather than `Err` (so a single bad file
+/// can't abort an entire walk — see [`Linter::lint_path`]).
 #[derive(Debug, snafu::Snafu)]
 #[snafu(visibility(pub(crate)))]
 pub enum Error {
-    /// I/O failure reading a source file or the spec.
+    /// I/O failure reading the spec file (`DESIGN-TOKENS.md`).
     #[snafu(display("failed to read {}: {source}", path.display()))]
     Io {
         /// Path that failed to read.
         path: std::path::PathBuf,
         /// Underlying I/O error.
         source: std::io::Error,
-    },
-
-    /// File walker failure.
-    #[snafu(display("failed to walk path {}: {source}", path.display()))]
-    Walk {
-        /// Root path being walked.
-        path: std::path::PathBuf,
-        /// Underlying walker error.
-        source: ignore::Error,
     },
 
     /// Markdown spec parse error.

@@ -17,7 +17,7 @@ use proc_macro2::{LineColumn, TokenStream, TokenTree};
 use regex::Regex;
 use syn::visit::Visit;
 
-use crate::css::{build_line_index, locate};
+use crate::css::{build_line_index, locate, mask_strings_and_comments};
 use crate::diagnostic::Diagnostic;
 use crate::tokens::TokenRegistry;
 
@@ -71,15 +71,16 @@ impl<'ast> Visit<'ast> for LitVisitor<'_> {
         self.walk_tokens(mac.tokens.clone());
     }
 
-    fn visit_item_mod(&mut self, m: &'ast syn::ItemMod) {
-        // Skip `#[cfg(test)]` modules. Test fixtures intentionally include
-        // bogus tokens (`var(--missing)`) and would otherwise produce
-        // false positives whenever the linter is run against a workspace
-        // that includes its own tests.
-        if has_cfg_test(&m.attrs) {
+    fn visit_item(&mut self, item: &'ast syn::Item) {
+        // Skip any item gated on `#[cfg(test)]` (or any nested combinator
+        // containing it). The original implementation only skipped `mod`
+        // items and only matched `cfg(test)` / `cfg(any(test, …))` at the
+        // top level — `cfg(all(test, feature = "…"))` and cfg(test) on
+        // non-module items (functions, consts, statics) leaked through.
+        if has_cfg_test(item_attrs(item)) {
             return;
         }
-        syn::visit::visit_item_mod(self, m);
+        syn::visit::visit_item(self, item);
     }
 
     fn visit_attribute(&mut self, _attr: &'ast syn::Attribute) {
@@ -92,21 +93,58 @@ impl<'ast> Visit<'ast> for LitVisitor<'_> {
     }
 }
 
-/// Detect `#[cfg(test)]` (or `#[cfg(any(test, …))]`) on a module.
+/// Best-effort attribute extraction from any `syn::Item` variant.
+fn item_attrs(item: &syn::Item) -> &[syn::Attribute] {
+    use syn::Item;
+    match item {
+        Item::Const(i) => &i.attrs,
+        Item::Enum(i) => &i.attrs,
+        Item::ExternCrate(i) => &i.attrs,
+        Item::Fn(i) => &i.attrs,
+        Item::ForeignMod(i) => &i.attrs,
+        Item::Impl(i) => &i.attrs,
+        Item::Macro(i) => &i.attrs,
+        Item::Mod(i) => &i.attrs,
+        Item::Static(i) => &i.attrs,
+        Item::Struct(i) => &i.attrs,
+        Item::Trait(i) => &i.attrs,
+        Item::TraitAlias(i) => &i.attrs,
+        Item::Type(i) => &i.attrs,
+        Item::Union(i) => &i.attrs,
+        Item::Use(i) => &i.attrs,
+        // Item::Verbatim and any future variants — no attrs to inspect.
+        _ => &[],
+    }
+}
+
+/// Detect `#[cfg(test)]` recursively, including under `cfg(any(...))`,
+/// `cfg(all(...))`, and `cfg(not(...))` combinators.
 fn has_cfg_test(attrs: &[syn::Attribute]) -> bool {
     attrs.iter().any(|attr| {
         if !attr.path().is_ident("cfg") {
             return false;
         }
-        let mut found = false;
-        let _ = attr.parse_nested_meta(|meta| {
-            if meta.path.is_ident("test") {
-                found = true;
-            }
-            Ok(())
-        });
-        found
+        attr.parse_args::<syn::Meta>()
+            .ok()
+            .is_some_and(|meta| meta_contains_test(&meta))
     })
+}
+
+fn meta_contains_test(meta: &syn::Meta) -> bool {
+    match meta {
+        syn::Meta::Path(p) => p.is_ident("test"),
+        syn::Meta::List(list) => {
+            // `any(...)`, `all(...)`, `not(...)` — recurse into inner metas.
+            // `not(test)` evaluates to "code only when NOT testing"; we
+            // match it conservatively (skip the item) so we never lint
+            // intentionally-test-fixture code in either polarity.
+            list.parse_args_with(
+                syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated,
+            )
+            .is_ok_and(|inner| inner.iter().any(meta_contains_test))
+        }
+        syn::Meta::NameValue(_) => false,
+    }
 }
 
 impl LitVisitor<'_> {
@@ -133,7 +171,12 @@ impl LitVisitor<'_> {
         // proc-macro2 uses 0-indexed columns; we use 1-indexed.
         let column = u32::try_from(span_start.column.saturating_add(1)).unwrap_or(0);
 
-        for caps in var_regex().captures_iter(content) {
+        // Mask nested CSS strings and comments inside the literal so we
+        // don't false-positive on `style: "background: \"var(--ok)\""`
+        // or false-negative on `var(--foo /* note */)`.
+        let masked = mask_strings_and_comments(content);
+
+        for caps in var_regex().captures_iter(&masked) {
             let token = caps.get(1).expect("regex always captures group 1").as_str();
             if self.registry.contains(token) {
                 continue;
@@ -205,8 +248,6 @@ mod tests {
 
     #[test]
     fn finds_token_inside_macro_invocation() {
-        // rsx!-like macro — syn's default Visit doesn't recurse into macro
-        // tokens, so this verifies our custom walker.
         let src = r#"
 fn render() {
     some_macro! {
@@ -237,7 +278,6 @@ fn render() {
 
     #[test]
     fn ignores_byte_string_literals() {
-        // Byte strings can't carry CSS — we should skip them and not panic.
         let src = "const B: &[u8] = b\"var(--bad)\";\n";
         let diags = lint_rust(&registry(), src, Path::new("a.rs"));
         assert!(diags.is_empty());
@@ -252,9 +292,6 @@ fn render() {
 
     #[test]
     fn doc_comments_are_not_linted() {
-        // Doc comments desugar to #[doc = "…"] string-literal attributes.
-        // They legitimately cite token names as examples and must not be
-        // flagged.
         let src = r"
 /// Example: pass `var(--missing)` to opt out.
 fn render() {}
@@ -278,9 +315,6 @@ fn old() {}
 
     #[test]
     fn cfg_test_module_is_skipped() {
-        // Tokens inside #[cfg(test)] mod blocks should not be linted —
-        // they are typically test fixtures intentionally referencing
-        // undocumented tokens.
         let src = r#"
 const REAL: &str = "color: var(--accent);";
 
@@ -296,14 +330,90 @@ mod tests {
         );
     }
 
+    // ---- Recursive cfg-test (caught by QA swarm A01 H1/H2) ---
+
+    #[test]
+    fn cfg_all_test_module_is_skipped() {
+        let src = r#"
+#[cfg(all(test, feature = "extra"))]
+mod combined {
+    const BOGUS: &str = "color: var(--definitely-bad);";
+}
+"#;
+        let diags = lint_rust(&registry(), src, Path::new("a.rs"));
+        assert!(
+            diags.is_empty(),
+            "cfg(all(test, ...)) module must be skipped, got: {diags:?}"
+        );
+    }
+
+    #[test]
+    fn cfg_any_test_module_is_skipped() {
+        let src = r#"
+#[cfg(any(test, debug_assertions))]
+mod also_tests {
+    const BOGUS: &str = "color: var(--definitely-bad);";
+}
+"#;
+        let diags = lint_rust(&registry(), src, Path::new("a.rs"));
+        assert!(diags.is_empty());
+    }
+
+    #[test]
+    fn cfg_test_on_function_is_skipped() {
+        // Tokens inside #[cfg(test)] FUNCTIONS (not just modules) must be
+        // skipped — used by inline test helpers + integration test scopes.
+        let src = r#"
+#[cfg(test)]
+fn helper() {
+    let _ = "color: var(--definitely-bad);";
+}
+"#;
+        let diags = lint_rust(&registry(), src, Path::new("a.rs"));
+        assert!(
+            diags.is_empty(),
+            "cfg(test) on functions must be skipped, got: {diags:?}"
+        );
+    }
+
+    #[test]
+    fn cfg_test_on_const_is_skipped() {
+        let src = r#"
+#[cfg(test)]
+const BOGUS: &str = "color: var(--definitely-bad);";
+"#;
+        let diags = lint_rust(&registry(), src, Path::new("a.rs"));
+        assert!(diags.is_empty());
+    }
+
+    // ---- Masking inside string literal contents (caught by QA swarm A01) ---
+
+    #[test]
+    fn masks_nested_string_inside_literal_content() {
+        // The literal contains a CSS-like string with an escaped quote
+        // wrapping a var(). We must not flag inside the inner string.
+        let src = r#"const S: &str = "background: \"var(--definitely-bad)\";";"#;
+        let diags = lint_rust(&registry(), src, Path::new("a.rs"));
+        assert!(
+            diags.is_empty(),
+            "var() inside escaped inner string must be masked, got: {diags:?}"
+        );
+    }
+
+    #[test]
+    fn detects_token_with_mid_token_comment_in_literal() {
+        let src = r#"const S: &str = "color: var(--missing /* note */);";"#;
+        let diags = lint_rust(&registry(), src, Path::new("a.rs"));
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].token.as_deref(), Some("--missing"));
+    }
+
     #[test]
     fn diagnostic_position_lines_up_with_literal() {
         let src = "fn x() {\n    let s = \"var(--missing)\";\n}\n";
         let diags = lint_rust(&registry(), src, Path::new("a.rs"));
         assert_eq!(diags.len(), 1);
-        // Literal starts on line 2.
         assert_eq!(diags[0].line, 2);
-        // Span should cover the literal source (including quotes).
         let span = &src[diags[0].byte_offset..diags[0].byte_offset + diags[0].byte_len];
         assert!(
             span.starts_with('"'),
