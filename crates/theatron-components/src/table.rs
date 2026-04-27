@@ -1,14 +1,53 @@
 //! Markdown table rendering component.
 
 use dioxus::prelude::*;
-use pulldown_cmark::Alignment;
+
+/// Per-column horizontal alignment for [`MdTable`].
+///
+/// theatron-components defines this enum locally rather than re-using
+/// `pulldown_cmark::Alignment` so consumers don't have to share a major
+/// version of pulldown-cmark with us. Use the `From<pulldown_cmark::Alignment>`
+/// impl when you've already parsed markdown with pulldown-cmark.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TableAlignment {
+    /// Default — renders left-aligned.
+    #[default]
+    None,
+    /// Left-aligned.
+    Left,
+    /// Center-aligned.
+    Center,
+    /// Right-aligned.
+    Right,
+}
+
+impl TableAlignment {
+    fn css(self) -> &'static str {
+        match self {
+            Self::None | Self::Left => "left",
+            Self::Center => "center",
+            Self::Right => "right",
+        }
+    }
+}
+
+impl From<pulldown_cmark::Alignment> for TableAlignment {
+    fn from(value: pulldown_cmark::Alignment) -> Self {
+        match value {
+            pulldown_cmark::Alignment::None => Self::None,
+            pulldown_cmark::Alignment::Left => Self::Left,
+            pulldown_cmark::Alignment::Center => Self::Center,
+            pulldown_cmark::Alignment::Right => Self::Right,
+        }
+    }
+}
 
 /// Render a markdown table with column alignment and alternating row backgrounds.
 #[component]
 pub fn MdTable(
     headers: Vec<String>,
     rows: Vec<Vec<String>>,
-    alignments: Vec<Alignment>,
+    alignments: Vec<TableAlignment>,
 ) -> Element {
     rsx! {
         div {
@@ -72,12 +111,8 @@ pub fn MdTable(
     }
 }
 
-fn alignment_css(align: Option<Alignment>) -> &'static str {
-    match align {
-        Some(Alignment::Left) | Some(Alignment::None) | None => "left",
-        Some(Alignment::Center) => "center",
-        Some(Alignment::Right) => "right",
-    }
+fn alignment_css(align: Option<TableAlignment>) -> &'static str {
+    align.unwrap_or_default().css()
 }
 
 fn row_bg(idx: usize) -> &'static str {
@@ -95,10 +130,10 @@ mod tests {
     #[test]
     fn alignment_css_values() {
         assert_eq!(alignment_css(None), "left");
-        assert_eq!(alignment_css(Some(Alignment::Left)), "left");
-        assert_eq!(alignment_css(Some(Alignment::None)), "left");
-        assert_eq!(alignment_css(Some(Alignment::Center)), "center");
-        assert_eq!(alignment_css(Some(Alignment::Right)), "right");
+        assert_eq!(alignment_css(Some(TableAlignment::Left)), "left");
+        assert_eq!(alignment_css(Some(TableAlignment::None)), "left");
+        assert_eq!(alignment_css(Some(TableAlignment::Center)), "center");
+        assert_eq!(alignment_css(Some(TableAlignment::Right)), "right");
     }
 
     #[test]
@@ -107,5 +142,14 @@ mod tests {
         assert_eq!(row_bg(1), "var(--bg)");
         assert_eq!(row_bg(2), "var(--bg-surface)");
         assert_eq!(row_bg(3), "var(--bg)");
+    }
+
+    #[test]
+    fn from_pulldown_cmark_alignment_maps_correctly() {
+        use pulldown_cmark::Alignment as PA;
+        assert_eq!(TableAlignment::from(PA::None), TableAlignment::None);
+        assert_eq!(TableAlignment::from(PA::Left), TableAlignment::Left);
+        assert_eq!(TableAlignment::from(PA::Center), TableAlignment::Center);
+        assert_eq!(TableAlignment::from(PA::Right), TableAlignment::Right);
     }
 }

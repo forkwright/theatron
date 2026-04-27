@@ -10,21 +10,19 @@
 //!
 //! ## Components seeded from extraction spike (W1)
 //!
-//! - [`virtual_list`] — virtual scrolling primitives (extracted verbatim
-//!   from aletheia/proskenion, 100% generic)
-//! - [`table`] — markdown table renderer (extracted verbatim, depends
-//!   only on public `pulldown_cmark::Alignment`)
-//! - [`toast`] — toast notification with API redesign: `Toast`, `ToastId`
-//!   types defined here; `ToastDispatcher` trait + `EventHandler`
-//!   callbacks replace aletheia's `use_toast` hook + `NavAction` parser
-//!
-//! Spike provenance: `/tmp/theatron-extract-spike/`. Verified compile +
-//! 10 tests passing under Dioxus 0.7.
+//! - [`virtual_list`] — virtual scrolling primitives + helpers
+//! - [`table`] — markdown table renderer with theatron-local
+//!   [`TableAlignment`](table::TableAlignment) (decoupled from
+//!   `pulldown_cmark::Alignment` so consumers don't have to share a
+//!   pulldown-cmark major version with us — `From` impl provided)
+//! - [`toast`] — toast notification with `EventHandler<ToastId>` /
+//!   `EventHandler<ToastAction>` callbacks replacing aletheia's
+//!   `use_toast` hook + `NavAction` parser
 
 pub mod table;
 pub mod toast;
 pub mod virtual_list;
 
-pub use table::MdTable;
-pub use toast::{Toast, ToastAction, ToastDispatcher, ToastId, ToastItem, ToastSeverity};
+pub use table::{MdTable, TableAlignment};
+pub use toast::{Toast, ToastAction, ToastId, ToastItem, ToastSeverity};
 pub use virtual_list::{DEFAULT_OVERSCAN, VirtualScrollContainer, spacer_heights, visible_range};

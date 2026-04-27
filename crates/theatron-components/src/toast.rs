@@ -71,12 +71,6 @@ pub struct Toast {
     pub auto_dismiss: Option<Duration>,
 }
 
-/// Trait that the consumer's toast state container must implement.
-/// theatron provides the rendering; consumer provides the state.
-pub trait ToastDispatcher {
-    fn dismiss(&mut self, id: ToastId);
-}
-
 const TOAST_STYLE: &str = "\
     display: flex; \
     flex-direction: column; \
@@ -147,16 +141,20 @@ pub fn ToastItem(
     let color = toast.severity.css_color();
     let bg = toast.severity.css_bg();
 
-    // WHY: Auto-dismiss timer. tokio::time::sleep yields the executor
-    // (std::thread::sleep would block the worker thread for the full
-    // duration, starving every other Dioxus task on the same thread —
-    // this was a known stand-in from the W1 spike).
-    if let Some(duration) = toast.auto_dismiss {
-        spawn(async move {
+    // WHY: Auto-dismiss timer. use_future ties the future's lifetime to
+    // this component instance — when the toast unmounts (manual dismiss,
+    // route change, container hide), the future is cancelled so the
+    // callback never fires on a detached component. spawn() would leak
+    // (the task outlives the component). tokio::time::sleep yields the
+    // executor; std::thread::sleep would block the worker thread (this
+    // was an earlier W1-spike regression caught by QA wave 1 #04 + #11).
+    let auto_dismiss = toast.auto_dismiss;
+    use_future(move || async move {
+        if let Some(duration) = auto_dismiss {
             tokio::time::sleep(duration).await;
             on_dismiss.call(toast_id);
-        });
-    }
+        }
+    });
 
     rsx! {
         div {
