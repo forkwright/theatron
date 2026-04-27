@@ -8,19 +8,16 @@
 #![warn(clippy::all, clippy::pedantic)]
 #![forbid(unsafe_code)]
 
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::{Parser, ValueEnum};
-use codespan_reporting::diagnostic::{Diagnostic as CdDiagnostic, Label, Severity as CdSeverity};
-use codespan_reporting::files::SimpleFiles;
-use codespan_reporting::term::{
-    self,
-    termcolor::{ColorChoice, StandardStream},
-};
+use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 
-use theatron_lint::{Diagnostic, LintConfig, Linter, Severity, TokenRegistry};
+use theatron_lint::{
+    Diagnostic, LintConfig, Linter, Severity, TokenRegistry, lossy_loader, render_human,
+    render_json,
+};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -100,8 +97,13 @@ fn run(args: &Args) -> Result<ExitCode, Box<dyn std::error::Error>> {
         .count();
 
     match args.format {
-        Format::Human => render_human(&all_diagnostics)?,
-        Format::Json => render_json(&all_diagnostics)?,
+        Format::Human => {
+            let writer = StandardStream::stderr(ColorChoice::Auto);
+            render_human(&all_diagnostics, &mut writer.lock(), lossy_loader)?;
+        }
+        Format::Json => {
+            println!("{}", render_json(&all_diagnostics)?);
+        }
     }
 
     if !args.quiet && matches!(args.format, Format::Human) {
@@ -126,50 +128,4 @@ fn files_seen(diagnostics: &[Diagnostic]) -> usize {
         .map(|d| &d.file)
         .collect::<HashSet<_>>()
         .len()
-}
-
-fn render_human(diagnostics: &[Diagnostic]) -> Result<(), Box<dyn std::error::Error>> {
-    if diagnostics.is_empty() {
-        return Ok(());
-    }
-    let mut files = SimpleFiles::new();
-    let mut file_ids: HashMap<PathBuf, usize> = HashMap::new();
-    for d in diagnostics {
-        if !file_ids.contains_key(&d.file) {
-            // Use lossy decode + read() so the renderer agrees with the
-            // linter's view of invalid-UTF-8 files. read_to_string would
-            // fail and produce an empty source, breaking the codespan
-            // label (caught by QA wave 2 #13 R-02).
-            let source = std::fs::read(&d.file)
-                .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
-                .unwrap_or_default();
-            let id = files.add(d.file.display().to_string(), source);
-            file_ids.insert(d.file.clone(), id);
-        }
-    }
-    let writer = StandardStream::stderr(ColorChoice::Auto);
-    let config = term::Config::default();
-    for d in diagnostics {
-        let file_id = file_ids[&d.file];
-        let severity = match d.severity {
-            Severity::Error => CdSeverity::Error,
-            Severity::Warning => CdSeverity::Warning,
-            Severity::Info => CdSeverity::Note,
-        };
-        let cd = CdDiagnostic::new(severity)
-            .with_message(&d.message)
-            .with_code(&d.code)
-            .with_labels(vec![Label::primary(
-                file_id,
-                d.byte_offset..d.byte_offset + d.byte_len,
-            )]);
-        term::emit(&mut writer.lock(), &config, &files, &cd)?;
-    }
-    Ok(())
-}
-
-fn render_json(diagnostics: &[Diagnostic]) -> Result<(), serde_json::Error> {
-    let json = serde_json::to_string_pretty(diagnostics)?;
-    println!("{json}");
-    Ok(())
 }

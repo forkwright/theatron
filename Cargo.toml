@@ -33,8 +33,16 @@ theatron-tui = { version = "0.1.0", path = "crates/theatron-tui" }
 theatron-lint = { version = "0.1.0", path = "crates/theatron-lint" }
 
 # UI framework
-dioxus = "0.7"
-dioxus-native = "0.7"
+# WHY: Pin dioxus to an exact patch version, fleet-wide. Dioxus
+# `EventHandler<T>` (and other types parameterized over user types) is
+# a different concrete type at every patch release; if theatron and a
+# downstream consumer (proskenion, future chalkeion) resolve to
+# different patches, trait resolution breaks across the crate boundary
+# even though both compile in isolation. Caught by QA wave 2 #22 (M-10).
+# Bump deliberately, never via auto-resolution. proskenion/Cargo.toml
+# uses the same exact pin.
+dioxus = "=0.7.6"
+dioxus-native = "=0.7.6"
 
 # Network / streaming
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }

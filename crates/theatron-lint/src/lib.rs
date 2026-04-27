@@ -24,11 +24,13 @@
 mod css;
 mod diagnostic;
 mod linter;
+mod render;
 mod rust;
 mod tokens;
 
 pub use diagnostic::{Diagnostic, Severity};
 pub use linter::{LintConfig, Linter};
+pub use render::{lossy_loader, render_human, render_json};
 pub use tokens::TokenRegistry;
 
 /// Errors returned by linter setup. Per-file IO failures are reported as
