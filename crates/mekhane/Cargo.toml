@@ -9,12 +9,37 @@ repository.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 
+[features]
+# Default keeps the existing surface (tray + version helpers). Each
+# new integration is opt-in so consumers don't pay for OS plumbing
+# they don't want.
+default = []
+
+# muda-backed top-of-window application menu bar. Pulls in `muda`
+# directly (it's also a transitive dep of `tray-icon`, but naming it
+# explicitly here makes the public surface honest and stable across
+# `tray-icon` major bumps).
+menus = ["dep:muda"]
+
+# Process-global keyboard shortcuts via the `global-hotkey` crate.
+global-hotkeys = ["dep:global-hotkey"]
+
+# Decode raw PNG bytes into a `tray_icon::Icon`.
+default-icon = ["dep:image"]
+
 [dependencies]
 dioxus = { workspace = true }
 dioxus-core = { workspace = true }
 dioxus-native = { workspace = true }
 tokio = { workspace = true, features = ["sync"] }
 tracing = { workspace = true }
+snafu = { workspace = true }
+
+muda = { workspace = true, optional = true }
+global-hotkey = { workspace = true, optional = true }
+image = { workspace = true, optional = true }
 
 [target.'cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))'.dependencies]
 tray-icon = { workspace = true }
+muda = { workspace = true, optional = true }
+global-hotkey = { workspace = true, optional = true }

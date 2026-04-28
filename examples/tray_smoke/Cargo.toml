@@ -6,6 +6,12 @@ edition.workspace = true
 license.workspace = true
 publish = false
 
+[features]
+default = []
+menus = ["mekhane/menus"]
+global-hotkeys = ["mekhane/global-hotkeys"]
+default-icon = ["mekhane/default-icon"]
+
 [dependencies]
 mekhane = { workspace = true }
 dioxus = { workspace = true }
