@@ -20,7 +20,13 @@
 //! sustained Lagged warnings, the handler is too slow — move work
 //! onto a separate task.
 
-#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
+#[cfg(any(
+    target_os = "windows",
+    target_os = "linux",
+    target_os = "macos",
+    feature = "menus",
+    feature = "global-hotkeys"
+))]
 use dioxus_core::{consume_context, spawn, use_hook};
 
 /// Type alias for the tray-icon broadcast sender installed in
@@ -32,6 +38,22 @@ type TrayIconSender = tokio::sync::broadcast::Sender<tray_icon::TrayIconEvent>;
 /// [`crate::launch_cfg_with_props`].
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 type TrayMenuSender = tokio::sync::broadcast::Sender<tray_icon::menu::MenuEvent>;
+
+/// Type alias for the app-menu broadcast sender installed in
+/// [`crate::launch_cfg_with_props_and_menu`].
+#[cfg(all(
+    feature = "menus",
+    any(target_os = "windows", target_os = "linux", target_os = "macos")
+))]
+type AppMenuSender = tokio::sync::broadcast::Sender<muda::MenuEvent>;
+
+/// Type alias for the global-hotkey broadcast sender installed in
+/// [`crate::launch_cfg_with_props`].
+#[cfg(all(
+    feature = "global-hotkeys",
+    any(target_os = "windows", target_os = "linux", target_os = "macos")
+))]
+type GlobalHotKeySender = tokio::sync::broadcast::Sender<global_hotkey::GlobalHotKeyEvent>;
 
 /// Register a handler that runs every time a tray-icon click / move /
 /// enter / leave event is dispatched. The handler closure is owned by
@@ -88,6 +110,80 @@ pub fn use_tray_menu_event_handler(mut handler: impl FnMut(&tray_icon::menu::Men
                         tracing::warn!(
                             target: "mekhane",
                             "tray_menu handler lagged, {n} event(s) dropped"
+                        );
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                }
+            }
+        });
+    });
+}
+
+/// Register a handler that runs every time a top-of-window application
+/// menu item is selected. The handler closure is owned by the calling
+/// component; on unmount the underlying task is cancelled.
+///
+/// # Panics
+///
+/// Panics if [`crate::launch_cfg_with_props_and_menu`] was not used
+/// to start the app — the broadcast sender will be missing from
+/// dioxus context.
+#[cfg(all(
+    feature = "menus",
+    any(target_os = "windows", target_os = "linux", target_os = "macos")
+))]
+pub fn use_app_menu_event_handler(mut handler: impl FnMut(&muda::MenuEvent) + 'static) {
+    let tx = use_hook(consume_context::<AppMenuSender>);
+    use_hook(move || {
+        let mut rx = tx.subscribe();
+        spawn(async move {
+            loop {
+                match rx.recv().await {
+                    Ok(event) => handler(&event),
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                        tracing::warn!(
+                            target: "mekhane",
+                            "app_menu handler lagged, {n} event(s) dropped"
+                        );
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                }
+            }
+        });
+    });
+}
+
+/// Register a handler that runs every time a globally registered hotkey
+/// is pressed or released. The handler closure is owned by the calling
+/// component; on unmount the underlying task is cancelled.
+///
+/// Consumers must first register hotkeys via
+/// [`global_hotkey::GlobalHotKeyManager::register`]; this hook only
+/// delivers the events.
+///
+/// # Panics
+///
+/// Panics if [`crate::launch`] (or one of its variants) was not used
+/// to start the app — the broadcast sender will be missing from
+/// dioxus context.
+#[cfg(all(
+    feature = "global-hotkeys",
+    any(target_os = "windows", target_os = "linux", target_os = "macos")
+))]
+pub fn use_global_hotkey_event_handler(
+    mut handler: impl FnMut(&global_hotkey::GlobalHotKeyEvent) + 'static,
+) {
+    let tx = use_hook(consume_context::<GlobalHotKeySender>);
+    use_hook(move || {
+        let mut rx = tx.subscribe();
+        spawn(async move {
+            loop {
+                match rx.recv().await {
+                    Ok(event) => handler(&event),
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                        tracing::warn!(
+                            target: "mekhane",
+                            "global_hotkey handler lagged, {n} event(s) dropped"
                         );
                     }
                     Err(tokio::sync::broadcast::error::RecvError::Closed) => break,

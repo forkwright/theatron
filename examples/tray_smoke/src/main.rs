@@ -16,6 +16,16 @@ use dioxus::prelude::*;
 use mekhane::tray::{TrayIconEvent, default_tray_icon, init_tray_icon, menu::MenuEvent};
 use mekhane::{use_tray_icon_event_handler, use_tray_menu_event_handler};
 
+#[cfg(feature = "menus")]
+use mekhane::tray::menu::{Menu, MenuEvent as AppMenuEvent};
+#[cfg(feature = "menus")]
+use mekhane::use_app_menu_event_handler;
+
+#[cfg(feature = "global-hotkeys")]
+use mekhane::hotkey::GlobalHotKeyEvent;
+#[cfg(feature = "global-hotkeys")]
+use mekhane::use_global_hotkey_event_handler;
+
 fn app() -> Element {
     use_hook(|| init_tray_icon(default_tray_icon(), None));
 
@@ -29,9 +39,25 @@ fn app() -> Element {
         let _ = event;
     });
 
+    #[cfg(feature = "menus")]
+    use_app_menu_event_handler(|event: &AppMenuEvent| {
+        let _ = event;
+    });
+
+    #[cfg(feature = "global-hotkeys")]
+    use_global_hotkey_event_handler(|event: &GlobalHotKeyEvent| {
+        let _ = event;
+    });
+
     rsx! { div { "tray smoke" } }
 }
 
 fn main() {
+    #[cfg(feature = "menus")]
+    {
+        let menu = Menu::new();
+        mekhane::launch_cfg_with_props_and_menu(app, (), vec![], vec![], Some(menu));
+    }
+    #[cfg(not(feature = "menus"))]
     mekhane::launch(app);
 }

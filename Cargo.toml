@@ -57,7 +57,19 @@ dioxus-hooks = "=0.7.6"
 dioxus-native = "=0.7.6"
 
 # OS integration crates (used by mekhane).
+#
+# WHY pin muda explicitly: `tray-icon = "0.21"` re-exports muda at
+# `tray_icon::menu` (literal `pub use muda::*`), so the menu vocabulary
+# is ALREADY in the dep graph. The mekhane `menus` feature exposes
+# `muda::Menu` directly so the public surface is named honestly and a
+# future `tray-icon` major bump can't silently change the menu type
+# under consumers. Match the version `tray-icon 0.21` resolves to —
+# bumping muda independently produces a duplicate-version graph and
+# the two `MenuEvent` types stop being interchangeable.
 tray-icon = "0.21"
+muda = "0.17"
+global-hotkey = "0.7"
+image = { version = "0.25", default-features = false, features = ["png"] }
 
 # Network / streaming
 reqwest = { version = "0.13", default-features = false, features = ["rustls", "stream"] }
