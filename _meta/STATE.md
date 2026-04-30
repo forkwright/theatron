@@ -2,24 +2,27 @@
 
 ## Current phase
 
-Phase 1+2 (kickoff). Repo created 2026-04-26, workspace + 8 crate
-skeletons + minimal example + dual licensing.
+Phase 1+2 in flight; preparing for the v1.0 cut. Eight Greek-named
+crates (themelion, mekhane, skeue, gramma, keryx, bathron, parodos,
+dokimasia) populated. Active fleet consumer: `kanon/crates/chalkeion`
+ported through Phase 4 Tier 5 (~20 PRs in flight on the kanon side
+proving each component / DTO surface in production-shape use).
 
-Inaugural commit lands the structure; iterative extraction from
-aletheia/proskenion follows in subsequent commits per the chalkeion
-plan.
-
-Updated: 2026-04-26.
+Updated: 2026-04-28.
 
 ## Locked decisions
 
 - Dual license: Apache-2.0 OR MIT
-- 8 crates: theatron-{core,platform,net,components,markdown,blitz,tui,lint}
+- 8 crates: themelion, mekhane, skeue, gramma, keryx, bathron, parodos, dokimasia
+  (renamed from `theatron-{core,blitz,components,markdown,net,platform,tui,lint}`
+  per fleet naming convention — see PR #21)
 - Renderer: Dioxus + Blitz native (no wry webview fallback per chalkeion plan)
 - Cross-platform: Linux-first; macOS/Windows out of scope through Phase 5
 - a11y: keyboard nav required (AccessKit verified hookable)
 - i18n: English-only in v1
-- v1.0 cut at end of Phase 1+2 (proskenion-tested API surface frozen)
+- v1.0 cut at end of Phase 1+2 (chalkeion-tested API surface frozen).
+  Versioning + release process: see `_meta/SEMVER.md`, `_meta/CHANGELOG.md`,
+  `_meta/RELEASE.md`.
 
 ## Plan reference
 
