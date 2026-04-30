@@ -1,6 +1,6 @@
 [package]
 name = "bathron"
-description = "βάθρον (pedestal/base) — OS-service integration: notifications, file dialogs, window state persistence, settings, autoupdate, logging. Tray + hotkeys live in mekhane (windowing layer)."
+description = "βάθρον (pedestal/base) — OS-service integration: notifications, file dialogs, settings, logging. Tray + hotkeys live in mekhane (windowing layer)."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,7 +9,35 @@ repository.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 
+[features]
+default = []
+notifications = ["dep:notify-rust"]
+dialogs = ["dep:rfd"]
+settings = ["dep:toml", "dep:dirs", "dep:tempfile"]
+logging = [
+    "dep:tracing",
+    "dep:tracing-subscriber",
+    "dep:tracing-appender",
+    "dep:dirs",
+]
+
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
 snafu = { workspace = true }
+
+# Optional, gated behind cargo features.
+notify-rust = { version = "4", optional = true }
+rfd = { version = "0.17", optional = true }
+toml = { version = "0.8", optional = true }
+dirs = { version = "6", optional = true }
+tempfile = { version = "3", optional = true }
+tracing = { workspace = true, optional = true }
+tracing-subscriber = { version = "0.3", optional = true, features = [
+    "env-filter",
+] }
+tracing-appender = { version = "0.2", optional = true }
+
+[dev-dependencies]
+tempfile = "3"
+serde = { workspace = true }
