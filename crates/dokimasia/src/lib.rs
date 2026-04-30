@@ -24,6 +24,7 @@
 mod css;
 mod diagnostic;
 mod linter;
+mod manifest;
 mod render;
 mod rust;
 mod tokens;

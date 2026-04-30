@@ -99,6 +99,31 @@ impl Diagnostic {
             token: None,
         }
     }
+
+    /// Construct a forbidden-patch-block error for a workspace or crate
+    /// `Cargo.toml` that contains a `[patch.crates-io]` table. Patches against
+    /// external deps must live in fleet forks under `forkwright/`; workspace
+    /// patch blocks bit-rot and obscure the dep graph.
+    #[must_use]
+    pub fn forbidden_patch_block(
+        file: PathBuf,
+        line: u32,
+        column: u32,
+        byte_offset: usize,
+        byte_len: usize,
+    ) -> Self {
+        Self {
+            file,
+            line,
+            column,
+            byte_offset,
+            byte_len,
+            severity: Severity::Error,
+            code: "forbidden-patch-block".to_string(),
+            message: "Cargo.toml `[patch.crates-io]` block forbidden — patches stay in forkwright forks per fleet doctrine; remove the block and pin the fleet fork directly via git URL".to_string(),
+            token: None,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -126,6 +151,15 @@ mod tests {
         assert_eq!(d.code, "undocumented-token");
         assert!(d.message.contains("--accent-muted"));
         assert_eq!(d.token.as_deref(), Some("--accent-muted"));
+    }
+
+    #[test]
+    fn forbidden_patch_block_is_error_with_fleet_message() {
+        let d = Diagnostic::forbidden_patch_block(PathBuf::from("Cargo.toml"), 6, 1, 50, 19);
+        assert_eq!(d.severity, Severity::Error);
+        assert_eq!(d.code, "forbidden-patch-block");
+        assert!(d.message.contains("forkwright"));
+        assert!(d.token.is_none());
     }
 
     #[test]

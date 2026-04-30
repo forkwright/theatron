@@ -15,6 +15,7 @@ use ignore::WalkBuilder;
 
 use crate::css::lint_css;
 use crate::diagnostic::Diagnostic;
+use crate::manifest::lint_manifest;
 use crate::rust::lint_rust;
 use crate::tokens::TokenRegistry;
 
@@ -66,8 +67,10 @@ impl Linter {
         &self.registry
     }
 
-    /// Lint a single file by extension dispatch. CSS and Rust files are
-    /// scanned; other extensions return an empty diagnostic list.
+    /// Lint a single file by filename or extension dispatch. `Cargo.toml`
+    /// files are scanned for manifest violations; CSS and Rust files are
+    /// scanned for design-token violations; other files return an empty
+    /// diagnostic list.
     ///
     /// IO failures (file not readable, permission denied) and invalid
     /// UTF-8 are reported as `Severity::Warning` diagnostics with code
@@ -75,6 +78,9 @@ impl Linter {
     /// results are always preferable to aborting a whole lint run.
     #[must_use]
     pub fn lint_file(&self, path: &Path) -> Vec<Diagnostic> {
+        if path.file_name().and_then(OsStr::to_str) == Some("Cargo.toml") {
+            return self.read_and_scan(path, lint_manifest);
+        }
         let ext = path.extension().and_then(OsStr::to_str);
         match ext {
             Some("css") => self.read_and_scan(path, lint_css),
