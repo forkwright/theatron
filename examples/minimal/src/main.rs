@@ -15,7 +15,7 @@ fn app() -> Element {
         style { {CSS} }
         div {
             class: "container",
-            h1 { "theatron " span { class: "version", {theatron_core::version()} } }
+            h1 { "theatron " span { class: "version", {themelion::version()} } }
             p { "minimal example — Dioxus 0.7 + Blitz native renderer" }
             div { class: "tokens",
                 span { class: "tile aima", "aima" }
