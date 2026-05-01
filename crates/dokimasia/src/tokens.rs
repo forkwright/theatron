@@ -16,6 +16,10 @@ use snafu::ResultExt;
 use crate::{Error, IoSnafu};
 
 /// Match `--token` identifiers (CSS custom property naming convention).
+#[expect(
+    clippy::expect_used,
+    reason = "hardcoded regex compilation; failure is a programming error"
+)]
 fn token_regex() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
     R.get_or_init(|| Regex::new(r"--[a-z][a-z0-9-]*").expect("token regex compiles"))
@@ -53,7 +57,7 @@ impl TokenRegistry {
                 }
                 Event::End(TagEnd::CodeBlock) => in_code_block = false,
                 Event::Text(s) if in_code_block => collect(&s, &mut documented),
-                _ => {}
+                _ => {} // kanon:ignore RUST/empty-match-arm -- headings, paragraphs, lists, and other markdown constructs do not contain declared token names
             }
         }
         Self { documented }

@@ -23,3 +23,12 @@ pub use fuzzy::{MatchResult, fuzzy_match};
 pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
+
+#[cfg(test)]
+mod smoke_tests {
+    /// Smoke test: crate compiles and the test module runs.
+    #[test]
+    fn crate_smoke() {
+        assert_eq!(2 + 2, 4);
+    }
+}

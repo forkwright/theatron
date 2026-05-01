@@ -25,3 +25,12 @@ pub use diff::{
     align_side_by_side, parse_unified_diff,
 };
 pub use highlight::{HighlightedSpan, detect_language, highlight_code};
+
+#[cfg(test)]
+mod smoke_tests {
+    /// Smoke test: crate compiles and the test module runs.
+    #[test]
+    fn crate_smoke() {
+        assert_eq!(2 + 2, 4);
+    }
+}

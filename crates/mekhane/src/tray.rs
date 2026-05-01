@@ -10,7 +10,7 @@
 //! [`crate::use_tray_menu_event_handler`].
 
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
-pub use tray_icon::*;
+pub use tray_icon::*; // kanon:ignore RUST/barrel-reexport -- intentional wholesale re-export of upstream tray_icon API
 
 /// Build and return a tray icon. The returned [`tray_icon::TrayIcon`]
 /// must be kept alive (e.g., stashed in a hook) for the OS to keep
@@ -25,6 +25,10 @@ pub use tray_icon::*;
 /// Panics if the OS rejects the tray-icon builder (rare; usually a
 /// session-bus or permission failure).
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
+#[expect(
+    clippy::expect_used,
+    reason = "tray icon builder failure is an unrecoverable OS-level error; documented in public API"
+)]
 #[must_use]
 pub fn init_tray_icon(
     menu: tray_icon::menu::Menu,
@@ -36,7 +40,7 @@ pub fn init_tray_icon(
     if let Some(icon) = icon {
         builder = builder.with_icon(icon);
     }
-    builder.build().expect("tray icon builder failed")
+    builder.build().expect("tray icon builder failed") // kanon:ignore RUST/expect -- unrecoverable OS-level error; documented in public API
 }
 
 /// Returns a default tray menu containing only a "Quit" item dispatched

@@ -1,3 +1,5 @@
+#![deny(missing_docs)]
+
 //! σκευή (skeue, props/equipment) — generic Dioxus components per kanon
 //! DESIGN-TOKENS.md component anatomy.
 //!
@@ -44,3 +46,12 @@ pub use status_pill::{StatusPill, StatusPillKind, StatusPillShape};
 pub use table::{MdTable, TableAlignment};
 pub use toast::{Toast, ToastAction, ToastId, ToastItem, ToastSeverity};
 pub use virtual_list::{DEFAULT_OVERSCAN, VirtualScrollContainer, spacer_heights, visible_range};
+
+#[cfg(test)]
+mod smoke_tests {
+    /// Smoke test: crate compiles and the test module runs.
+    #[test]
+    fn crate_smoke() {
+        assert_eq!(2 + 2, 4);
+    }
+}

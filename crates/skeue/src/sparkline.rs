@@ -18,6 +18,7 @@ use dioxus::prelude::*;
 /// Visual register for a [`Sparkline`] — controls the line/bar fill
 /// color independently of the data.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
 pub enum SparklineTone {
     /// `--accent` (default — neutral / brand).
     #[default]
@@ -46,12 +47,26 @@ impl SparklineTone {
 
 /// Render shape — thin line vs bar series.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
 pub enum SparklineShape {
     /// Connected line through data points (default).
     #[default]
     Line,
     /// Vertical bars rising from the baseline.
     Bars,
+}
+
+/// Convert `usize` to `f64` for pixel-coordinate math.
+///
+/// WHY: `f64` does not implement `TryFrom<usize>`. Sparkline data arrays are
+/// bounded by screen-pixel counts (hundreds to thousands of points), well
+/// within `f64` integer precision.
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "no TryFrom impl; values are bounded by screen size"
+)]
+const fn usize_to_f64(n: usize) -> f64 {
+    n as f64
 }
 
 /// Compute SVG `points` attribute for a polyline through `values`.
@@ -67,10 +82,14 @@ pub fn polyline_points(values: &[f64], width: f64, height: f64) -> String {
     let max = values.iter().copied().fold(f64::NEG_INFINITY, f64::max);
     let range = (max - min).max(f64::EPSILON);
     let n = values.len();
-    let step = if n > 1 { width / (n - 1) as f64 } else { 0.0 };
+    let step = if n > 1 {
+        width / usize_to_f64(n - 1)
+    } else {
+        0.0
+    };
     let mut out = String::with_capacity(n * 12);
     for (i, &v) in values.iter().enumerate() {
-        let x = step * i as f64;
+        let x = step * usize_to_f64(i);
         // Higher value renders nearer the top — invert.
         let y = height - ((v - min) / range) * height;
         if i > 0 {
@@ -94,14 +113,14 @@ pub fn bar_positions(values: &[f64], width: f64, height: f64) -> Vec<(f64, f64, 
         .fold(f64::NEG_INFINITY, f64::max)
         .max(f64::EPSILON);
     let n = values.len();
-    let bar_w = (width / n as f64).max(1.0);
+    let bar_w = (width / usize_to_f64(n)).max(1.0);
     let gap = (bar_w * 0.2).min(2.0);
     let inner = (bar_w - gap).max(0.5);
     values
         .iter()
         .enumerate()
         .map(|(i, &v)| {
-            let x = bar_w * i as f64 + gap / 2.0;
+            let x = bar_w * usize_to_f64(i) + gap / 2.0;
             // Bars extend downward from the top of the available height.
             // Render Y = height - bar_h so the bar starts at the bottom.
             let normalized = (v.max(0.0) / max).clamp(0.0, 1.0);

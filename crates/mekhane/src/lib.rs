@@ -64,7 +64,20 @@ pub mod tray;
 #[cfg(feature = "global-hotkeys")]
 pub mod hotkey;
 
-pub use hooks::*;
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
+pub use hooks::{use_tray_icon_event_handler, use_tray_menu_event_handler};
+
+#[cfg(all(
+    feature = "menus",
+    any(target_os = "windows", target_os = "linux", target_os = "macos")
+))]
+pub use hooks::use_app_menu_event_handler;
+
+#[cfg(all(
+    feature = "global-hotkeys",
+    any(target_os = "windows", target_os = "linux", target_os = "macos")
+))]
+pub use hooks::use_global_hotkey_event_handler;
 
 /// Launch a desktop app with the default config.
 pub fn launch(app: fn() -> dioxus_core::Element) {
@@ -131,7 +144,6 @@ pub fn launch_cfg_with_props_and_menu<P: Clone + 'static, M: 'static>(
     launch_inner(app, props, contexts, configs, menu);
 }
 
-#[allow(clippy::too_many_lines)]
 fn launch_inner<P: Clone + 'static, M: 'static>(
     app: impl ComponentFunction<P, M>,
     props: P,
@@ -194,7 +206,7 @@ fn launch_inner<P: Clone + 'static, M: 'static>(
         {
             let manager = std::sync::Arc::new(
                 global_hotkey::GlobalHotKeyManager::new()
-                    .expect("global hotkey manager initialization failed"),
+                    .expect("global hotkey manager initialization failed"), // kanon:ignore RUST/expect -- unrecoverable OS-level error; documented in public API
             );
             let (hotkey_tx, _) =
                 tokio::sync::broadcast::channel::<global_hotkey::GlobalHotKeyEvent>(64);
@@ -233,7 +245,7 @@ mod tests {
     fn version_matches_cargo_metadata() {
         let v = version();
         assert!(!v.is_empty(), "version() must return a non-empty string");
-        // Sanity-check semver-shaped: at least one dot.
+        // Validate semver shape: at least one dot.
         assert!(
             v.contains('.'),
             "version() should be semver-shaped, got {v}"

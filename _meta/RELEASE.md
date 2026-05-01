@@ -1,4 +1,4 @@
-# Release process — theatron
+# Release process  -  theatron
 
 How a theatron version makes it from `main` to a tagged release that
 fleet consumers can pin against.
@@ -12,7 +12,7 @@ Run before cutting any release tag:
 2. **Versions match.** `Cargo.toml` workspace `version` matches the
    tag you're about to cut. All eight crate `Cargo.toml`s use
    `version.workspace = true` (verify with
-   `grep -L 'version.workspace = true' crates/*/Cargo.toml` — empty
+   `grep -L 'version.workspace = true' crates/*/Cargo.toml`  -  empty
    output is the goal).
 3. **Gate green.** `cargo fmt --check && cargo clippy --workspace
    --all-targets --all-features -- -D warnings && cargo test
@@ -91,6 +91,6 @@ once the release branch exists.
 
 ## Cross-references
 
-- [`SEMVER.md`](./SEMVER.md) — versioning policy.
-- [`CHANGELOG.md`](./CHANGELOG.md) — release notes archive.
-- [`STATE.md`](./STATE.md) — current development state.
+- [`SEMVER.md`](./SEMVER.md)  -  versioning policy.
+- [`CHANGELOG.md`](./CHANGELOG.md)  -  release notes archive.
+- [`STATE.md`](./STATE.md)  -  current development state.

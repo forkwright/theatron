@@ -20,6 +20,7 @@ use crate::status_pill::{StatusPill, StatusPillKind, StatusPillShape};
 
 /// Density variant for the row height.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
 pub enum RowDensity {
     /// 36px — for tables. Default.
     #[default]

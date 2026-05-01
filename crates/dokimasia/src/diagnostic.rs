@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 /// Severity classification for a [`Diagnostic`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[non_exhaustive]
 pub enum Severity {
     /// Lint failure — CI should fail.
     Error,
@@ -66,7 +67,7 @@ impl Diagnostic {
         column: u32,
         byte_offset: usize,
         byte_len: usize,
-        token: String,
+        token: String, // kanon:ignore RUST/plain-string-secret -- CSS design token name, not credential material
     ) -> Self {
         let message = format!("token `{token}` is not declared in DESIGN-TOKENS.md");
         Self {

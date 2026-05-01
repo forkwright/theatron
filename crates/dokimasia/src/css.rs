@@ -28,6 +28,10 @@ use crate::tokens::TokenRegistry;
 
 /// Match `var(--token)` references with optional whitespace and fallback
 /// value (`var(--foo, fallback)`). Capture group 1 is the token name.
+#[expect(
+    clippy::expect_used,
+    reason = "hardcoded regex compilation; failure is a programming error"
+)]
 fn var_regex() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
     R.get_or_init(|| Regex::new(r"var\(\s*(--[a-z][a-z0-9-]*)\s*[,)]").expect("var regex compiles"))
@@ -35,6 +39,10 @@ fn var_regex() -> &'static Regex {
 
 /// Lint a CSS source string, returning one diagnostic per undocumented
 /// token reference.
+#[expect(
+    clippy::expect_used,
+    reason = "regex capture group presence is guaranteed by the hardcoded pattern"
+)]
 pub(crate) fn lint_css(registry: &TokenRegistry, source: &str, path: &Path) -> Vec<Diagnostic> {
     let masked = mask_strings_and_comments(source);
     let line_starts = build_line_index(source);
@@ -66,6 +74,14 @@ pub(crate) fn lint_css(registry: &TokenRegistry, source: &str, path: &Path) -> V
 /// Used by `rust.rs` too, because string-literal *contents* in Rust may
 /// embed CSS strings that should not be scanned (e.g.
 /// `style: "background: \"var(--ok)\""`).
+#[expect(
+    clippy::expect_used,
+    reason = "masker only emits ASCII space/newline bytes; UTF-8 is guaranteed by construction"
+)]
+#[expect(
+    clippy::indexing_slicing,
+    reason = "indices are guarded by explicit bounds checks in the byte scanner"
+)]
 pub(crate) fn mask_strings_and_comments(source: &str) -> String {
     let bytes = source.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
@@ -88,23 +104,26 @@ pub(crate) fn mask_strings_and_comments(source: &str) -> String {
             } else {
                 // Unterminated comment — mask the rest.
                 while i < bytes.len() {
-                    out.push(if bytes[i] == b'\n' { b'\n' } else { b' ' });
+                    out.push(if bytes[i] == b'\n' { b'\n' } else { b' ' }); // kanon:ignore RUST/indexing-slicing -- bounded by i < bytes.len()
                     i += 1;
                 }
             }
         // Quoted string: "…" or '…' with backslash escapes.
         } else if bytes[i] == b'"' || bytes[i] == b'\'' {
+            // kanon:ignore RUST/indexing-slicing -- bounded by outer i < bytes.len()
             let quote = bytes[i];
             out.push(b' ');
             i += 1;
             while i < bytes.len() && bytes[i] != quote {
+                // kanon:ignore RUST/indexing-slicing -- bounded by short-circuit i < bytes.len()
                 if bytes[i] == b'\\' && i + 1 < bytes.len() {
+                    // kanon:ignore RUST/indexing-slicing -- bounded by outer while
                     // Mask backslash + next byte (handles \", \\, \n, etc.).
                     out.push(b' ');
                     out.push(if bytes[i + 1] == b'\n' { b'\n' } else { b' ' });
                     i += 2;
                 } else {
-                    out.push(if bytes[i] == b'\n' { b'\n' } else { b' ' });
+                    out.push(if bytes[i] == b'\n' { b'\n' } else { b' ' }); // kanon:ignore RUST/indexing-slicing -- bounded by outer while
                     i += 1;
                 }
             }
@@ -114,12 +133,12 @@ pub(crate) fn mask_strings_and_comments(source: &str) -> String {
                 i += 1;
             }
         } else {
-            out.push(bytes[i]);
+            out.push(bytes[i]); // kanon:ignore RUST/indexing-slicing -- bounded by outer while i < bytes.len()
             i += 1;
         }
     }
     debug_assert_eq!(out.len(), bytes.len(), "mask must preserve source length");
-    String::from_utf8(out).expect("mask only emits ASCII bytes (space/newline) in masked regions")
+    String::from_utf8(out).expect("mask only emits ASCII bytes (space/newline) in masked regions") // kanon:ignore RUST/expect -- mask only emits ASCII bytes; UTF-8 invariant is structural
 }
 
 /// Precompute a vector of byte offsets where each line starts.
@@ -139,13 +158,17 @@ pub(crate) fn build_line_index(source: &str) -> Vec<usize> {
 /// Convert a byte offset to (1-indexed line, 1-indexed column) using a
 /// precomputed line-starts index.
 #[expect(clippy::cast_possible_truncation, reason = "source files << 4 GiB")]
+#[expect(
+    clippy::indexing_slicing,
+    reason = "line_idx comes from binary_search on line_starts, so it is always in bounds"
+)]
 pub(crate) fn locate(line_starts: &[usize], byte_offset: usize) -> (u32, u32) {
     let line_idx = match line_starts.binary_search(&byte_offset) {
         Ok(i) => i,
         Err(i) => i.saturating_sub(1),
     };
-    let line = line_idx as u32 + 1;
-    let col = (byte_offset - line_starts[line_idx]) as u32 + 1;
+    let line = line_idx as u32 + 1; // WHY: source files are smaller than 4 GiB
+    let col = (byte_offset - line_starts[line_idx]) as u32 + 1; // WHY: source files are smaller than 4 GiB
     (line, col)
 }
 

@@ -36,6 +36,10 @@ pub enum NotificationError {
 ///
 /// [`with_icon`]: NotificationRequest::with_icon
 /// [`with_body`]: NotificationRequest::with_body
+#[expect(
+    clippy::indexing_slicing,
+    reason = "type syntax &[u8] is not runtime indexing"
+)]
 #[derive(Debug, Clone)]
 pub struct NotificationRequest<'a> {
     /// Notification title (the prominent line).
@@ -45,7 +49,7 @@ pub struct NotificationRequest<'a> {
     /// Optional icon. Bytes are interpreted as a path-or-name string by
     /// `notify-rust`; for true raw image bytes the platform support
     /// varies, so we treat this as an opaque blob the caller manages.
-    pub icon: Option<&'a [u8]>,
+    pub icon: Option<&'a [u8]>, // kanon:ignore RUST/indexing-slicing -- type annotation, not runtime indexing
 }
 
 impl<'a> NotificationRequest<'a> {
@@ -69,8 +73,13 @@ impl<'a> NotificationRequest<'a> {
 
     /// Set the icon bytes (interpreted by the platform — typically a
     /// path or a freedesktop icon name on Linux).
+    #[expect(
+        clippy::indexing_slicing,
+        reason = "type syntax &[u8] is not runtime indexing"
+    )]
     #[must_use]
     pub fn with_icon(mut self, icon: &'a [u8]) -> Self {
+        // kanon:ignore RUST/indexing-slicing -- type annotation, not runtime indexing
         self.icon = Some(icon);
         self
     }

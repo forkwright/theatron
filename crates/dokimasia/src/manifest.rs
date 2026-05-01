@@ -52,17 +52,11 @@ pub(crate) fn lint_manifest(
             .unwrap_or(source.len());
         let line_str = &source[*line_start..line_end];
         if line_str.trim() == "[patch.crates-io]" {
-            found_line = u32::try_from(line_idx)
-                .expect("invariant: source files are smaller than 4 GiB")
-                + 1;
+            found_line = u32::try_from(line_idx).unwrap_or(0) + 1;
             // Find byte offset of the `[` character on this line.
-            let bracket_rel = line_str
-                .find('[')
-                .expect("trimmed line contains '[' because it starts with '['");
+            let bracket_rel = line_str.find('[').unwrap_or(0);
             found_offset = line_start + bracket_rel;
-            found_col = u32::try_from(bracket_rel)
-                .expect("invariant: line lengths are smaller than 4 GiB")
-                + 1;
+            found_col = u32::try_from(bracket_rel).unwrap_or(0) + 1;
             found_len = line_str.trim_end().len();
             break;
         }

@@ -19,6 +19,59 @@ use dokimasia::{
     render_json,
 };
 
+/// Errors that can occur during CLI execution.
+#[derive(Debug, snafu::Snafu)]
+enum RunError {
+    /// Failed to read or parse the token registry.
+    #[snafu(display("failed to load token registry: {source}"))]
+    TokenRegistry {
+        /// Underlying registry error.
+        source: dokimasia::Error,
+    },
+
+    /// No tokens were extracted from the spec file.
+    #[snafu(display(
+        "no tokens parsed from spec {} -- refusing to run (would flag everything)",
+        path.display()
+    ))]
+    NoTokens {
+        /// Path to the spec file.
+        path: PathBuf,
+    },
+
+    /// I/O failure writing human-readable diagnostics.
+    #[snafu(display("render error: {source}"))]
+    Render {
+        /// Underlying I/O error.
+        source: std::io::Error,
+    },
+
+    /// JSON serialization failure.
+    #[snafu(display("JSON error: {source}"))]
+    Json {
+        /// Underlying `serde_json` error.
+        source: serde_json::Error,
+    },
+}
+
+impl From<dokimasia::Error> for RunError {
+    fn from(source: dokimasia::Error) -> Self {
+        Self::TokenRegistry { source }
+    }
+}
+
+impl From<std::io::Error> for RunError {
+    fn from(source: std::io::Error) -> Self {
+        Self::Render { source }
+    }
+}
+
+impl From<serde_json::Error> for RunError {
+    fn from(source: serde_json::Error) -> Self {
+        Self::Json { source }
+    }
+}
+
 #[derive(Debug, Parser)]
 #[command(
     name = "dokimasia",
@@ -66,14 +119,12 @@ fn main() -> ExitCode {
     }
 }
 
-fn run(args: &Args) -> Result<ExitCode, Box<dyn std::error::Error>> {
+fn run(args: &Args) -> Result<ExitCode, RunError> {
     let registry = TokenRegistry::from_design_tokens_md(&args.design_tokens)?;
     if registry.is_empty() {
-        return Err(format!(
-            "no tokens parsed from spec {} — refusing to run (would flag everything)",
-            args.design_tokens.display()
-        )
-        .into());
+        return Err(RunError::NoTokens {
+            path: args.design_tokens.clone(),
+        });
     }
 
     let config = LintConfig {

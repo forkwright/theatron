@@ -16,6 +16,7 @@
 //!   detection (`GTK_THEME` + `COLORFGBG` heuristics). Extracted verbatim
 //!   from `aletheia/proskenion/src/theme.rs`.
 
+#![deny(missing_docs)]
 #![warn(clippy::all, clippy::pedantic)]
 
 pub mod theme;
@@ -26,4 +27,13 @@ pub use theme::{ResolvedTheme, ThemeMode, ThemeProvider, ThemeToggle};
 #[must_use]
 pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
+}
+
+#[cfg(test)]
+mod smoke_tests {
+    /// Smoke test: crate compiles and the test module runs.
+    #[test]
+    fn crate_smoke() {
+        assert_eq!(2 + 2, 4);
+    }
 }

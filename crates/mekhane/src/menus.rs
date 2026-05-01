@@ -27,4 +27,4 @@
 //! why both broadcasts receive every menu event.
 
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
-pub use muda::*;
+pub use muda::*; // kanon:ignore RUST/barrel-reexport -- intentional wholesale re-export of upstream muda API

@@ -66,6 +66,9 @@ pub fn DiffHunkView(hunk: DiffHunk, language: String, mode: DiffViewMode) -> Ele
                 DiffViewMode::SideBySide => rsx! {
                     {render_side_by_side(&hunk, &language)}
                 },
+                _ => rsx! {
+                    {render_unified_lines(&hunk.lines, &language)}
+                },
             }
         }
     }
@@ -109,7 +112,7 @@ fn render_sbs_half(line: Option<&DiffLine>, side: ChangeType, _language: &str) -
         Some(l) => match l.change_type {
             ChangeType::Add => "rgba(34, 197, 94, 0.1)",
             ChangeType::Remove => "rgba(239, 68, 68, 0.1)",
-            ChangeType::Context => "transparent",
+            ChangeType::Context | _ => "transparent",
         },
         None => "rgba(128, 128, 128, 0.05)",
     };
@@ -117,7 +120,7 @@ fn render_sbs_half(line: Option<&DiffLine>, side: ChangeType, _language: &str) -
     let line_no = line.and_then(|l| match side {
         ChangeType::Remove => l.old_line_no,
         ChangeType::Add => l.new_line_no,
-        ChangeType::Context => l.old_line_no.or(l.new_line_no),
+        ChangeType::Context | _ => l.old_line_no.or(l.new_line_no),
     });
 
     let line_no_str = line_no.map_or_else(String::new, |n| n.to_string());
@@ -148,7 +151,7 @@ fn render_sbs_word_spans(spans: &[gramma::diff::WordSpan], change_type: ChangeTy
     let changed_bg = match change_type {
         ChangeType::Add => "rgba(34, 197, 94, 0.3)",
         ChangeType::Remove => "rgba(239, 68, 68, 0.3)",
-        ChangeType::Context => "transparent",
+        ChangeType::Context | _ => "transparent",
     };
 
     rsx! {

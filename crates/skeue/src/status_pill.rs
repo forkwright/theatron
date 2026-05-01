@@ -19,6 +19,7 @@ use dioxus::prelude::*;
 /// Visual register for a [`StatusPill`]. Maps to a foreground/background
 /// token pair from DESIGN-TOKENS.md.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum StatusPillKind {
     /// Functional success — `--status-success` on `--status-success-bg`.
     Success,
@@ -72,6 +73,7 @@ impl StatusPillKind {
 
 /// Visual shape variant for a [`StatusPill`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
 pub enum StatusPillShape {
     /// Pill shape (full radius). Default — used for state indicators.
     #[default]

@@ -7,15 +7,21 @@
 //! - Action dispatch is now a generic `EventHandler<ToastAction>`
 //!   callback — no more `crate::state::navigation::NavAction` dep
 
-use dioxus::prelude::*;
 use std::time::Duration;
+
+use dioxus::prelude::*;
 
 /// Severity / visual register for a toast.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum ToastSeverity {
+    /// Informational notice — neutral tone.
     Info,
+    /// Successful operation — confirmation tone.
     Success,
+    /// Caution worth surfacing but not a failure.
     Warning,
+    /// Functional failure that the user should know about.
     Error,
 }
 
@@ -55,6 +61,7 @@ pub struct ToastId(pub u64);
 /// An action attached to a toast (e.g. "Open file", "Undo").
 #[derive(Clone, Debug, PartialEq)]
 pub struct ToastAction {
+    /// Display label rendered on the action button.
     pub label: String,
     /// Caller-defined action identifier. theatron does not interpret it.
     pub action_id: String,
@@ -63,11 +70,17 @@ pub struct ToastAction {
 /// A toast notification.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Toast {
+    /// Unique identifier for this toast instance.
     pub id: ToastId,
+    /// Visual register / severity classification.
     pub severity: ToastSeverity,
+    /// Headline shown in the toast.
     pub title: String,
+    /// Optional secondary text beneath the title.
     pub body: Option<String>,
+    /// Optional clickable action to attach.
     pub action: Option<ToastAction>,
+    /// If set, the toast auto-dismisses after this duration.
     pub auto_dismiss: Option<Duration>,
 }
 

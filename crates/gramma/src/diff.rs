@@ -7,6 +7,7 @@ const WORD_DIFF_TOKEN_LIMIT: usize = 500;
 
 /// View mode for the diff viewer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
 pub enum DiffViewMode {
     /// Single-column unified diff (default).
     #[default]
@@ -37,6 +38,7 @@ impl fmt::Display for DiffViewMode {
 
 /// Type of change for a single diff line.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum ChangeType {
     /// Unchanged context line — present in both old and new.
     Context,
@@ -347,6 +349,10 @@ impl HunkBuilder {
 // -- Word-level diff ----------------------------------------------------------
 
 /// Compute word-level diffs for adjacent remove+add line pairs within a hunk.
+#[expect(
+    clippy::indexing_slicing,
+    reason = "indices are derived from length-checked loop counters and pair counts"
+)]
 fn compute_word_diffs(lines: &mut [DiffLine]) {
     let mut i = 0;
     while i < lines.len() {
@@ -369,8 +375,8 @@ fn compute_word_diffs(lines: &mut [DiffLine]) {
             for p in 0..pairs {
                 let ri = remove_start + p;
                 let ai = add_start + p;
-                let old_content = lines[ri].content.clone();
-                let new_content = lines[ai].content.clone();
+                let old_content = lines[ri].content.clone(); // kanon:ignore RUST/indexing-slicing -- ri bounded by remove_count via min(remove_count, add_count)
+                let new_content = lines[ai].content.clone(); // kanon:ignore RUST/indexing-slicing -- ai bounded by add_count via min(remove_count, add_count)
 
                 let old_tokens = tokenize(&old_content);
                 let new_tokens = tokenize(&new_content);
@@ -380,8 +386,8 @@ fn compute_word_diffs(lines: &mut [DiffLine]) {
                 }
 
                 let (old_spans, new_spans) = diff_tokens(&old_tokens, &new_tokens);
-                lines[ri].word_spans = old_spans;
-                lines[ai].word_spans = new_spans;
+                lines[ri].word_spans = old_spans; // kanon:ignore RUST/indexing-slicing -- ri bounded by remove_count
+                lines[ai].word_spans = new_spans; // kanon:ignore RUST/indexing-slicing -- ai bounded by add_count
             }
         } else {
             i += 1;
@@ -462,6 +468,10 @@ fn diff_tokens(old: &[&str], new: &[&str]) -> (Vec<WordSpan>, Vec<WordSpan>) {
 }
 
 /// Build LCS length table (m+1 x n+1).
+#[expect(
+    clippy::indexing_slicing,
+    reason = "indices are bounded by loop ranges 1..=m and 1..=n against allocated table size"
+)]
 fn lcs_table(old: &[&str], new: &[&str]) -> Vec<Vec<u32>> {
     let m = old.len();
     let n = new.len();
@@ -480,6 +490,10 @@ fn lcs_table(old: &[&str], new: &[&str]) -> Vec<Vec<u32>> {
     table
 }
 
+#[expect(
+    clippy::indexing_slicing,
+    reason = "caller guarantees i,j are within table dimensions"
+)]
 fn lcs_val(table: &[Vec<u32>], i: usize, j: usize) -> u32 {
     table[i][j]
 }

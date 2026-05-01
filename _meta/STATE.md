@@ -1,4 +1,4 @@
-# State — theatron
+# State  -  theatron
 
 ## Current phase
 
@@ -15,7 +15,7 @@ Updated: 2026-04-28.
 - Dual license: Apache-2.0 OR MIT
 - 8 crates: themelion, mekhane, skeue, gramma, keryx, bathron, parodos, dokimasia
   (renamed from `theatron-{core,blitz,components,markdown,net,platform,tui,lint}`
-  per fleet naming convention — see PR #21)
+  per fleet naming convention  -  see PR #21)
 - Renderer: Dioxus + Blitz native (no wry webview fallback per chalkeion plan)
 - Cross-platform: Linux-first; macOS/Windows out of scope through Phase 5
 - a11y: keyboard nav required (AccessKit verified hookable)
@@ -42,4 +42,4 @@ full multi-month plan and Phase 0 progress capture.
    /tmp/theatron-extract-spike/ as theatron-components first content
 3. Begin proskenion refactor: theme.rs → theatron-core; toast/table/
    virtual_list → theatron-components
-4. theatron-lint design — what tokens are valid, parser, fail mode
+4. theatron-lint design  -  what tokens are valid, parser, fail mode

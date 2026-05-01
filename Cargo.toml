@@ -63,7 +63,7 @@ dioxus-native = "=0.7.6"
 # is ALREADY in the dep graph. The mekhane `menus` feature exposes
 # `muda::Menu` directly so the public surface is named honestly and a
 # future `tray-icon` major bump can't silently change the menu type
-# under consumers. Match the version `tray-icon 0.21` resolves to —
+# under consumers. Match the version `tray-icon 0.21` resolves to -
 # bumping muda independently produces a duplicate-version graph and
 # the two `MenuEvent` types stop being interchangeable.
 tray-icon = "0.21"
@@ -72,7 +72,10 @@ global-hotkey = "0.7"
 image = { version = "0.25", default-features = false, features = ["png"] }
 
 # Network / streaming
-reqwest = { version = "0.13", default-features = false, features = ["rustls", "stream"] }
+reqwest = { version = "0.13", default-features = false, features = [
+    "rustls",
+    "stream",
+] }
 eventsource-stream = "0.2"
 bytes = "1"
 futures-core = "0.3"
@@ -86,7 +89,12 @@ tracing = "0.1"
 
 # Markdown / syntax highlighting
 pulldown-cmark = "0.13"
-syntect = { version = "5", default-features = false, features = ["parsing", "default-syntaxes", "default-themes", "regex-onig"] }
+syntect = { version = "5", default-features = false, features = [
+    "parsing",
+    "default-syntaxes",
+    "default-themes",
+    "regex-onig",
+] }
 
 # Serde
 serde = { version = "1", features = ["derive"] }
@@ -106,7 +114,10 @@ regex = "1"
 ignore = "0.4"
 codespan-reporting = "0.11"
 clap = { version = "4", features = ["derive", "env"] }
-toml = { version = "0.9", default-features = false, features = ["parse", "serde"] }
+toml = { version = "0.9", default-features = false, features = [
+    "parse",
+    "serde",
+] }
 
 [profile.release]
 lto = "thin"

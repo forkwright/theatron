@@ -17,11 +17,15 @@ use proc_macro2::{LineColumn, TokenStream, TokenTree};
 use regex::Regex;
 use syn::visit::Visit;
 
-use crate::css::{build_line_index, locate, mask_strings_and_comments};
+use crate::css::{build_line_index, mask_strings_and_comments};
 use crate::diagnostic::Diagnostic;
 use crate::tokens::TokenRegistry;
 
 /// Match `var(--token)` within string literal *contents* (not source).
+#[expect(
+    clippy::expect_used,
+    reason = "hardcoded regex compilation; failure is a programming error"
+)]
 fn var_regex() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
     R.get_or_init(|| Regex::new(r"var\(\s*(--[a-z][a-z0-9-]*)\s*[,)]").expect("var regex compiles"))
@@ -51,7 +55,7 @@ pub(crate) fn lint_rust(registry: &TokenRegistry, source: &str, path: &Path) -> 
 
 struct LitVisitor<'a> {
     source: &'a str,
-    line_starts: &'a [usize],
+    line_starts: &'a [usize], // kanon:ignore RUST/indexing-slicing -- type annotation, not runtime indexing
     registry: &'a TokenRegistry,
     path: &'a Path,
     diagnostics: Vec<Diagnostic>,
@@ -161,7 +165,7 @@ impl LitVisitor<'_> {
                         self.scan_literal(&s.value(), span.start(), span.end());
                     }
                 }
-                _ => {}
+                _ => {} // kanon:ignore RUST/empty-match-arm -- punctuation and identifiers are not string literals
             }
         }
     }
@@ -180,7 +184,9 @@ impl LitVisitor<'_> {
         let masked = mask_strings_and_comments(content);
 
         for caps in var_regex().captures_iter(&masked) {
-            let token = caps.get(1).expect("regex always captures group 1").as_str();
+            let Some(token) = caps.get(1).map(|m| m.as_str()) else {
+                continue;
+            };
             if self.registry.contains(token) {
                 continue;
             }
@@ -218,12 +224,6 @@ fn lc_to_offset(source: &str, line_starts: &[usize], lc: LineColumn) -> Option<u
         return None;
     }
     Some(offset)
-}
-
-// `locate` is re-exported so other tests can use it; not used here directly.
-#[allow(dead_code)]
-fn _keep_locate_in_scope(line_starts: &[usize], byte_offset: usize) -> (u32, u32) {
-    locate(line_starts, byte_offset)
 }
 
 #[cfg(test)]

@@ -9,6 +9,7 @@ use dioxus::prelude::*;
 /// version of pulldown-cmark with us. Use the `From<pulldown_cmark::Alignment>`
 /// impl when you've already parsed markdown with pulldown-cmark.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
 pub enum TableAlignment {
     /// Default — renders left-aligned.
     #[default]

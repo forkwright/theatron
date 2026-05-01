@@ -39,6 +39,7 @@ pub use tokens::TokenRegistry;
 /// can't abort an entire walk — see [`Linter::lint_path`]).
 #[derive(Debug, snafu::Snafu)]
 #[snafu(visibility(pub(crate)))]
+#[non_exhaustive]
 pub enum Error {
     /// I/O failure reading the spec file (`DESIGN-TOKENS.md`).
     #[snafu(display("failed to read {}: {source}", path.display()))]
@@ -57,4 +58,13 @@ pub enum Error {
         /// Why parsing failed.
         message: String,
     },
+}
+
+#[cfg(test)]
+mod smoke_tests {
+    /// Smoke test: crate compiles and the test module runs.
+    #[test]
+    fn crate_smoke() {
+        assert_eq!(2 + 2, 4);
+    }
 }

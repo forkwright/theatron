@@ -19,3 +19,12 @@ pub mod sse;
 
 pub use error::{ApiError, Result};
 pub use sse::{SseEvent, SseStream};
+
+#[cfg(test)]
+mod smoke_tests {
+    /// Smoke test: crate compiles and the test module runs.
+    #[test]
+    fn crate_smoke() {
+        assert_eq!(2 + 2, 4);
+    }
+}

@@ -18,6 +18,7 @@ use dioxus::prelude::*;
 /// Names describe the *meaning* of the state, not the rendered color —
 /// per the gnomon naming principle (`--accent` not `--brass-gold`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum IndicatorTone {
     /// Connected, receiving events normally.
     Healthy,

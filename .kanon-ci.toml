@@ -1,0 +1,30 @@
+# Forge CI pipeline for forkwright/theatron.
+#
+# Mirrors the hardcoded default Rust gate (fmt -> check -> clippy -> nextest
+# -> lint) but extends the per-stage timeouts. The CI runner uses a per-run
+# tempdir/target, so every run is a fresh full compile of Dioxus + Blitz
+# + wgpu + accesskit, which exceeds the default 600/900s budgets at cold
+# cache.
+
+[pipeline]
+stages = ["cargo fmt", "cargo check", "cargo clippy", "cargo nextest", "kanon lint"]
+
+[stages."cargo fmt"]
+cmd = "cargo fmt --all -- --check"
+timeout_secs = 300
+
+[stages."cargo check"]
+cmd = "cargo check --workspace --all-targets --jobs 8"
+timeout_secs = 1500
+
+[stages."cargo clippy"]
+cmd = "cargo clippy --workspace --all-targets --jobs 8 -- -D warnings"
+timeout_secs = 1500
+
+[stages."cargo nextest"]
+cmd = "cargo nextest run --workspace --build-jobs 8 --test-threads 8"
+timeout_secs = 1800
+
+[stages."kanon lint"]
+cmd = "kanon lint . --summary"
+timeout_secs = 600

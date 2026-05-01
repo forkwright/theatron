@@ -45,36 +45,36 @@ const CONTENT_STYLE: &str = "\
 /// Background color for the entire line based on change type.
 fn line_bg(change_type: ChangeType) -> &'static str {
     match change_type {
-        ChangeType::Context => "transparent",
         ChangeType::Add => "rgba(34, 197, 94, 0.1)",
         ChangeType::Remove => "rgba(239, 68, 68, 0.1)",
+        ChangeType::Context | _ => "transparent",
     }
 }
 
 /// Stronger background for word-level changed spans.
 fn word_changed_bg(change_type: ChangeType) -> &'static str {
     match change_type {
-        ChangeType::Context => "transparent",
         ChangeType::Add => "rgba(34, 197, 94, 0.3)",
         ChangeType::Remove => "rgba(239, 68, 68, 0.3)",
+        ChangeType::Context | _ => "transparent",
     }
 }
 
 /// Change indicator character.
 fn indicator_char(change_type: ChangeType) -> &'static str {
     match change_type {
-        ChangeType::Context => " ",
         ChangeType::Add => "+",
         ChangeType::Remove => "-",
+        ChangeType::Context | _ => " ",
     }
 }
 
 /// Indicator text color.
 fn indicator_color(change_type: ChangeType) -> &'static str {
     match change_type {
-        ChangeType::Context => "var(--text-muted)",
         ChangeType::Add => "var(--status-success)",
         ChangeType::Remove => "var(--status-error)",
+        ChangeType::Context | _ => "var(--text-muted)",
     }
 }
 

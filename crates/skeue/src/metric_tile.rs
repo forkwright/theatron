@@ -19,6 +19,7 @@ use dioxus::prelude::*;
 /// "Up" / "Down" describe the *trend*, not whether it's good or bad.
 /// Consumers choose by attaching tone explicitly.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum DeltaDirection {
     /// Value is rising over the prior interval.
     Up,
@@ -43,6 +44,7 @@ impl DeltaDirection {
 /// direction (a falling latency is "good"; a falling success rate is
 /// "bad"; both are mechanically `Down`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
 pub enum DeltaTone {
     /// Neutral — `--text-muted`. Default when no judgment applies.
     #[default]

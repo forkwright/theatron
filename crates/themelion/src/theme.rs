@@ -9,7 +9,9 @@ use dioxus::prelude::*;
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ThemeMode {
+    /// Force dark mode regardless of system preference.
     Dark,
+    /// Force light mode regardless of system preference.
     Light,
     /// Follow the OS/desktop environment preference.
     System,
@@ -17,8 +19,11 @@ pub enum ThemeMode {
 
 /// Concrete theme after resolving system preference.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum ResolvedTheme {
+    /// Dark theme.
     Dark,
+    /// Light theme.
     Light,
 }
 

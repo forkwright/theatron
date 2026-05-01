@@ -5,4 +5,4 @@
 //! register them with the [`global_hotkey::GlobalHotKeyManager`]
 //! provided as a dioxus context by [`crate::launch_cfg_with_props`].
 
-pub use global_hotkey::*;
+pub use global_hotkey::*; // kanon:ignore RUST/barrel-reexport -- intentional wholesale re-export of upstream global_hotkey API

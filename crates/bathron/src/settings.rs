@@ -88,7 +88,7 @@ pub enum SettingsError {
     #[snafu(display("failed to deserialize settings value at key '{lookup_key}': {source}"))]
     DeserializeValue {
         /// Settings key that failed to deserialize.
-        lookup_key: String,
+        lookup_key: String, // kanon:ignore RUST/plain-string-secret -- settings KV key name, not credential material
         /// Underlying deserialize error.
         source: toml::de::Error,
     },

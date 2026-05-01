@@ -1,4 +1,4 @@
-# SemVer policy — theatron
+# SemVer policy  -  theatron
 
 Theatron's eight crates ship together as a versioned set on the
 `forkwright/theatron` git repo. Consumers pin a single revision via
@@ -9,7 +9,7 @@ git URL; the workspace version is the source of truth.
 Theatron follows SemVer 2.0 ([semver.org](https://semver.org)) with
 the workspace `[workspace.package].version` driving every crate's
 published version in lockstep. There is no per-crate independent
-versioning — the eight crates compose into one consumer surface and
+versioning  -  the eight crates compose into one consumer surface and
 divergent versions would force consumers to track each crate
 separately.
 
@@ -37,7 +37,7 @@ Per crate, the public API surface is:
 4. The set of dependencies whose types appear in the public API.
    Bumping such a dep across its own SemVer-major boundary is itself
    a major bump for theatron.
-5. Wire DTOs (in `keryx`) — adding a `#[serde(default)]` field is
+5. Wire DTOs (in `keryx`)  -  adding a `#[serde(default)]` field is
    minor; renaming or removing a field is major.
 
 Internal items (`pub(crate)`, private modules, private fields on a
@@ -46,7 +46,7 @@ will.
 
 ## What is *not* public API
 
-- Implementation details documented as such in rustdoc.
+- Implementation details explicitly marked in rustdoc.
 - Items marked `#[doc(hidden)]`. These exist for macro hygiene and
   test-only access; consumers using them do so at their own risk.
 - Behaviour observable only via panics on misuse (e.g. an `unwrap()`
@@ -71,15 +71,15 @@ Deprecating a public item:
    cycle (e.g. deprecated in 1.3 stays through 1.4, removable in 1.5).
 4. Removal is a major bump.
 
-For DTO field deprecations specifically: mark the field with a
+For DTO field deprecations: mark the field with a
 `#[serde(default)]` + `#[deprecated]` and stop reading it
 server-side; the field stays on the wire as `null` for one minor
 cycle so old clients don't deserialize-fail.
 
 ## Branch / tag conventions
 
-- `main` — current release line. Tagged `vX.Y.Z` on each release.
-- `release/X.Y` — long-lived branch for in-flight patch releases on a
+- `main`  -  current release line. Tagged `vX.Y.Z` on each release.
+- `release/X.Y`  -  long-lived branch for in-flight patch releases on a
   minor line. Created when a minor lands; gets `vX.Y.{Z+1}` patch
   tags as fixes backport.
 - Pre-release: `vX.Y.Z-alpha.N`, `vX.Y.Z-beta.N`, `vX.Y.Z-rc.N`
@@ -97,7 +97,7 @@ enough that:
   cycles. Bug fixes and additive features land without forcing any
   downstream code change.
 - A consumer pinned to `vX.0.0` can upgrade to any `vX.y.z` (same
-  major) by bumping the pin alone — no code edits.
+  major) by bumping the pin alone  -  no code edits.
 - Breaking changes batch into major cycles with documented migration
   paths, not opportunistic per-PR breakage.
 
@@ -106,7 +106,7 @@ unreleased revs should expect drift on every theatron change.
 
 ## Cross-references
 
-- [`_meta/CHANGELOG.md`](./CHANGELOG.md) — per-version release notes.
-- [`_meta/STATE.md`](./STATE.md) — current development state.
-- [`_meta/ROADMAP.md`](./ROADMAP.md) — forward plan.
-- [`README.md`](../README.md) — crate inventory + consumer matrix.
+- [`_meta/CHANGELOG.md`](./CHANGELOG.md)  -  per-version release notes.
+- [`_meta/STATE.md`](./STATE.md)  -  current development state.
+- [`_meta/ROADMAP.md`](./ROADMAP.md)  -  forward plan.
+- [`README.md`](../README.md)  -  crate inventory + consumer matrix.
