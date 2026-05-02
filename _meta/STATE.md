@@ -37,9 +37,5 @@ full multi-month plan and Phase 0 progress capture.
 
 ## Next steps
 
-1. Land inaugural commit (workspace + skeletons)
-2. Port virtual_list.rs + table.rs + toast.rs from spike at
-   /tmp/theatron-extract-spike/ as theatron-components first content
-3. Begin proskenion refactor: theme.rs → theatron-core; toast/table/
-   virtual_list → theatron-components
-4. theatron-lint design  -  what tokens are valid, parser, fail mode
+See `~/dev/kanon/projects/chalkeion/STATE.md` for current next-steps
+and phase tracking.

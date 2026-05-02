@@ -3,31 +3,30 @@
 This is the implementation roadmap for the theatron repo. The broader
 fleet plan lives in `~/dev/kanon/projects/chalkeion/ROADMAP.md`.
 
-## Phase 1+2 (current, 5-7 weeks)
+## Phase 1+2 (current)
 
 Build theatron crates concurrently with porting aletheia/proskenion +
 koilon to consume them.
 
-1. **Workspace skeleton** ✅ (this commit)
+1. **Workspace skeleton** ✅
 2. **theatron-components seed**  -  port virtual_list, table, toast from
-   spike at `/tmp/theatron-extract-spike/` (1 day)
+   proskenion extraction
 3. **theatron-core theme provider**  -  extract from
    proskenion/src/theme.rs; ThemeMode enum, signal binding, OS pref
-   detection (~1 week)
+   detection
 4. **theatron-platform**  -  window state persistence + tray icon
    (blocked on Gate 2) + global hotkeys + native notifications + file
-   dialogs (1-2 weeks)
+   dialogs
 5. **theatron-net**  -  HTTP client base + SSE pattern (per Phase 0
-   Gate 3 reference at `/tmp/sse-spike/`) + mDNS discovery (~1 week)
+   Gate 3 reference) + mDNS discovery
 6. **theatron-markdown**  -  pulldown-cmark + syntect wrapper, derived
-   from kanon/crates/stoa/src/{markdown,highlight,escape}.rs (~3 days)
+   from kanon/crates/stoa/src/{markdown,highlight,escape}.rs
 7. **theatron-tui**  -  extract Elm dispatcher + Markdown renderer +
-   editor + utilities from aletheia/koilon (~1 week)
+   editor + utilities from aletheia/koilon
 8. **theatron-blitz**  -  Dioxus + Blitz integration helpers (small,
    version pins and glue only)
 9. **theatron-lint**  -  CSS parser + Rust string-literal scanner +
-   DESIGN-TOKENS.md crossref. Fails CI on undocumented tokens. (~1 week
-   parallel)
+   DESIGN-TOKENS.md crossref. Fails CI on undocumented tokens.
 10. **proskenion refactor**  -  port to consume theatron, validate API
     against real consumer pressure
 11. **koilon refactor**  -  port to consume theatron-tui
