@@ -14,4 +14,8 @@ thresholds: {dep_count_warn: 1000, dep_count_error: 1500}
 #   structurally safe; kanon:ignore inline gets rewritten by rustfmt.
 # - RUST/indexing-slicing on notifications.rs: &'a [u8] is type syntax, not
 #   runtime indexing -- false positive.
-suppress: [{rule: MANIFEST/dep-count, files: [Cargo.lock]}, {rule: RUST/indexing-slicing, files: [crates/dokimasia/src/css.rs]}, {rule: RUST/indexing-slicing, files: [crates/bathron/src/notifications.rs]}]
+# - ARCHITECTURE/trait-impl-colocation on parodos/env.rs: RealEnv is the
+#   canonical production impl that ships with the Env trait, mirroring the
+#   koina::system::{Environment, RealSystem} pattern. Inline kanon:ignore
+#   gets rewritten by rustfmt.
+suppress: [{rule: MANIFEST/dep-count, files: [Cargo.lock]}, {rule: RUST/indexing-slicing, files: [crates/dokimasia/src/css.rs]}, {rule: RUST/indexing-slicing, files: [crates/bathron/src/notifications.rs]}, {rule: ARCHITECTURE/trait-impl-colocation, files: [crates/parodos/src/env.rs]}]
