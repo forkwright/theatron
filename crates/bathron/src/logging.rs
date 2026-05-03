@@ -191,4 +191,121 @@ mod tests {
         let cfg = LogConfig::new("x", tracing::Level::WARN).with_log_dir(&weird);
         assert_eq!(cfg.resolve_log_dir().unwrap(), weird);
     }
+
+    #[test]
+    fn config_constructor_accepts_string_via_into() {
+        // app_name: impl Into<String> covers both &str and String.
+        let cfg_str = LogConfig::new("from-str", tracing::Level::TRACE);
+        let cfg_string = LogConfig::new(String::from("from-str"), tracing::Level::TRACE);
+        assert_eq!(cfg_str.app_name, cfg_string.app_name);
+    }
+
+    #[test]
+    fn with_log_dir_accepts_pathbuf_and_str() {
+        // with_log_dir: impl Into<PathBuf> covers both PathBuf and &Path.
+        let cfg_buf =
+            LogConfig::new("a", tracing::Level::INFO).with_log_dir(PathBuf::from("/tmp/x"));
+        let cfg_str =
+            LogConfig::new("a", tracing::Level::INFO).with_log_dir(std::path::Path::new("/tmp/x"));
+        assert_eq!(cfg_buf.log_dir, cfg_str.log_dir);
+    }
+
+    #[test]
+    fn config_clone_preserves_fields() {
+        let original = LogConfig::new("myapp", tracing::Level::DEBUG)
+            .with_log_dir(PathBuf::from("/var/log/myapp"));
+        let cloned = original.clone();
+        assert_eq!(cloned.app_name, original.app_name);
+        assert_eq!(cloned.level, original.level);
+        assert_eq!(cloned.log_dir, original.log_dir);
+    }
+
+    #[test]
+    fn config_debug_format_includes_field_values() {
+        let cfg = LogConfig::new("debug-test", tracing::Level::WARN);
+        let formatted = format!("{cfg:?}");
+        // tracing::Level's Debug renders as Level(Warn); both
+        // app_name and level appear in the rendered LogConfig debug.
+        assert!(formatted.contains("debug-test"), "got {formatted}");
+        assert!(formatted.contains("Warn"), "got {formatted}");
+    }
+
+    #[test]
+    fn resolve_log_dir_accepts_temp_dir() {
+        // resolve_log_dir with an explicit temp dir override returns
+        // the temp dir verbatim, regardless of state_dir() availability.
+        let tmp = tempfile::TempDir::new().expect("tempdir creation");
+        let cfg = LogConfig::new("temp-app", tracing::Level::ERROR).with_log_dir(tmp.path());
+        let resolved = cfg.resolve_log_dir().expect("explicit dir must resolve");
+        assert_eq!(resolved, tmp.path());
+    }
+
+    #[test]
+    fn resolve_log_dir_default_path_is_absolute() {
+        let cfg = LogConfig::new("absolute-test", tracing::Level::INFO);
+        let resolved = cfg
+            .resolve_log_dir()
+            .expect("platform must expose a state dir");
+        assert!(
+            resolved.is_absolute(),
+            "default log_dir must be absolute, got {}",
+            resolved.display()
+        );
+    }
+
+    #[test]
+    fn resolve_log_dir_with_explicit_dir_skips_app_segment() {
+        // When log_dir is set, resolve returns it verbatim — does NOT
+        // append the app_name or a "logs" leaf. The override is total.
+        let custom = PathBuf::from("/var/log/custom-no-app-segment");
+        let cfg = LogConfig::new("ignored-app", tracing::Level::INFO).with_log_dir(&custom);
+        let resolved = cfg.resolve_log_dir().unwrap();
+        assert_eq!(resolved, custom);
+        assert!(!resolved.to_string_lossy().contains("ignored-app"));
+        assert!(!resolved.ends_with("logs"));
+    }
+
+    #[test]
+    fn no_state_dir_error_displays_message() {
+        let err = LoggingError::NoStateDir;
+        assert_eq!(
+            err.to_string(),
+            "could not determine user state directory for logs"
+        );
+    }
+
+    #[test]
+    fn create_dir_error_displays_path_and_source() {
+        let path = PathBuf::from("/tmp/some-non-creatable-path");
+        let io_err = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "denied");
+        let err = LoggingError::CreateDir {
+            path: path.clone(),
+            source: io_err,
+        };
+        let display = err.to_string();
+        assert!(
+            display.contains("/tmp/some-non-creatable-path"),
+            "got {display}"
+        );
+        assert!(
+            display.contains("failed to create log directory"),
+            "got {display}"
+        );
+    }
+
+    #[test]
+    fn logging_error_is_send_sync() {
+        // Snafu-derived errors should be both Send + Sync so they
+        // cross thread / await boundaries cleanly. Compile-time check.
+        fn assert_send_sync<T: Send + Sync>() {}
+        assert_send_sync::<LoggingError>();
+    }
+
+    #[test]
+    fn logging_error_implements_std_error() {
+        // Snafu-derived errors should impl std::error::Error so they
+        // compose with `?` into anyhow / boxed-error chains.
+        fn assert_error<T: std::error::Error>() {}
+        assert_error::<LoggingError>();
+    }
 }
