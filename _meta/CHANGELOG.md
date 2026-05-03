@@ -49,6 +49,15 @@ patch (`v1.0.1`) to minor (`v1.1.0`).
   decorative icon `aria-hidden`, action slot the consumer's
   responsibility for keyboard focus + label. Joins the existing
   12-component skeue inventory; brings the count to 13.
+- **`bathron::dialogs` message helpers** (PR #54). Four new
+  blocking-thread message-dialog functions next to the existing
+  file-pick surface: `info(title, message)`, `warn(title, message)`,
+  `error(title, message)` (each shows a one-button OK dialog), and
+  `confirm(title, message) -> bool` (Yes/No, returns Yes-ness).
+  Plus a `MessageKind` enum (`Info` / `Warning` / `Error`, default
+  `Info`, `#[non_exhaustive]`). Lifts the wrapper boilerplate
+  consumers were writing on top of `rfd::MessageDialog` directly
+  into the bathron surface. +3 tests on the pure-logic side.
 - **`examples/full_app/`** (PR #40) -- runnable Dioxus reference
   consumer exercising all six desktop-bound crates (themelion,
   mekhane, bathron, skeue, gramma, keryx) in one place. Operators
