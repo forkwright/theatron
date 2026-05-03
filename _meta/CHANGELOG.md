@@ -27,6 +27,21 @@ patch (`v1.0.1`) to minor (`v1.1.0`).
   fleet desktop surface can opt into it via a single function call.
   `init(config)` now delegates to `init_with_stderr(config, false)`
   (no behaviour change for existing callers).
+- **`keryx::ApiError` variants: `Timeout`, `RateLimited`, `BadResponse`**
+  (PR #51). Three additive variants on the `#[non_exhaustive]`
+  `ApiError` enum, splitting failure modes that previously had to
+  fold into the existing `Http` / `Server` variants:
+    - `Timeout { operation, timeout_secs }` -- caller-detected via
+      `reqwest::Error::is_timeout`. Useful for retry layers that
+      distinguish timeouts (worth retrying) from connection refusals.
+    - `RateLimited { operation, retry_after_secs }` -- 429 responses.
+      Carries the `Retry-After` header in seconds when supplied.
+    - `BadResponse { operation, source: serde_json::Error }` -- 2xx
+      response with an unparseable body. Common when server schema
+      drifts.
+
+  Existing consumers using a wildcard `match` arm continue to work;
+  consumers can opt into the new variants for richer error routing.
 - **`examples/full_app/`** (PR #40) -- runnable Dioxus reference
   consumer exercising all six desktop-bound crates (themelion,
   mekhane, bathron, skeue, gramma, keryx) in one place. Operators
