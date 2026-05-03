@@ -14,7 +14,7 @@
 //!
 //! - [`virtual_list`] — virtual scrolling primitives + helpers
 //! - [`table`] — markdown table renderer with theatron-local
-//!   [`TableAlignment`](table::TableAlignment) (decoupled from
+//!   [`TableAlignment`] (decoupled from
 //!   `pulldown_cmark::Alignment` so consumers don't have to share a
 //!   pulldown-cmark major version with us — `From` impl provided)
 //! - [`toast`] — toast notification with `EventHandler<ToastId>` /

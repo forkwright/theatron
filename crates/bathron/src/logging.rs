@@ -125,15 +125,19 @@ pub fn init(
     let dir = config.resolve_log_dir()?;
     std::fs::create_dir_all(&dir).context(CreateDirSnafu { path: dir.clone() })?;
 
+    let LogConfig {
+        app_name, level, ..
+    } = config;
+
     let file_appender = tracing_appender::rolling::RollingFileAppender::new(
         tracing_appender::rolling::Rotation::DAILY,
         &dir,
-        format!("{}.log", config.app_name),
+        format!("{app_name}.log"),
     );
     let (writer, guard) = tracing_appender::non_blocking(file_appender);
 
-    let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new(config.level.to_string()));
+    let env_filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(level.to_string()));
 
     let subscriber = tracing_subscriber::registry()
         .with(env_filter)

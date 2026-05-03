@@ -1,7 +1,7 @@
 //! System-tray-icon helpers.
 //!
 //! Re-exports the upstream [`tray_icon`] crate (which itself re-exports
-//! the [`muda`] menu vocabulary at [`tray_icon::menu`]) plus two thin
+//! the `muda` menu vocabulary at [`tray_icon::menu`]) plus two thin
 //! convenience wrappers — [`init_tray_icon`] and [`default_tray_icon`].
 //! Pure passthrough; no upstream source modification.
 //!

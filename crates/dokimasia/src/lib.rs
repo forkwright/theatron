@@ -18,7 +18,7 @@
 //! - [`Diagnostic`] carries file/line/column/severity/code/message and can
 //!   be rendered as human-readable diagnostics (codespan-reporting) or JSON.
 
-#![warn(missing_docs, clippy::all, clippy::pedantic)]
+#![deny(missing_docs, clippy::all, clippy::pedantic)]
 #![forbid(unsafe_code)]
 
 mod css;

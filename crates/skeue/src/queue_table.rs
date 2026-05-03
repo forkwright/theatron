@@ -4,7 +4,7 @@
 //! - Structure: header row + activity rows + optional pagination
 //! - Token use: header `--text-secondary` / `--text-xs` /
 //!   `--weight-semibold` / `--border-separator`
-//! - Row: see [`ActivityRow`](crate::activity_row::ActivityRow) above
+//! - Row: see [`ActivityRow`] above
 //!
 //! References (folds in #40):
 //! - Sourcehut PR queue: header + monospace rows + cursor pagination

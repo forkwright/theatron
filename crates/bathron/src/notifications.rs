@@ -36,10 +36,6 @@ pub enum NotificationError {
 ///
 /// [`with_icon`]: NotificationRequest::with_icon
 /// [`with_body`]: NotificationRequest::with_body
-#[expect(
-    clippy::indexing_slicing,
-    reason = "type syntax &[u8] is not runtime indexing"
-)]
 #[derive(Debug, Clone)]
 pub struct NotificationRequest<'a> {
     /// Notification title (the prominent line).
@@ -73,10 +69,6 @@ impl<'a> NotificationRequest<'a> {
 
     /// Set the icon bytes (interpreted by the platform — typically a
     /// path or a freedesktop icon name on Linux).
-    #[expect(
-        clippy::indexing_slicing,
-        reason = "type syntax &[u8] is not runtime indexing"
-    )]
     #[must_use]
     pub fn with_icon(mut self, icon: &'a [u8]) -> Self {
         // kanon:ignore RUST/indexing-slicing -- type annotation, not runtime indexing
@@ -117,17 +109,19 @@ impl std::fmt::Debug for NotificationHandle {
 /// permissions denial, malformed payload).
 #[cfg(not(test))]
 pub fn send(req: NotificationRequest<'_>) -> Result<NotificationHandle, NotificationError> {
+    let NotificationRequest { title, body, icon } = req;
+
     let mut n = notify_rust::Notification::new();
-    n.summary(&req.title);
-    if !req.body.is_empty() {
-        n.body(&req.body);
+    n.summary(&title);
+    if !body.is_empty() {
+        n.body(&body);
     }
-    if let Some(icon) = req.icon {
+    if let Some(icon_bytes) = icon {
         // notify-rust takes &str; if the caller passed UTF-8 bytes
         // representing a path or freedesktop name, honor it. Otherwise
         // skip silently — raw image bytes aren't part of the desktop
         // notification protocol on most platforms.
-        if let Ok(icon_str) = std::str::from_utf8(icon) {
+        if let Ok(icon_str) = std::str::from_utf8(icon_bytes) {
             n.icon(icon_str);
         }
     }

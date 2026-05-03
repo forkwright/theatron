@@ -7,15 +7,15 @@
 //!
 //! ## Modules
 //!
-//! - [`env`] -- minimal environment-variable abstraction. Trait
-//!   [`Env`](env::Env) + production [`RealEnv`](env::RealEnv) impl,
+//! - [`mod@env`] -- minimal environment-variable abstraction. Trait
+//!   [`Env`] + production [`RealEnv`] impl,
 //!   inlined here so parodos doesn't depend on aletheia's
 //!   `koina::system::Environment`.
 //! - [`fuzzy`] -- subsequence fuzzy matcher for command palette / slash
 //!   completion. Pure-logic, no external state.
 //! - [`theme`] -- terminal palette + color-depth detection. Provides
-//!   [`Theme`](theme::Theme), [`ThemeMode`](theme::ThemeMode),
-//!   [`ColorDepth`](theme::ColorDepth), and detection helpers that
+//!   [`Theme`](theme::Theme), [`ThemeMode`],
+//!   [`ColorDepth`], and detection helpers that
 //!   read terminal capability env vars (COLORTERM, TERM, COLORFGBG).
 //! - [`highlight`] -- syntect-backed code-block syntax highlighting
 //!   that returns ratatui `Line`s tinted to the active [`ThemeMode`].

@@ -15,7 +15,7 @@
 //!   word-level diffing). Pure logic; the Dioxus components that render
 //!   diffs live in `skeue::{diff_hunk, diff_line}`.
 
-#![warn(missing_docs, clippy::all, clippy::pedantic)]
+#![deny(missing_docs, clippy::all, clippy::pedantic)]
 
 pub mod diff;
 pub mod highlight;

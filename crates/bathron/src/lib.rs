@@ -23,7 +23,7 @@
 //!
 //! [`mekhane`]: https://forge.forkwright.com/forkwright/theatron
 
-#![warn(missing_docs, clippy::all, clippy::pedantic)]
+#![deny(missing_docs, clippy::all, clippy::pedantic)]
 
 #[cfg(feature = "notifications")]
 pub mod notifications;
