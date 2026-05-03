@@ -55,6 +55,13 @@ const INDICATOR_STYLE: &str = "\
 /// Generic over the source of the state — consumers map their own
 /// connection-state types to a `(tone, label, tooltip)` tuple and pass
 /// the props.
+///
+/// # Accessibility
+///
+/// - **Role**: `status` — conveys connection health.
+/// - **Name**: The `label` prop provides the accessible name.
+/// - **Consumer responsibility**: Provide a descriptive `label` that
+///   conveys the current state (e.g. "Connected" or "Reconnecting (3)").
 #[component]
 pub fn ConnectionIndicator(
     /// Semantic health register.
@@ -98,6 +105,39 @@ mod tests {
             "var(--status-warning)"
         );
         assert_eq!(IndicatorTone::Failed.color_token(), "var(--status-error)");
+    }
+
+    #[test]
+    fn renders_role_status() {
+        use dioxus::prelude::*;
+        use dioxus_ssr::render_element;
+        let html = render_element(rsx! {
+            ConnectionIndicator {
+                tone: IndicatorTone::Healthy,
+                label: "Connected".to_string(),
+            }
+        });
+        assert!(
+            html.contains("role=\"status\""),
+            "expected role=status in {html}"
+        );
+        assert!(html.contains("Connected"), "expected label text in {html}");
+    }
+
+    #[test]
+    fn renders_aria_hidden_on_dot() {
+        use dioxus::prelude::*;
+        use dioxus_ssr::render_element;
+        let html = render_element(rsx! {
+            ConnectionIndicator {
+                tone: IndicatorTone::Healthy,
+                label: "Connected".to_string(),
+            }
+        });
+        assert!(
+            html.contains("aria-hidden=\"true\""),
+            "expected aria-hidden on dot in {html}"
+        );
     }
 
     #[test]

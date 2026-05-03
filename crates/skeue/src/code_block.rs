@@ -55,6 +55,14 @@ const LINE_STYLE: &str = "display: flex; min-height: 1.5em;";
 const CONTENT_STYLE: &str = "white-space: pre; flex: 1;";
 
 /// Render a syntax-highlighted code block with copy-to-clipboard.
+///
+/// # Accessibility
+///
+/// - **Role**: `region` — the code block is a landmark region.
+/// - **Name**: `aria-label` is set to `"Code: {language}"`.
+/// - **Keyboard navigation**: The copy button is focusable and has an
+///   `aria-label` describing its action.
+/// - **Consumer responsibility**: None.
 #[component]
 pub fn CodeBlock(code: String, language: String) -> Element {
     let lang_display = if language.is_empty() {
@@ -68,14 +76,18 @@ pub fn CodeBlock(code: String, language: String) -> Element {
     // WHY: digit width for line-number gutter padding.
     let gutter_width = format!("{line_count}").len();
 
+    let aria_label = format!("Code: {lang_display}");
     rsx! {
         div {
             class: "code-block",
+            role: "region",
+            aria_label: "{aria_label}",
             style: "{BLOCK_STYLE}",
             div {
                 style: "{HEADER_STYLE}",
                 span { "{lang_display}" }
                 button {
+                    aria_label: "Copy {lang_display} code to clipboard",
                     onclick: {
                         let code_clone = code.clone();
                         move |_| {
@@ -141,5 +153,33 @@ fn render_span(key: usize, span: &HighlightedSpan) -> Element {
             style: "{style}",
             "{text}"
         }
+    }
+}
+
+#[cfg(test)]
+mod ssr_tests {
+    use super::*;
+    use dioxus_ssr::render_element;
+
+    #[test]
+    fn renders_region_and_copy_aria_label() {
+        let html = render_element(rsx! {
+            CodeBlock {
+                code: "fn main() {}".to_string(),
+                language: "rust".to_string(),
+            }
+        });
+        assert!(
+            html.contains("role=\"region\""),
+            "expected role=region in {html}"
+        );
+        assert!(
+            html.contains("aria-label=\"Code: rust\""),
+            "expected region aria-label in {html}"
+        );
+        assert!(
+            html.contains("aria-label=\"Copy rust code to clipboard\""),
+            "expected copy button aria-label in {html}"
+        );
     }
 }

@@ -90,6 +90,14 @@ const TIMESTAMP_STYLE: &str = "\
 ///
 /// Per DESIGN-TOKENS.md component anatomy. See module docs for the
 /// reference inventory.
+///
+/// # Accessibility
+///
+/// - **Role**: `listitem` — intended for use inside a list.
+/// - **Name**: The `title` text provides the primary accessible name;
+///   the optional status pill contributes additional state.
+/// - **Consumer responsibility**: Wrap rows in a parent with `role="list"`
+///   or `role="table"` as appropriate.
 #[component]
 pub fn ActivityRow(
     /// Primary text — actor + action, or just title.
@@ -157,6 +165,40 @@ mod tests {
     #[test]
     fn density_default_is_standard() {
         assert_eq!(RowDensity::default(), RowDensity::Standard);
+    }
+
+    #[test]
+    fn renders_role_listitem() {
+        use dioxus::prelude::*;
+        use dioxus_ssr::render_element;
+        let html = render_element(rsx! {
+            ActivityRow {
+                title: "Event".to_string(),
+                timestamp: "2m ago".to_string(),
+            }
+        });
+        assert!(
+            html.contains("role=\"listitem\""),
+            "expected role=listitem in {html}"
+        );
+        assert!(html.contains("Event"), "expected title text in {html}");
+    }
+
+    #[test]
+    fn renders_aria_hidden_on_icon() {
+        use dioxus::prelude::*;
+        use dioxus_ssr::render_element;
+        let html = render_element(rsx! {
+            ActivityRow {
+                title: "Event".to_string(),
+                timestamp: "2m ago".to_string(),
+                icon: Some("★".to_string()),
+            }
+        });
+        assert!(
+            html.contains("aria-hidden=\"true\""),
+            "expected aria-hidden on icon in {html}"
+        );
     }
 
     #[test]

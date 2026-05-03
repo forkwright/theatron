@@ -109,6 +109,12 @@ const PILL_STYLE_FMT: &str = "\
 ///
 /// Per DESIGN-TOKENS.md component anatomy. See module docs for the
 /// reference inventory.
+///
+/// # Accessibility
+///
+/// - **Role**: `status` — conveys a discrete state value.
+/// - **Name**: The `label` prop provides the accessible name.
+/// - **Consumer responsibility**: None.
 #[component]
 pub fn StatusPill(
     /// Visual register — maps to a token pair.
@@ -185,6 +191,37 @@ mod tests {
     #[test]
     fn shape_default_is_pill() {
         assert_eq!(StatusPillShape::default(), StatusPillShape::Pill);
+    }
+
+    #[test]
+    fn renders_role_status() {
+        use dioxus::prelude::*;
+        use dioxus_ssr::render_element;
+        let html = render_element(rsx! {
+            StatusPill { kind: StatusPillKind::Success, label: "ok".to_string() }
+        });
+        assert!(
+            html.contains("role=\"status\""),
+            "expected role=status in {html}"
+        );
+        assert!(html.contains("ok"), "expected label text in {html}");
+    }
+
+    #[test]
+    fn renders_aria_hidden_on_icon() {
+        use dioxus::prelude::*;
+        use dioxus_ssr::render_element;
+        let html = render_element(rsx! {
+            StatusPill {
+                kind: StatusPillKind::Success,
+                label: "ok".to_string(),
+                icon: Some("★".to_string()),
+            }
+        });
+        assert!(
+            html.contains("aria-hidden=\"true\""),
+            "expected aria-hidden on icon in {html}"
+        );
     }
 
     #[test]

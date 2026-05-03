@@ -49,6 +49,12 @@ const SBS_DIVIDER_STYLE: &str = "\
 ";
 
 /// Render a single diff hunk.
+///
+/// # Accessibility
+///
+/// - **Role**: `region` — the hunk is a landmark region.
+/// - **Name**: `aria-label` is set to `"Diff hunk: {context_label}"`.
+/// - **Consumer responsibility**: None.
 #[component]
 pub fn DiffHunkView(hunk: DiffHunk, language: String, mode: DiffViewMode) -> Element {
     let header = format!(
@@ -56,8 +62,11 @@ pub fn DiffHunkView(hunk: DiffHunk, language: String, mode: DiffViewMode) -> Ele
         hunk.old_start, hunk.old_count, hunk.new_start, hunk.new_count, hunk.context_label
     );
 
+    let aria_label = format!("Diff hunk: {}", hunk.context_label);
     rsx! {
         div {
+            role: "region",
+            aria_label: "{aria_label}",
             div { style: "{HUNK_HEADER_STYLE}", "{header}" }
             match mode {
                 DiffViewMode::Unified => rsx! {
@@ -169,5 +178,45 @@ fn render_sbs_word_spans(spans: &[gramma::diff::WordSpan], change_type: ChangeTy
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod ssr_tests {
+    use super::*;
+    use dioxus_ssr::render_element;
+    use gramma::diff::{DiffHunk, DiffLine, DiffViewMode};
+
+    #[test]
+    fn renders_region_and_aria_label() {
+        let hunk = DiffHunk {
+            old_start: 1,
+            old_count: 2,
+            new_start: 1,
+            new_count: 2,
+            context_label: "src/main.rs".to_string(),
+            lines: vec![DiffLine {
+                content: "fn main() {}".to_string(),
+                change_type: gramma::diff::ChangeType::Context,
+                old_line_no: Some(1),
+                new_line_no: Some(1),
+                word_spans: vec![],
+            }],
+        };
+        let html = render_element(rsx! {
+            DiffHunkView {
+                hunk,
+                language: "rust".to_string(),
+                mode: DiffViewMode::Unified,
+            }
+        });
+        assert!(
+            html.contains("role=\"region\""),
+            "expected role=region in {html}"
+        );
+        assert!(
+            html.contains("aria-label=\"Diff hunk: src/main.rs\""),
+            "expected aria-label in {html}"
+        );
     }
 }

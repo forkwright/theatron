@@ -132,6 +132,15 @@ pub fn bar_positions(values: &[f64], width: f64, height: f64) -> Vec<(f64, f64, 
 }
 
 /// Inline trend chart. Bars or polyline depending on `shape`.
+///
+/// # Accessibility
+///
+/// - **Role**: None — the SVG is marked `aria-hidden="true"` because it
+///   is purely decorative.
+/// - **Name**: None — no accessible name is generated.
+/// - **Consumer responsibility**: The surrounding region or parent
+///   component must provide an accessible label that describes what the
+///   sparkline represents.
 #[component]
 pub fn Sparkline(
     /// Data points. Empty array renders an empty SVG.
@@ -153,7 +162,7 @@ pub fn Sparkline(
     let viewbox = format!("0 0 {width} {height}");
     rsx! {
         svg {
-            role: "img",
+            "aria-hidden": "true",
             view_box: "{viewbox}",
             width: "{width}",
             height: "{height}",
@@ -203,6 +212,19 @@ pub fn Sparkline(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn renders_aria_hidden() {
+        use dioxus::prelude::*;
+        use dioxus_ssr::render_element;
+        let html = render_element(rsx! {
+            Sparkline { values: vec![1.0, 2.0, 3.0] }
+        });
+        assert!(
+            html.contains("aria-hidden=\"true\""),
+            "expected aria-hidden on svg in {html}"
+        );
+    }
 
     #[test]
     fn tone_color_tokens_use_canonical_namespaces() {

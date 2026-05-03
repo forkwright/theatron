@@ -17,3 +17,6 @@ pulldown-cmark = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
+
+[dev-dependencies]
+dioxus-ssr = "=0.7.6"

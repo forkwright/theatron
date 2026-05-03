@@ -79,6 +79,14 @@ fn indicator_color(change_type: ChangeType) -> &'static str {
 }
 
 /// Render a single diff line with gutter, indicator, and highlighted content.
+///
+/// # Accessibility
+///
+/// - **Role**: None — rendered as a generic div.
+/// - **Name**: The line `content` provides the accessible text.
+/// - **Consumer responsibility**: Line numbers and the change indicator are
+///   decorative (`aria-hidden="true"`); consumers should ensure the parent
+///   hunk or diff view provides sufficient context.
 #[component]
 pub fn DiffLineView(line: DiffLine, language: String) -> Element {
     let bg = line_bg(line.change_type);
@@ -92,6 +100,7 @@ pub fn DiffLineView(line: DiffLine, language: String) -> Element {
             style: "{LINE_STYLE} background: {bg};",
             div {
                 style: "{GUTTER_STYLE}",
+                aria_hidden: "true",
                 span { style: "{GUTTER_NUM_STYLE}", "{old_no}" }
                 span { style: "{GUTTER_NUM_STYLE}", "{new_no}" }
             }
@@ -165,4 +174,33 @@ fn bold_css(bold: bool) -> &'static str {
 
 fn italic_css(italic: bool) -> &'static str {
     if italic { " font-style: italic;" } else { "" }
+}
+
+#[cfg(test)]
+mod ssr_tests {
+    use super::*;
+    use dioxus_ssr::render_element;
+    use gramma::diff::{ChangeType, DiffLine};
+
+    #[test]
+    fn renders_aria_hidden_on_gutter() {
+        let line = DiffLine {
+            content: "fn main() {}".to_string(),
+            change_type: ChangeType::Context,
+            old_line_no: Some(1),
+            new_line_no: Some(1),
+            word_spans: vec![],
+        };
+        let html = render_element(rsx! {
+            DiffLineView {
+                line,
+                language: "rust".to_string(),
+            }
+        });
+        assert!(
+            html.contains("aria-hidden=\"true\""),
+            "expected aria-hidden on gutter in {html}"
+        );
+        assert!(html.contains("main"), "expected content text in {html}");
+    }
 }

@@ -122,6 +122,13 @@ const DELTA_ROW_STYLE: &str = "\
 ///
 /// Per DESIGN-TOKENS.md component anatomy. See module docs for the
 /// reference inventory.
+///
+/// # Accessibility
+///
+/// - **Role**: `group` — aggregates the value, label, and delta.
+/// - **Name**: The `label` prop is used as `aria-label`.
+/// - **Consumer responsibility**: Ensure `label` uniquely identifies the
+///   metric within the page.
 #[component]
 pub fn MetricTile(
     /// Large primary value (e.g. "12.4", "98%", "1.2k").
@@ -187,6 +194,47 @@ mod tests {
     #[test]
     fn delta_tone_default_is_neutral() {
         assert_eq!(DeltaTone::default(), DeltaTone::Neutral);
+    }
+
+    #[test]
+    fn renders_role_group_and_aria_label() {
+        use dioxus::prelude::*;
+        use dioxus_ssr::render_element;
+        let html = render_element(rsx! {
+            MetricTile {
+                value: "42".to_string(),
+                label: "Active sessions".to_string(),
+            }
+        });
+        assert!(
+            html.contains("role=\"group\""),
+            "expected role=group in {html}"
+        );
+        assert!(
+            html.contains("aria-label=\"Active sessions\""),
+            "expected aria-label in {html}"
+        );
+    }
+
+    #[test]
+    fn renders_aria_hidden_on_delta_glyph() {
+        use dioxus::prelude::*;
+        use dioxus_ssr::render_element;
+        let html = render_element(rsx! {
+            MetricTile {
+                value: "42".to_string(),
+                label: "Active sessions".to_string(),
+                delta: Some(MetricDelta {
+                    direction: DeltaDirection::Up,
+                    label: "+12%".to_string(),
+                    tone: DeltaTone::Good,
+                }),
+            }
+        });
+        assert!(
+            html.contains("aria-hidden=\"true\""),
+            "expected aria-hidden on delta glyph in {html}"
+        );
     }
 
     #[test]

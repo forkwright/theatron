@@ -144,6 +144,17 @@ const ACTION_STYLE: &str = "\
 ///
 /// `on_dismiss` and `on_action` are caller-provided event handlers. The
 /// generic API replaces aletheia's `use_toast` hook + navigation parser.
+///
+/// # Accessibility
+///
+/// - **Role**: `status` (polite live region); `alert` for
+///   `severity="error"` (assertive live region).
+/// - **Name**: The toast `title` provides the accessible name.
+/// - **Live region**: `aria-live` is set to `polite` for info/success/warning
+///   and `assertive` for error severity.
+/// - **Keyboard navigation**: The dismiss button is focusable and has an
+///   `aria-label`.
+/// - **Consumer responsibility**: None.
 #[component]
 pub fn ToastItem(
     toast: Toast,
@@ -169,11 +180,19 @@ pub fn ToastItem(
         }
     });
 
+    let (role, aria_live) = match toast.severity {
+        ToastSeverity::Error => ("alert", "assertive"),
+        _ => ("status", "polite"),
+    };
     rsx! {
         div {
+            role: "{role}",
+            aria_live: "{aria_live}",
+            aria_atomic: "true",
             style: "{TOAST_STYLE} background: {bg}; border-color: {color}; color: var(--text-primary);",
             button {
                 style: "{DISMISS_STYLE}",
+                aria_label: "Dismiss notification",
                 onclick: move |_| on_dismiss.call(toast_id),
                 "\u{2715}"
             }
@@ -197,5 +216,86 @@ pub fn ToastItem(
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod ssr_tests {
+    use super::*;
+    use dioxus_core::VirtualDom;
+    use dioxus_ssr::render;
+
+    #[test]
+    fn info_toast_renders_status_polite() {
+        #[component]
+        fn Wrapper() -> Element {
+            let toast = Toast {
+                id: ToastId(1),
+                severity: ToastSeverity::Info,
+                title: "Saved".to_string(),
+                body: None,
+                action: None,
+                auto_dismiss: None,
+            };
+            rsx! {
+                ToastItem {
+                    toast,
+                    on_dismiss: |_| {},
+                    on_action: |_| {},
+                }
+            }
+        }
+        let mut dom = VirtualDom::new(Wrapper);
+        dom.rebuild_in_place();
+        let html = render(&dom);
+        assert!(
+            html.contains("role=\"status\""),
+            "expected role=status in {html}"
+        );
+        assert!(
+            html.contains("aria-live=\"polite\""),
+            "expected aria-live=polite in {html}"
+        );
+        assert!(
+            html.contains("aria-atomic=\"true\""),
+            "expected aria-atomic=true in {html}"
+        );
+        assert!(
+            html.contains("aria-label=\"Dismiss notification\""),
+            "expected dismiss aria-label in {html}"
+        );
+    }
+
+    #[test]
+    fn error_toast_renders_alert_assertive() {
+        #[component]
+        fn Wrapper() -> Element {
+            let toast = Toast {
+                id: ToastId(2),
+                severity: ToastSeverity::Error,
+                title: "Failed".to_string(),
+                body: None,
+                action: None,
+                auto_dismiss: None,
+            };
+            rsx! {
+                ToastItem {
+                    toast,
+                    on_dismiss: |_| {},
+                    on_action: |_| {},
+                }
+            }
+        }
+        let mut dom = VirtualDom::new(Wrapper);
+        dom.rebuild_in_place();
+        let html = render(&dom);
+        assert!(
+            html.contains("role=\"alert\""),
+            "expected role=alert in {html}"
+        );
+        assert!(
+            html.contains("aria-live=\"assertive\""),
+            "expected aria-live=assertive in {html}"
+        );
     }
 }

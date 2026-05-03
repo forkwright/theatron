@@ -72,6 +72,13 @@ pub fn spacer_heights(
 ///
 /// The `on_scroll` callback receives `(scroll_top, container_height)` whenever
 /// the user scrolls. Use these values to recompute the visible range.
+///
+/// # Accessibility
+///
+/// - **Role**: `region` — the scrollable container is a landmark region.
+/// - **Name**: The `scroll_key` value is used as `aria-label`.
+/// - **Consumer responsibility**: Choose a descriptive `scroll_key` that
+///   identifies the scrolled content (e.g. `"chat-messages"`).
 #[component]
 pub fn VirtualScrollContainer(
     pad_top: f64,
@@ -85,7 +92,8 @@ pub fn VirtualScrollContainer(
     rsx! {
         div {
             style: "flex: 1; overflow-y: auto; position: relative;",
-            role: "list",
+            role: "region",
+            "aria-label": key,
             "data-vscroll": key,
             onscroll: move |_| {
                 let js = format!(

@@ -86,6 +86,14 @@ const EMPTY_STYLE: &str = "\
 ///
 /// Composes [`ActivityRow`] for each item plus a single header row.
 /// Sorting is consumer-driven — pass items already in display order.
+///
+/// # Accessibility
+///
+/// - **Role**: `table` — column headers carry `role="columnheader"` and
+///   `scope="col"`.
+/// - **Name**: Column header text provides the column names.
+/// - **Consumer responsibility**: If rows are interactive (click-to-detail),
+///   the consumer must wrap each row in `role="row"` and `tabindex="0"`.
 #[component]
 pub fn QueueTable(
     /// Column headers.
@@ -111,6 +119,7 @@ pub fn QueueTable(
                     span {
                         key: "{i}",
                         role: "columnheader",
+                        "scope": "col",
                         style: "{HEADER_LABEL_STYLE}",
                         "{col.label}"
                     }
@@ -146,6 +155,46 @@ mod tests {
             label: "Title".to_string(),
         };
         assert_eq!(c.label, "Title");
+    }
+
+    #[test]
+    fn renders_role_table_and_scope_col() {
+        use dioxus::prelude::*;
+        use dioxus_ssr::render_element;
+        let html = render_element(rsx! {
+            QueueTable {
+                columns: vec![QueueColumn { label: "Title".to_string() }],
+                items: vec![QueueItem {
+                    title: "PR #1".to_string(),
+                    timestamp: "2m ago".to_string(),
+                    icon: None,
+                    metadata: None,
+                    status: None,
+                }],
+            }
+        });
+        assert!(
+            html.contains("role=\"table\""),
+            "expected role=table in {html}"
+        );
+        assert!(
+            html.contains("scope=\"col\""),
+            "expected scope=col in {html}"
+        );
+        assert!(html.contains("Title"), "expected header text in {html}");
+    }
+
+    #[test]
+    fn renders_empty_label() {
+        use dioxus::prelude::*;
+        use dioxus_ssr::render_element;
+        let html = render_element(rsx! {
+            QueueTable {
+                columns: vec![QueueColumn { label: "Title".to_string() }],
+                items: vec![],
+            }
+        });
+        assert!(html.contains("No items"), "expected empty label in {html}");
     }
 
     #[test]

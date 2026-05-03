@@ -44,6 +44,13 @@ impl From<pulldown_cmark::Alignment> for TableAlignment {
 }
 
 /// Render a markdown table with column alignment and alternating row backgrounds.
+///
+/// # Accessibility
+///
+/// - **Role**: Native `<table>` semantics (implicit `table` role).
+/// - **Name**: Header text provides column names; each `<th>` has
+///   `scope="col"`.
+/// - **Consumer responsibility**: None.
 #[component]
 pub fn MdTable(
     headers: Vec<String>,
@@ -74,6 +81,7 @@ pub fn MdTable(
                         for (i , header) in headers.iter().enumerate() {
                             th {
                                 key: "{i}",
+                                scope: "col",
                                 style: "
                                     padding: var(--space-2) var(--space-3);
                                     text-align: {alignment_css(alignments.get(i).copied())};
@@ -143,6 +151,21 @@ mod tests {
         assert_eq!(row_bg(1), "var(--bg)");
         assert_eq!(row_bg(2), "var(--bg-surface)");
         assert_eq!(row_bg(3), "var(--bg)");
+    }
+
+    #[test]
+    fn renders_scope_col_on_headers() {
+        use dioxus::prelude::*;
+        use dioxus_ssr::render_element;
+        let html = render_element(rsx! {
+            MdTable {
+                headers: vec!["A".to_string(), "B".to_string()],
+                rows: vec![vec!["1".to_string(), "2".to_string()]],
+                alignments: vec![TableAlignment::Left, TableAlignment::Right],
+            }
+        });
+        let count = html.matches("scope=\"col\"").count();
+        assert_eq!(count, 2, "expected two scope=col in {html}");
     }
 
     #[test]
