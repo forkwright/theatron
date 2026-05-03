@@ -9,6 +9,21 @@ repository.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 
+[[bench]]
+name = "fuzzy"
+path = "benches/fuzzy.rs"
+harness = false
+
+[[bench]]
+name = "hyperlink"
+path = "benches/hyperlink.rs"
+harness = false
+
+[[bench]]
+name = "sanitize"
+path = "benches/sanitize.rs"
+harness = false
+
 [dependencies]
 ratatui = { workspace = true }
 crossterm = { workspace = true }
@@ -21,3 +36,6 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 regex = { workspace = true }
 syntect = { workspace = true }
 tracing = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true }

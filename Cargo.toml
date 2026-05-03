@@ -104,6 +104,9 @@ serde_json = "1"
 # Errors
 snafu = "0.8"
 
+# Benchmarking
+criterion = "0.5"
+
 # TUI -- ratatui 0.30 defaults to crossterm 0.29; pinned to match aletheia/koilon
 # so consumer crates compile against a single ratatui major.
 ratatui = "0.30"
