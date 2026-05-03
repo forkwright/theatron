@@ -14,7 +14,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
 license = "Apache-2.0 OR MIT"
 homepage = "https://forge.forkwright.com/forkwright/theatron"
@@ -33,14 +33,14 @@ authors = ["forkwright"]
 # props/equipment; gramma = γράμμα, written character; keryx = κῆρυξ,
 # herald/messenger; bathron = βάθρον, pedestal; parodos = πάροδος,
 # stage entrance; dokimasia = δοκιμασία, examination).
-themelion = { version = "0.1.0", path = "crates/themelion" }
-bathron = { version = "0.1.0", path = "crates/bathron" }
-keryx = { version = "0.1.0", path = "crates/keryx" }
-skeue = { version = "0.1.0", path = "crates/skeue" }
-gramma = { version = "0.1.0", path = "crates/gramma" }
-mekhane = { version = "0.1.0", path = "crates/mekhane" }
-parodos = { version = "0.1.0", path = "crates/parodos" }
-dokimasia = { version = "0.1.0", path = "crates/dokimasia" }
+themelion = { version = "1.0.0", path = "crates/themelion" }
+bathron = { version = "1.0.0", path = "crates/bathron" }
+keryx = { version = "1.0.0", path = "crates/keryx" }
+skeue = { version = "1.0.0", path = "crates/skeue" }
+gramma = { version = "1.0.0", path = "crates/gramma" }
+mekhane = { version = "1.0.0", path = "crates/mekhane" }
+parodos = { version = "1.0.0", path = "crates/parodos" }
+dokimasia = { version = "1.0.0", path = "crates/dokimasia" }
 
 # UI framework
 # WHY: Pin dioxus to an exact patch version, fleet-wide. Dioxus

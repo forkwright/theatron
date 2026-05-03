@@ -629,7 +629,7 @@ checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
 name = "bathron"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "dirs",
  "notify-rust",
@@ -2081,7 +2081,7 @@ dependencies = [
 
 [[package]]
 name = "dokimasia"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "clap",
  "codespan-reporting 0.11.1",
@@ -3007,7 +3007,7 @@ dependencies = [
 
 [[package]]
 name = "gramma"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "pulldown-cmark",
  "syntect",
@@ -3758,7 +3758,7 @@ dependencies = [
 
 [[package]]
 name = "keryx"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "bytes",
  "dioxus",
@@ -4165,7 +4165,7 @@ checksum = "2532096657941c2fea9c289d370a250971c689d4f143798ff67113ec042024a5"
 
 [[package]]
 name = "mekhane"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "dioxus",
  "dioxus-core",
@@ -5038,7 +5038,7 @@ dependencies = [
 
 [[package]]
 name = "parodos"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "arboard",
  "base64",
@@ -6433,7 +6433,7 @@ checksum = "b2aa850e253778c88a04c3d7323b043aeda9d3e30d5971937c1855769763678e"
 
 [[package]]
 name = "skeue"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "dioxus",
  "gramma",
@@ -7110,7 +7110,7 @@ dependencies = [
 
 [[package]]
 name = "theatron-example-minimal"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "dioxus",
  "dioxus-native",
@@ -7119,7 +7119,7 @@ dependencies = [
 
 [[package]]
 name = "theatron-example-tray-smoke"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "dioxus",
  "mekhane",
@@ -7127,7 +7127,7 @@ dependencies = [
 
 [[package]]
 name = "themelion"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "dioxus",
  "serde",

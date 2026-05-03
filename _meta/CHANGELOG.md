@@ -9,8 +9,77 @@ entry per release covers all eight.
 
 ## [Unreleased]
 
-Active development on the road to v1.0. See `_meta/STATE.md` and
-`_meta/ROADMAP.md` for current progress.
+Post-v1.0 development. See `_meta/STATE.md` and `_meta/ROADMAP.md`
+for active work.
+
+---
+
+## v1.0.0 -- 2026-05-02
+
+First stable release. Public API frozen per the `SEMVER.md` policy
+across all eight crates. Consumers can now pin `tag = "v1.0.0"` and
+expect additive minors / non-breaking patches until v2.0.
+
+### Added (since v0.1.0)
+
+- **`parodos`** -- complete TUI substrate landed (chalkeion plan W2).
+  Modules: `theme` (semantic palette + ColorDepth/ThemeMode + per-depth
+  per-mode constructors), `sanitize` (CSI/OSC/DCS/APC/SOS/PM escape
+  stripping; C0/C1 control replacement), `hyperlink` (OSC 8 emit +
+  terminal-capability detection + URL/file-path regex), `clipboard`
+  (arboard + OSC52 fallback + PNG-encoded image support), `highlight`
+  (syntect bridge to ratatui::Lines), `fuzzy` (subsequence matcher
+  for command palettes), `env` (minimal `Env` trait + `RealEnv` impl
+  so parodos doesn't depend on aletheia's koina). Lifted from
+  `aletheia/koilon` after the audit confirmed extractability.
+- **`mekhane`** -- v2 tray + menu + global-hotkey support landed.
+  `launch_cfg_with_props_ext` accepts optional menu and hotkey
+  configs; new hooks `use_app_menu_event_handler` and
+  `use_global_hotkey_event_handler`. Cargo features `menus`,
+  `global-hotkeys`, `default-icon`. `tray::default_icon` for
+  PNG-bytes-to-Icon conversion.
+- **`bathron`** -- four OS-service modules implemented behind
+  per-feature gates: `notifications` (notify-rust), `dialogs` (rfd),
+  `settings` (TOML KV store with cascade), `logging`
+  (tracing-subscriber adapter).
+- **`dokimasia`** -- design-token enforcement linter shipped with
+  `MANIFEST/cargo-patch-block` rule. Rule namespace frozen at v1.0.
+
+### Changed
+
+- Workspace ratatui pin bumped 0.29 → 0.30 (and crossterm 0.28 → 0.29)
+  to align with downstream consumers (aletheia/koilon). parodos is
+  the only theatron crate currently using either.
+- All crates renamed to standalone Greek names (no `theatron-` prefix):
+  `theatron-core` → `themelion`, `theatron-blitz` → `mekhane`,
+  `theatron-components` → `skeue`, `theatron-markdown` → `gramma`,
+  `theatron-net` → `keryx`, `theatron-platform` → `bathron`,
+  `theatron-tui` → `parodos`, `theatron-lint` → `dokimasia`. (Landed
+  pre-v1.0 in `9bf1e9e`; documented here for the v1.0 baseline.)
+
+### Migration -- v0.1.x → v1.0
+
+For consumers pinned to a recent `0.1.0` rev (post-rename):
+
+1. Bump the workspace pin to `tag = "v1.0.0"`.
+2. `cargo check` -- the only break vs. recent 0.1.x revs is the ratatui
+   0.29 → 0.30 dep bump, which transitively requires `unicode-width
+   >= 0.2.1`.
+3. If consuming `parodos::clipboard::ClipboardContent`, note the enum
+   is `#[non_exhaustive]`; add a wildcard arm to any `match`.
+4. Re-run consumer lint + tests.
+
+The aletheia/koilon consumer landed at `e9e7b537b1` already runs
+against the v1.0.0 candidate without further changes.
+
+### Smoke test
+
+Consumer-side smoke validated:
+- `forkwright/aletheia#37` (`koilon` consuming `parodos` via
+  `pub use` re-exports for theme / sanitize / clipboard / highlight
+  / hyperlink) builds + tests green: cargo fmt, cargo check
+  --workspace --features test-core, cargo clippy -D warnings,
+  cargo nextest -p koilon (906/906).
 
 ---
 

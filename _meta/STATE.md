@@ -2,13 +2,19 @@
 
 ## Current phase
 
-Phase 1+2 in flight; preparing for the v1.0 cut. Eight Greek-named
+**v1.0.0 released 2026-05-02.** API frozen across all eight Greek-named
 crates (themelion, mekhane, skeue, gramma, keryx, bathron, parodos,
-dokimasia) populated. Active fleet consumer: `kanon/crates/chalkeion`
-ported through Phase 4 Tier 5 (~20 PRs in flight on the kanon side
-proving each component / DTO surface in production-shape use).
+dokimasia) per `_meta/SEMVER.md`. Consumers pin via `tag = "v1.0.0"`.
 
-Updated: 2026-04-28.
+Active fleet consumers at v1.0:
+- `kanon/crates/chalkeion` -- ported through Phase 4 Tier 5
+- `aletheia/crates/theatron/koilon` -- consuming `parodos` for theme,
+  sanitize, clipboard, highlight, hyperlink (chalkeion plan W2)
+
+Next: chalkeion Phase 5a polish + Phase 6 fleet rollout to
+harmonia-desktop + akroasis-desktop.
+
+Updated: 2026-05-02.
 
 ## Locked decisions
 
