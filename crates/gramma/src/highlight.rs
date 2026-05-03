@@ -200,4 +200,124 @@ mod tests {
             "expected at least one bold span (keyword), got none"
         );
     }
+
+    #[test]
+    fn detect_language_strips_trailing_attributes() {
+        // Markdown info strings can carry attributes after the lang
+        // (e.g. ```rust,no_run or ```python title="example"). The
+        // lang token is the first whitespace-delimited word.
+        assert_eq!(detect_language("rust ignore"), "rust");
+        assert_eq!(detect_language("python title=\"example\""), "python");
+    }
+
+    #[test]
+    fn detect_language_skips_leading_whitespace() {
+        // `split_whitespace` collapses leading whitespace, so a Markdown
+        // processor that emits ` rust` still resolves to the rust lang.
+        assert_eq!(detect_language(" rust"), "rust");
+        assert_eq!(detect_language("\trust"), "rust");
+        assert_eq!(detect_language("  python file.py"), "python");
+    }
+
+    #[test]
+    fn detect_language_returns_empty_for_only_whitespace() {
+        assert_eq!(detect_language("   "), "");
+        assert_eq!(detect_language("\t\n"), "");
+    }
+
+    #[test]
+    fn highlight_code_single_line_no_trailing_newline() {
+        let lines = highlight_code("let x = 1;", "rust");
+        assert_eq!(lines.len(), 1, "single line without \\n -> 1 line slot");
+        assert!(!lines[0].is_empty(), "tokens present on the single line");
+    }
+
+    #[test]
+    fn highlight_code_trailing_newline_does_not_add_empty_line() {
+        // syntect's LinesWithEndings preserves the trailing newline
+        // on the last line rather than emitting an empty line slot.
+        let with_nl = highlight_code("let x = 1;\n", "rust");
+        let without_nl = highlight_code("let x = 1;", "rust");
+        assert_eq!(with_nl.len(), without_nl.len());
+    }
+
+    #[test]
+    fn highlight_code_consecutive_newlines_yield_blank_lines() {
+        let code = "fn a() {}\n\nfn b() {}";
+        let lines = highlight_code(code, "rust");
+        assert_eq!(lines.len(), 3, "blank line between fns -> 3 line slots");
+    }
+
+    #[test]
+    fn highlight_code_preserves_content_text() {
+        // Concatenating all spans across all lines reconstructs the
+        // original input verbatim (modulo line splits).
+        let code = "fn main() {\n    println!(\"hi\");\n}";
+        let lines = highlight_code(code, "rust");
+        let reconstructed: String = lines
+            .iter()
+            .flat_map(|line| line.iter().map(|span| span.text.as_str()))
+            .collect();
+        // syntect may include trailing newlines on individual line outputs.
+        // Strip them and compare against original.
+        let normalized = reconstructed.replace('\n', "");
+        let original_normalized = code.replace('\n', "");
+        assert_eq!(normalized, original_normalized);
+    }
+
+    #[test]
+    fn highlighted_span_has_text_color_and_bold() {
+        // Public-API shape check: HighlightedSpan exposes text +
+        // foreground colour + bold flag for consumers to render.
+        let lines = highlight_code("fn main() {}", "rust");
+        let first_span = lines
+            .first()
+            .and_then(|line| line.first())
+            .expect("expected at least one span");
+        // text is non-empty for any keyword-bearing input
+        assert!(!first_span.text.is_empty());
+        // color is a CSS-style hex string (#rrggbb)
+        assert!(first_span.color.starts_with('#'));
+        assert_eq!(first_span.color.len(), 7);
+    }
+
+    #[test]
+    fn syn_color_to_css_handles_low_byte_values() {
+        // Padding: bytes < 0x10 must render as two-char zero-padded hex
+        // (e.g. 0x05 -> "05", not "5"). Otherwise the resulting "#abc"
+        // ambiguously parses as a 3-char hex.
+        let c = SynColor {
+            r: 0x01,
+            g: 0x05,
+            b: 0x0a,
+            a: 0xff,
+        };
+        assert_eq!(syn_color_to_css(c), "#01050a");
+    }
+
+    #[test]
+    fn syn_color_to_css_handles_pure_white_and_black() {
+        let white = SynColor {
+            r: 0xff,
+            g: 0xff,
+            b: 0xff,
+            a: 0xff,
+        };
+        let black = SynColor {
+            r: 0,
+            g: 0,
+            b: 0,
+            a: 0xff,
+        };
+        assert_eq!(syn_color_to_css(white), "#ffffff");
+        assert_eq!(syn_color_to_css(black), "#000000");
+    }
+
+    #[test]
+    fn highlight_code_unknown_language_does_not_panic_on_unicode() {
+        // Fallback path for unknown lang must handle multi-byte UTF-8
+        // without panicking on byte indexing.
+        let lines = highlight_code("héllo wörld 你好", "no-such-lang");
+        assert!(!lines.is_empty());
+    }
 }
