@@ -33,8 +33,8 @@ expect additive minors / non-breaking patches until v2.0.
   so parodos doesn't depend on aletheia's koina). Lifted from
   `aletheia/koilon` after the audit confirmed extractability.
 - **`mekhane`** -- v2 tray + menu + global-hotkey support landed.
-  `launch_cfg_with_props_ext` accepts optional menu and hotkey
-  configs; new hooks `use_app_menu_event_handler` and
+  `launch_cfg_with_props_and_menu` accepts an optional menu config;
+  new hooks `use_app_menu_event_handler` and
   `use_global_hotkey_event_handler`. Cargo features `menus`,
   `global-hotkeys`, `default-icon`. `tray::default_icon` for
   PNG-bytes-to-Icon conversion.
@@ -91,8 +91,8 @@ The v1.0 cut formalizes the public API of all eight crates:
   ThemeMode enum, ThemeProvider component, ThemeToggle. Stable as of
   v1.0; future themes layer in via additive variants.
 - **`mekhane`** — desktop windowing wrapper. `launch`,
-  `launch_cfg`, `launch_cfg_with_props`, `launch_cfg_with_props_ext`
-  (the latter accepting optional menu + hotkey configs). Hooks:
+  `launch_cfg`, `launch_cfg_with_props`, `launch_cfg_with_props_and_menu`
+  (the latter accepting an optional menu config). Hooks:
   `use_tray_icon_event_handler`, `use_tray_menu_event_handler`,
   `use_app_menu_event_handler`, `use_global_hotkey_event_handler`.
   Cargo features: `menus`, `global-hotkeys`, `default-icon`.
