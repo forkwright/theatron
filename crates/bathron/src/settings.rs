@@ -214,7 +214,7 @@ impl Settings {
 
 #[cfg(test)]
 mod tests {
-    use serde::Deserialize;
+    use serde::{Deserialize, Serialize};
 
     use super::*;
 
@@ -317,5 +317,182 @@ mod tests {
         }
         let s2 = Settings::open_at(tmp.path()).unwrap();
         assert_eq!(s2.get::<String>("k").unwrap(), Some("v".to_string()));
+    }
+
+    #[test]
+    fn open_at_resolves_file_to_settings_toml() {
+        let tmp = tempfile::tempdir().unwrap();
+        let s = Settings::open_at(tmp.path()).unwrap();
+        assert_eq!(s.file(), tmp.path().join("settings.toml"));
+    }
+
+    #[test]
+    fn get_returns_none_when_file_is_missing() {
+        let tmp = tempfile::tempdir().unwrap();
+        let s = Settings::open_at(tmp.path()).unwrap();
+        let got: Option<String> = s.get("any_key").unwrap();
+        assert_eq!(got, None);
+    }
+
+    #[test]
+    fn get_returns_none_when_file_is_empty() {
+        let tmp = tempfile::tempdir().unwrap();
+        let s = Settings::open_at(tmp.path()).unwrap();
+        std::fs::write(s.file(), "").unwrap();
+        let got: Option<String> = s.get("any_key").unwrap();
+        assert_eq!(got, None);
+    }
+
+    #[test]
+    fn round_trip_array_of_strings() {
+        let tmp = tempfile::tempdir().unwrap();
+        let s = Settings::open_at(tmp.path()).unwrap();
+        let want = vec!["alpha".to_string(), "beta".to_string(), "gamma".to_string()];
+        s.set("tags", &want).unwrap();
+        let got: Vec<String> = s.get("tags").unwrap().unwrap();
+        assert_eq!(got, want);
+    }
+
+    #[test]
+    fn round_trip_float() {
+        let tmp = tempfile::tempdir().unwrap();
+        let s = Settings::open_at(tmp.path()).unwrap();
+        s.set("factor", &2.5_f64).unwrap();
+        let got: f64 = s.get("factor").unwrap().unwrap();
+        assert!((got - 2.5).abs() < f64::EPSILON);
+    }
+
+    #[derive(Debug, Serialize, Deserialize, PartialEq)]
+    struct Inner {
+        value: i64,
+        flag: bool,
+    }
+
+    #[derive(Debug, Serialize, Deserialize, PartialEq)]
+    struct Outer {
+        name: String,
+        inner: Inner,
+    }
+
+    #[test]
+    fn round_trip_nested_table() {
+        let tmp = tempfile::tempdir().unwrap();
+        let s = Settings::open_at(tmp.path()).unwrap();
+        let want = Outer {
+            name: "example".to_string(),
+            inner: Inner {
+                value: 42,
+                flag: true,
+            },
+        };
+        s.set("config", &want).unwrap();
+        let got: Outer = s.get("config").unwrap().unwrap();
+        assert_eq!(got, want);
+    }
+
+    #[test]
+    fn set_is_idempotent_for_same_value() {
+        let tmp = tempfile::tempdir().unwrap();
+        let s = Settings::open_at(tmp.path()).unwrap();
+        s.set("k", &"v".to_string()).unwrap();
+        let first = std::fs::read_to_string(s.file()).unwrap();
+        s.set("k", &"v".to_string()).unwrap();
+        let second = std::fs::read_to_string(s.file()).unwrap();
+        assert_eq!(first, second);
+        assert_eq!(s.get::<String>("k").unwrap(), Some("v".to_string()));
+    }
+
+    #[test]
+    fn deserialize_value_fails_when_type_mismatches() {
+        let tmp = tempfile::tempdir().unwrap();
+        let s = Settings::open_at(tmp.path()).unwrap();
+        s.set("key", &"not_a_number".to_string()).unwrap();
+        let result: Result<Option<i64>, SettingsError> = s.get("key");
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("failed to deserialize settings value at key 'key'"));
+    }
+
+    #[test]
+    fn parse_toml_fails_when_document_is_malformed() {
+        let tmp = tempfile::tempdir().unwrap();
+        let s = Settings::open_at(tmp.path()).unwrap();
+        std::fs::write(s.file(), "this is not valid toml [[[").unwrap();
+        let result: Result<Option<String>, SettingsError> = s.get("key");
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("failed to parse settings TOML"));
+    }
+
+    #[test]
+    fn read_file_fails_when_path_is_directory() {
+        let tmp = tempfile::tempdir().unwrap();
+        let s = Settings::open_at(tmp.path()).unwrap();
+        std::fs::create_dir(s.file()).unwrap();
+        let result: Result<Option<String>, SettingsError> = s.get("key");
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("failed to read settings file"));
+    }
+
+    #[test]
+    fn create_dir_fails_when_final_path_component_is_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        let file_path = tmp.path().join("a_file");
+        std::fs::write(&file_path, "x").unwrap();
+        let nested = file_path.join("sub");
+        let result = Settings::open_at(&nested);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("failed to create config directory"));
+    }
+
+    #[test]
+    fn write_fails_when_app_dir_is_removed() {
+        let tmp = tempfile::tempdir().unwrap();
+        let app_dir = tmp.path().join("app");
+        let s = Settings::open_at(&app_dir).unwrap();
+        std::fs::remove_dir_all(&app_dir).unwrap();
+        let result = s.set("k", &"v".to_string());
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("failed to write settings file"));
+    }
+
+    #[test]
+    fn cascade_falls_back_through_manual_layering() {
+        let system_tmp = tempfile::tempdir().unwrap();
+        let user_tmp = tempfile::tempdir().unwrap();
+        let app_tmp = tempfile::tempdir().unwrap();
+
+        let system = Settings::open_at(system_tmp.path()).unwrap();
+        let user = Settings::open_at(user_tmp.path()).unwrap();
+        let app = Settings::open_at(app_tmp.path()).unwrap();
+
+        system.set("theme", &"system_default".to_string()).unwrap();
+        user.set("theme", &"user_override".to_string()).unwrap();
+        user.set("font_size", &12_i64).unwrap();
+        app.set("font_size", &14_i64).unwrap();
+
+        let theme = app
+            .get::<String>("theme")
+            .unwrap()
+            .or_else(|| user.get::<String>("theme").unwrap())
+            .or_else(|| system.get::<String>("theme").unwrap());
+        assert_eq!(theme, Some("user_override".to_string()));
+
+        let font_size = app
+            .get::<i64>("font_size")
+            .unwrap()
+            .or_else(|| user.get::<i64>("font_size").unwrap())
+            .or_else(|| system.get::<i64>("font_size").unwrap());
+        assert_eq!(font_size, Some(14));
+
+        let missing = app
+            .get::<String>("missing")
+            .unwrap()
+            .or_else(|| user.get::<String>("missing").unwrap())
+            .or_else(|| system.get::<String>("missing").unwrap());
+        assert_eq!(missing, None);
     }
 }
