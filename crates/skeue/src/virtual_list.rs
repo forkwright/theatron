@@ -188,4 +188,122 @@ mod tests {
         let (s, e) = visible_range(0.0, 600.0, 100, 0.0, 10);
         assert_eq!((s, e), (0, 0));
     }
+
+    #[test]
+    fn visible_range_returns_empty_when_item_height_is_negative() {
+        let (s, e) = visible_range(0.0, 600.0, 100, -10.0, 10);
+        assert_eq!((s, e), (0, 0));
+    }
+
+    #[test]
+    fn visible_range_clamps_start_to_zero_when_scroll_top_is_negative() {
+        let (s, e) = visible_range(-100.0, 600.0, 100, 80.0, 10);
+        assert_eq!(s, 0);
+        assert!(e > s);
+    }
+
+    #[test]
+    fn visible_range_truncates_first_item_correctly_when_scroll_top_is_fractional() {
+        // scroll_top=50, item_height=80 → first=0 (truncated)
+        let (s, e) = visible_range(50.0, 80.0, 100, 80.0, 0);
+        assert_eq!(s, 0);
+        // count = ceil(80/80) + 1 = 2
+        assert_eq!(e, 2);
+    }
+
+    #[test]
+    fn visible_range_computes_count_correctly_when_container_height_not_divisible_by_item_height() {
+        let (s, e) = visible_range(0.0, 600.0, 100, 70.0, 0);
+        // count = ceil(600/70) + 1 = 9 + 1 = 10
+        assert_eq!(e - s, 10);
+    }
+
+    #[test]
+    fn visible_range_uses_zero_overscan_without_panic() {
+        let (s, e) = visible_range(0.0, 600.0, 100, 80.0, 0);
+        // count = ceil(600/80)+1 = 8+1 = 9
+        assert_eq!(e - s, 9);
+    }
+
+    #[test]
+    fn visible_range_clamps_end_to_total_when_overscan_exceeds_bounds_at_middle_scroll() {
+        let (_s, e) = visible_range(800.0, 600.0, 20, 80.0, 15);
+        // first = 10, count = 9, end = 10+9+15 = 34 -> clamped to 20
+        assert_eq!(e, 20);
+    }
+
+    #[test]
+    fn visible_range_renders_last_items_when_scroll_top_exactly_equals_total_height() {
+        // 20 items * 80px = 1600px
+        let (s, e) = visible_range(1600.0, 600.0, 20, 80.0, 5);
+        // first = 20, count = 9, end = min(20+9+5, 20) = 20
+        assert_eq!(e, 20);
+        assert!(s <= e);
+    }
+
+    #[test]
+    fn visible_range_returns_empty_when_scroll_top_is_nan() {
+        let (s, e) = visible_range(f64::NAN, 600.0, 100, 80.0, 10);
+        // NaN/80 = NaN, cast to usize = 0, count = 9, end = 19
+        assert_eq!(s, 0);
+        assert_eq!(e, 19);
+    }
+
+    #[test]
+    fn visible_range_returns_empty_when_item_height_is_nan() {
+        let (s, e) = visible_range(0.0, 600.0, 100, f64::NAN, 10);
+        // Guard: NaN <= 0.0 is false, so it proceeds.
+        // NaN cast to usize = 0, count = 1 (container_height/NaN = NaN)
+        assert_eq!(s, 0);
+        assert_eq!(e, 11); // 0 + 1 + 10
+    }
+
+    #[test]
+    fn spacer_heights_returns_zero_both_when_item_height_is_zero() {
+        let (top, bottom) = spacer_heights(5, 15, 30, 0.0);
+        assert!((top - 0.0).abs() < f64::EPSILON);
+        assert!((bottom - 0.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn spacer_heights_returns_zero_bottom_when_range_end_equals_total_items() {
+        let (top, bottom) = spacer_heights(5, 20, 20, 80.0);
+        assert!((top - 400.0).abs() < f64::EPSILON);
+        assert!((bottom - 0.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn spacer_heights_returns_zero_top_when_range_start_is_zero() {
+        let (top, bottom) = spacer_heights(0, 10, 20, 80.0);
+        assert!((top - 0.0).abs() < f64::EPSILON);
+        assert!((bottom - 800.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn spacer_heights_pads_entire_list_when_range_is_empty() {
+        let (top, bottom) = spacer_heights(5, 5, 20, 80.0);
+        assert!((top - 400.0).abs() < f64::EPSILON);
+        assert!((bottom - 1200.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn spacer_heights_pads_top_correctly_when_range_end_exceeds_total_items() {
+        let (top, bottom) = spacer_heights(5, 25, 20, 80.0);
+        assert!((top - 400.0).abs() < f64::EPSILON);
+        assert!((bottom - 0.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn spacer_heights_returns_zero_both_when_total_items_is_zero() {
+        let (top, bottom) = spacer_heights(0, 0, 0, 80.0);
+        assert!((top - 0.0).abs() < f64::EPSILON);
+        assert!((bottom - 0.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn spacer_heights_returns_negative_pad_when_item_height_is_negative() {
+        let (top, bottom) = spacer_heights(5, 10, 20, -10.0);
+        assert!(top < 0.0);
+        assert!(bottom < 0.0);
+    }
 }

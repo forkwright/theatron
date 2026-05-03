@@ -282,4 +282,135 @@ mod tests {
         let bars = bar_positions(&[-10.0, 5.0, 10.0], 30.0, 20.0);
         assert_eq!(bars[0].3, 0.0, "negative → zero height");
     }
+
+    #[test]
+    fn polyline_points_returns_empty_when_width_is_negative() {
+        assert_eq!(polyline_points(&[1.0, 2.0], -10.0, 20.0), "");
+    }
+
+    #[test]
+    fn polyline_points_returns_empty_when_height_is_negative() {
+        assert_eq!(polyline_points(&[1.0, 2.0], 100.0, -5.0), "");
+    }
+
+    #[test]
+    fn polyline_points_centers_single_value_at_x_zero() {
+        let s = polyline_points(&[42.0], 100.0, 20.0);
+        assert!(
+            s.starts_with("0.00,"),
+            "single point should start at x=0: {s:?}"
+        );
+    }
+
+    #[test]
+    fn polyline_points_handles_all_negative_values() {
+        let s = polyline_points(&[-20.0, -10.0], 50.0, 20.0);
+        // Highest (least negative) value maps to top (y≈0), lowest to bottom (y≈20)
+        assert!(
+            s.contains("50.00,0.00") || s.contains("50,0.00"),
+            "highest negative at top: {s:?}"
+        );
+        assert!(
+            s.contains("0.00,20.00") || s.contains("0,20.00"),
+            "lowest negative at bottom: {s:?}"
+        );
+    }
+
+    #[test]
+    fn polyline_points_handles_mixed_positive_and_negative_values() {
+        let s = polyline_points(&[-10.0, 10.0], 50.0, 20.0);
+        // Lowest value at bottom, highest at top
+        assert!(
+            s.contains("0.00,20.00") || s.contains("0,20.00"),
+            "negative value at bottom: {s:?}"
+        );
+        assert!(
+            s.contains("50.00,0.00") || s.contains("50,0.00"),
+            "positive value at top: {s:?}"
+        );
+    }
+
+    #[test]
+    fn polyline_points_renders_at_bottom_when_values_are_extremely_close() {
+        let s = polyline_points(&[1.0, 1.0 + 1e-20], 30.0, 20.0);
+        // range gets clamped to EPSILON, both points map to y≈height
+        assert!(
+            s.contains("20.00"),
+            "extremely close values should render at bottom: {s:?}"
+        );
+    }
+
+    #[test]
+    fn polyline_points_renders_single_negative_value_at_bottom() {
+        let s = polyline_points(&[-5.0], 100.0, 20.0);
+        assert!(
+            s.contains("20.00"),
+            "single negative value should render at bottom: {s:?}"
+        );
+    }
+
+    #[test]
+    fn bar_positions_returns_empty_when_width_is_zero() {
+        assert!(bar_positions(&[1.0, 2.0], 0.0, 20.0).is_empty());
+    }
+
+    #[test]
+    fn bar_positions_returns_empty_when_height_is_zero() {
+        assert!(bar_positions(&[1.0, 2.0], 100.0, 0.0).is_empty());
+    }
+
+    #[test]
+    fn bar_positions_returns_empty_when_width_is_negative() {
+        assert!(bar_positions(&[1.0, 2.0], -10.0, 20.0).is_empty());
+    }
+
+    #[test]
+    fn bar_positions_returns_empty_when_height_is_negative() {
+        assert!(bar_positions(&[1.0, 2.0], 100.0, -5.0).is_empty());
+    }
+
+    #[test]
+    fn bar_positions_returns_single_bar_with_full_height_for_one_positive_value() {
+        let bars = bar_positions(&[10.0], 60.0, 20.0);
+        assert_eq!(bars.len(), 1);
+        assert!(
+            (bars[0].3 - 20.0).abs() < 0.01,
+            "single positive bar should reach full height"
+        );
+    }
+
+    #[test]
+    fn bar_positions_returns_single_bar_with_zero_height_for_one_negative_value() {
+        let bars = bar_positions(&[-5.0], 60.0, 20.0);
+        assert_eq!(bars.len(), 1);
+        assert_eq!(bars[0].3, 0.0, "single negative value → zero height");
+    }
+
+    #[test]
+    fn bar_positions_clamps_all_negative_values_to_zero_height() {
+        let bars = bar_positions(&[-5.0, -2.0], 30.0, 20.0);
+        assert!(
+            bars.iter().all(|b| b.3 == 0.0),
+            "all-negative inputs → all zero-height bars"
+        );
+    }
+
+    #[test]
+    fn bar_positions_returns_zero_height_for_all_zero_values() {
+        let bars = bar_positions(&[0.0, 0.0], 30.0, 20.0);
+        assert!(
+            bars.iter().all(|b| b.3 == 0.0),
+            "all-zero inputs → all zero-height bars"
+        );
+    }
+
+    #[test]
+    fn bar_positions_bar_x_exceeds_width_when_width_smaller_than_bar_count() {
+        let bars = bar_positions(&[1.0; 100], 10.0, 20.0);
+        let last_x = bars.last().unwrap().0;
+        assert!(
+            last_x > 10.0,
+            "last bar x ({last_x}) should exceed viewport width"
+        );
+    }
 }

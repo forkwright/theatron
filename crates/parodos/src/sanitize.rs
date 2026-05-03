@@ -621,4 +621,46 @@ mod tests {
         let result = sanitize_for_display(input);
         assert_eq!(result, "text", "both ESC and ESC CSI must be stripped");
     }
+
+    #[test]
+    fn decode_utf8_char_returns_none_for_lone_continuation_byte() {
+        let bytes = b"\x80\x81";
+        assert!(decode_utf8_char(bytes, 0).is_none());
+    }
+
+    #[test]
+    fn decode_utf8_char_returns_none_for_truncated_two_byte_sequence() {
+        let bytes = b"\xC2";
+        assert!(decode_utf8_char(bytes, 0).is_none());
+    }
+
+    #[test]
+    fn decode_utf8_char_returns_none_for_overlong_encoding() {
+        let bytes = b"\xC0\x80";
+        assert!(decode_utf8_char(bytes, 0).is_none());
+    }
+
+    #[test]
+    fn decode_utf8_char_returns_none_for_surrogate_half() {
+        let bytes = b"\xED\xA0\x80";
+        assert!(decode_utf8_char(bytes, 0).is_none());
+    }
+
+    #[test]
+    fn sanitize_strips_osc_containing_embedded_csi() {
+        let input = "\x1b]0;title\x1b[31m\x07safe";
+        assert_eq!(sanitize_for_display(input), "safe");
+    }
+
+    #[test]
+    fn sanitize_strips_csi_followed_by_osc() {
+        let input = "\x1b[31m\x1b]0;x\x07text";
+        assert_eq!(sanitize_for_display(input), "text");
+    }
+
+    #[test]
+    fn sanitize_strips_unterminated_osc_with_embedded_esc() {
+        let input = "before\x1b]0;title\x1bwithout_terminator";
+        assert_eq!(sanitize_for_display(input), "before");
+    }
 }

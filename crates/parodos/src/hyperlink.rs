@@ -535,4 +535,124 @@ mod tests {
             "URL must use file:// scheme"
         );
     }
+
+    #[test]
+    fn detect_urls_includes_url_with_tilde_in_path() {
+        let urls = detect_urls("https://example.com/~user/file");
+        assert_eq!(urls.len(), 1);
+        assert_eq!(urls[0].2, "https://example.com/~user/file");
+    }
+
+    #[test]
+    fn detect_urls_includes_userinfo() {
+        let urls = detect_urls("https://user:pass@example.com");
+        assert_eq!(urls.len(), 1);
+        assert_eq!(urls[0].2, "https://user:pass@example.com");
+    }
+
+    #[test]
+    fn detect_urls_strips_trailing_comma_and_dot() {
+        let urls = detect_urls("See https://example.com/path.,");
+        assert_eq!(urls.len(), 1);
+        assert_eq!(urls[0].2, "https://example.com/path");
+    }
+
+    #[test]
+    fn detect_urls_keeps_balanced_parens_in_path() {
+        let url = "https://example.com/(path)";
+        let urls = detect_urls(url);
+        assert_eq!(urls.len(), 1);
+        assert_eq!(urls[0].2, url);
+    }
+
+    #[test]
+    fn detect_urls_strips_unbalanced_trailing_paren() {
+        let urls = detect_urls("https://example.com/path)");
+        assert_eq!(urls.len(), 1);
+        assert_eq!(urls[0].2, "https://example.com/path");
+    }
+
+    #[test]
+    fn detect_urls_finds_url_at_start_of_string() {
+        let text = "https://foo.com is here";
+        let urls = detect_urls(text);
+        assert_eq!(urls[0].0, 0);
+        assert_eq!(urls[0].2, "https://foo.com");
+    }
+
+    #[test]
+    fn detect_urls_finds_url_at_end_of_string() {
+        let text = "see https://foo.com";
+        let urls = detect_urls(text);
+        assert_eq!(urls[0].1, text.len());
+        assert_eq!(urls[0].2, "https://foo.com");
+    }
+
+    #[test]
+    fn trim_trailing_punct_returns_zero_for_empty_string() {
+        assert_eq!(trim_trailing_punct(""), 0);
+    }
+
+    #[test]
+    fn trim_trailing_punct_leaves_string_without_punct_unchanged() {
+        assert_eq!(trim_trailing_punct("abc"), 3);
+    }
+
+    #[test]
+    fn trim_trailing_punct_strips_multiple_trailing_chars() {
+        assert_eq!(trim_trailing_punct("abc..."), 3);
+    }
+
+    #[test]
+    fn trim_trailing_punct_keeps_balanced_parens() {
+        assert_eq!(trim_trailing_punct("abc(def)"), 8);
+    }
+
+    #[test]
+    fn trim_trailing_punct_strips_unbalanced_closing_paren() {
+        assert_eq!(trim_trailing_punct("abc)"), 3);
+    }
+
+    #[test]
+    fn osc8_open_escapes_empty_url() {
+        assert_eq!(osc8_open(""), "\x1b]8;;\x07");
+    }
+
+    #[test]
+    fn osc8_open_preserves_query_params() {
+        let seq = osc8_open("https://x.com?a=1&b=2");
+        assert_eq!(seq, "\x1b]8;;https://x.com?a=1&b=2\x07");
+    }
+
+    #[test]
+    fn detect_file_paths_finds_multiple_paths() {
+        let paths = detect_file_paths("see src/a.rs and src/b.rs");
+        assert_eq!(paths.len(), 2);
+    }
+
+    #[test]
+    fn detect_file_paths_ignores_path_without_line_number() {
+        let paths = detect_file_paths("edit src/main.rs");
+        assert_eq!(paths.len(), 1);
+        assert!(paths[0].3.contains("main.rs"));
+    }
+
+    #[test]
+    fn detect_file_paths_ignores_invalid_extension() {
+        let paths = detect_file_paths("file.exe");
+        assert!(paths.is_empty());
+    }
+
+    #[test]
+    fn detect_file_paths_ignores_path_with_spaces() {
+        let paths = detect_file_paths("src/my file.rs");
+        assert!(paths.is_empty());
+    }
+
+    #[test]
+    fn detect_file_paths_trims_dotslash_prefix() {
+        let paths = detect_file_paths("./src/lib.rs");
+        assert_eq!(paths.len(), 1);
+        assert!(paths[0].3.starts_with("file://src/lib.rs"));
+    }
 }

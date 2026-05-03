@@ -181,4 +181,53 @@ mod tests {
         let png = rgba_to_png(&rgba, 2, 2);
         assert!(png.is_none());
     }
+
+    #[test]
+    fn rgba_to_png_encodes_2x2_gradient() {
+        let rgba = vec![
+            255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 0, 255,
+        ];
+        let png = rgba_to_png(&rgba, 2, 2);
+        assert!(png.is_some());
+        let data = png.unwrap();
+        assert_eq!(&data[..4], &[0x89, 0x50, 0x4E, 0x47]);
+    }
+
+    #[test]
+    fn rgba_to_png_large_dimensions_succeeds() {
+        let rgba = vec![128; 10 * 10 * 4];
+        let png = rgba_to_png(&rgba, 10, 10);
+        assert!(png.is_some());
+    }
+
+    #[test]
+    fn clipboard_content_text_holds_value() {
+        let content = ClipboardContent::Text("hello".to_string());
+        assert!(matches!(content, ClipboardContent::Text(ref s) if s == "hello"));
+    }
+
+    #[test]
+    fn clipboard_content_image_holds_dimensions() {
+        let content = ClipboardContent::Image {
+            png_data: vec![1, 2, 3],
+            width: 100,
+            height: 200,
+        };
+        assert!(
+            matches!(
+                content,
+                ClipboardContent::Image {
+                    width: 100,
+                    height: 200,
+                    ..
+                }
+            ),
+            "expected image with width 100 and height 200"
+        );
+    }
+
+    #[test]
+    fn clipboard_content_empty_is_empty() {
+        assert!(matches!(ClipboardContent::Empty, ClipboardContent::Empty));
+    }
 }
