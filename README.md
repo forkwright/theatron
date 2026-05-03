@@ -14,11 +14,46 @@ DESIGN-TOKENS.md), HTTP/SSE, OS integration. Consumed by:
 
 ## Status
 
-Phase 0 closed. Tray support layered as composition over unmodified
-Dioxus + Blitz upstream  -  no fork. Phase 1+2 in flight: theatron
-extracted concurrently with aletheia/proskenion refactor.
+**v1.0.0 released 2026-05-02.** Public API frozen across all eight
+crates per [`_meta/SEMVER.md`](./_meta/SEMVER.md). Consumers pin a
+single git tag and inherit additive minors / non-breaking patches
+until v2.0.
 
-Plan: [`kanon/projects/chalkeion/`](http://forge.forkwright.com/forkwright/kanon/tree/main/projects/chalkeion).
+Full plan: [`kanon/projects/chalkeion/`](http://forge.forkwright.com/forkwright/kanon/tree/main/projects/chalkeion).
+
+## Quickstart
+
+Add to your consumer `Cargo.toml`:
+
+```toml
+[dependencies]
+themelion = { git = "http://forge.forkwright.com/forkwright/theatron.git", tag = "v1.0.0" }
+mekhane  = { git = "http://forge.forkwright.com/forkwright/theatron.git", tag = "v1.0.0" }
+dioxus   = "=0.7.6"
+dioxus-native = "=0.7.6"
+```
+
+Smallest working app:
+
+```rust
+use dioxus::prelude::*;
+use dioxus_native::launch;
+
+fn app() -> Element {
+    rsx! { div { "theatron " {themelion::version()} } }
+}
+
+fn main() { launch(app); }
+```
+
+See [`examples/minimal/`](./examples/minimal) for a runnable version
+with the kanon dye-token CSS variables wired in, and
+[`examples/tray_smoke/`](./examples/tray_smoke) for the tray + menu
++ global-hotkey surface.
+
+Consumer integration patterns (Cargo features, theme provider, OS
+services, mekhane launch variants): see
+[`_meta/INTEGRATION.md`](./_meta/INTEGRATION.md).
 
 ## Crates
 
@@ -33,7 +68,7 @@ prefix; each crate is its own domain abstraction).
 | `keryx` | κῆρυξ  -  herald/messenger | HTTP client base, SSE streaming, mDNS discovery, ApiError |
 | `skeue` | σκευή  -  props/equipment | Generic Dioxus components per DESIGN-TOKENS.md component anatomy |
 | `gramma` | γράμμα  -  written character | Markdown + syntax highlighting (pulldown-cmark + syntect), diff state |
-| `parodos` | πάροδος  -  chorus's stage entrance | Terminal UI substrate (Ratatui + Elm dispatcher) |
+| `parodos` | πάροδος  -  chorus's stage entrance | Terminal UI substrate (Ratatui + theme + sanitize + clipboard + highlight + hyperlink) |
 | `dokimasia` | δοκιμασία  -  examination | Design-token + standards enforcement linter |
 
 ## Architecture

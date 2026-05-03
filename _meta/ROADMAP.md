@@ -3,53 +3,77 @@
 This is the implementation roadmap for the theatron repo. The broader
 fleet plan lives in `~/dev/kanon/projects/chalkeion/ROADMAP.md`.
 
-## Phase 1+2 (current)
+## Phase 1+2  -  shipped
 
-Build theatron crates concurrently with porting aletheia/proskenion +
-koilon to consume them.
+Built theatron's eight crates concurrently with porting
+aletheia/proskenion + koilon to consume them. All deliverables landed
+on or before the v1.0.0 cut.
 
 1. **Workspace skeleton** ✅
-2. **theatron-components seed**  -  port virtual_list, table, toast from
-   proskenion extraction
-3. **theatron-core theme provider**  -  extract from
-   proskenion/src/theme.rs; ThemeMode enum, signal binding, OS pref
-   detection
-4. **theatron-platform**  -  window state persistence + tray icon
-   (blocked on Gate 2) + global hotkeys + native notifications + file
-   dialogs
-5. **theatron-net**  -  HTTP client base + SSE pattern (per Phase 0
-   Gate 3 reference) + mDNS discovery
-6. **theatron-markdown**  -  pulldown-cmark + syntect wrapper, derived
-   from kanon/crates/stoa/src/{markdown,highlight,escape}.rs
-7. **theatron-tui**  -  extract Elm dispatcher + Markdown renderer +
-   editor + utilities from aletheia/koilon
-8. **theatron-blitz**  -  Dioxus + Blitz integration helpers (small,
-   version pins and glue only)
-9. **theatron-lint**  -  CSS parser + Rust string-literal scanner +
-   DESIGN-TOKENS.md crossref. Fails CI on undocumented tokens.
-10. **proskenion refactor**  -  port to consume theatron, validate API
-    against real consumer pressure
-11. **koilon refactor**  -  port to consume theatron-tui
-12. **theatron v1.0 cut**  -  API frozen; breaking changes require minor
-    bump + migration guide
+2. **`skeue` seed** ✅  -  virtual_list, table, toast ported from
+   proskenion
+3. **`themelion` theme provider** ✅  -  ThemeMode + signal binding +
+   OS pref detection
+4. **`bathron` OS services** ✅  -  notifications, dialogs, settings,
+   logging behind per-feature gates
+5. **`mekhane` tray + menus + hotkeys** ✅  -  Gate 2 closed via
+   composition over unmodified Dioxus + Blitz (no fork). v2 added
+   `launch_cfg_with_props_ext`, app menus, global hotkeys,
+   `default_icon`
+6. **`keryx` net** ✅  -  HTTP client base + SSE pattern + ApiError
+7. **`gramma` markdown** ✅  -  pulldown-cmark + syntect wrapper,
+   diff-state types
+8. **`parodos` TUI** ✅  -  theme, sanitize, clipboard, highlight,
+   hyperlink, fuzzy, env (extracted from aletheia/koilon)
+9. **`dokimasia` linter** ✅  -  design-token + standards rules,
+   namespace frozen at v1.0
+10. **proskenion refactor** ✅  -  consuming theatron in production
+11. **koilon refactor** ✅  -  consuming `parodos` re-exports
+12. **theatron v1.0 cut** ✅  -  released 2026-05-02, API frozen per
+    `_meta/SEMVER.md`
 
-## Phase 6 (post-v1.0, ongoing)
+## Phase 5  -  ship-ready polish + distribution
+
+Post-v1.0 polish before broad fleet rollout. Two parallel tracks:
+
+### 5a  -  chalkeion-side polish
+
+Owned by the chalkeion crate (kanon repo). Real iconography, perf
+budgets, a11y audit. Tracked on the chalkeion ROADMAP, not here.
+
+### 5b  -  theatron-side distribution
+
+Theatron-side deliverables:
+
+- ✅ Quickstart in README pointing at the eight-crate Cargo pin
+- ✅ `_meta/INTEGRATION.md`  -  consumer guide covering theme provider
+  setup, mekhane launch variants, bathron feature flags, parodos
+  reuse, keryx HTTP/SSE patterns, dokimasia adoption
+- ✅ Per-example READMEs (`examples/minimal`, `examples/tray_smoke`)
+- ✅ ratatui 0.30 + crossterm 0.29 alignment with downstream
+- ⏳ Operator dispatch view (chalkeion-side; tracked there)
+
+## Phase 6  -  fleet rollout
+
+Post-v1.0, ongoing. Each fleet desktop surface migrates onto theatron
+on its own cadence; theatron itself owes nothing here beyond keeping
+the v1.0 API contract.
 
 - harmonia/desktop builds on theatron when their Phase 3.5 W4 starts
 - akroasis/desktop builds on theatron when desktop tertiary surface begins
+- chalkeion already at parity through Phase 4 Tier 5
 - Future fleet surfaces consume theatron by default
 
 ## SemVer policy
 
-- v0.x.y during Phase 1+2  -  breaking changes free
-- v1.0.0 at Phase 1+2 exit  -  frozen API
-- Additive changes → minor version bump (v1.x.y)
-- Breaking changes → major version bump + migration guide
-- Theatron-lint enforces token vocabulary; new tokens require
-  DESIGN-TOKENS.md PR + theatron-components release
+See [`_meta/SEMVER.md`](./SEMVER.md) for the full rules. Summary:
+
+- v1.0.0+  -  additive minor bumps, breaking change requires major
+- Workspace `version` drives all eight crates in lockstep
+- `dokimasia` enforces design-token vocabulary; new tokens require a
+  DESIGN-TOKENS.md PR + theatron minor bump
 
 ## Blockers
 
-- **Gate 2** (dioxus#2138 tray-icon)  -  blocks theatron-platform tray
-  capability, but theatron-platform can ship without tray initially
-  and add it once Gate 2 resolves
+None at v1.0. Gate 2 (tray support) closed via composition layer in
+`mekhane` over unmodified upstream Dioxus + Blitz.
