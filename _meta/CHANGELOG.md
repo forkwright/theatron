@@ -42,6 +42,13 @@ patch (`v1.0.1`) to minor (`v1.1.0`).
 
   Existing consumers using a wildcard `match` arm continue to work;
   consumers can opt into the new variants for richer error routing.
+- **`skeue::EmptyState` component** (PR #52). Common pattern for
+  views with no content (zero-result search, fresh app launch,
+  disconnected state). Slots: `title` (required, accessible name),
+  optional `message` / `icon` / `action`. Marked `role=status`,
+  decorative icon `aria-hidden`, action slot the consumer's
+  responsibility for keyboard focus + label. Joins the existing
+  12-component skeue inventory; brings the count to 13.
 - **`examples/full_app/`** (PR #40) -- runnable Dioxus reference
   consumer exercising all six desktop-bound crates (themelion,
   mekhane, bathron, skeue, gramma, keryx) in one place. Operators
