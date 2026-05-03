@@ -1,0 +1,25 @@
+[package]
+name = "theatron-example-full-app"
+description = "Full theatron consumer example — all six desktop crates in one runnable Dioxus app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[features]
+default = []
+menus = ["mekhane/menus"]
+global-hotkeys = ["mekhane/global-hotkeys"]
+default-icon = ["mekhane/default-icon"]
+
+[dependencies]
+themelion = { workspace = true }
+mekhane = { workspace = true }
+bathron = { workspace = true, features = ["notifications", "settings"] }
+skeue = { workspace = true }
+gramma = { workspace = true }
+keryx = { workspace = true }
+dioxus = { workspace = true }
+futures-util = { workspace = true }
+reqwest = { workspace = true }
+tracing = { workspace = true }

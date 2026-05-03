@@ -11,6 +11,7 @@ members = [
     "crates/dokimasia",
     "examples/minimal",
     "examples/tray_smoke",
+    "examples/full_app",
 ]
 
 [workspace.package]

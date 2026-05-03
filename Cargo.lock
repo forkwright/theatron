@@ -7109,6 +7109,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "theatron-example-full-app"
+version = "1.0.0"
+dependencies = [
+ "bathron",
+ "dioxus",
+ "futures-util",
+ "gramma",
+ "keryx",
+ "mekhane",
+ "reqwest 0.13.3",
+ "skeue",
+ "themelion",
+ "tracing",
+]
+
+[[package]]
 name = "theatron-example-minimal"
 version = "1.0.0"
 dependencies = [
