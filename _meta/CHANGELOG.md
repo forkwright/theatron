@@ -10,11 +10,23 @@ entry per release covers all eight.
 ## [Unreleased]
 
 Post-v1.0 polish wave landed 2026-05-03 while waiting on chalkeion
-landing. No public API changes; additive surfaces, lint hardening,
-tests, docs. Likely a v1.0.1 patch on tag.
+landing. Mostly additive surfaces, lint hardening, tests, docs.
+The `bathron::logging::init_with_stderr` addition is the first
+genuinely new public API since v1.0.0  -  flips the upcoming tag from
+patch (`v1.0.1`) to minor (`v1.1.0`).
 
 ### Added
 
+- **`bathron::logging::init_with_stderr(config, also_to_stderr)`**
+  (PR-A of the proskenion logging-migration sequence) -- new public
+  function next to existing `init`. When `also_to_stderr = true`,
+  adds an stderr layer alongside the daily-rotated file appender.
+  Both layers share the same env-filter (`RUST_LOG` if set,
+  otherwise the configured `LogConfig::level`). Lifts the stderr-on-
+  verbose pattern out of proskenion's local `logging.rs` so any
+  fleet desktop surface can opt into it via a single function call.
+  `init(config)` now delegates to `init_with_stderr(config, false)`
+  (no behaviour change for existing callers).
 - **`examples/full_app/`** (PR #40) -- runnable Dioxus reference
   consumer exercising all six desktop-bound crates (themelion,
   mekhane, bathron, skeue, gramma, keryx) in one place. Operators

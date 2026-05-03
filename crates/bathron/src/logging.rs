@@ -105,6 +105,10 @@ impl LogConfig {
 
 /// Initialize global tracing with file rotation and an env-filter.
 ///
+/// File output only. For also-emit-to-stderr behaviour (typical for a
+/// `--verbose` flag, dev runs, or always-loud daemons) call
+/// [`init_with_stderr`] instead.
+///
 /// The returned [`tracing_appender::non_blocking::WorkerGuard`] MUST
 /// be held for the program's lifetime — dropping it flushes the
 /// background writer and stops accepting log events.
@@ -119,6 +123,40 @@ impl LogConfig {
 #[cfg(not(test))]
 pub fn init(
     config: LogConfig,
+) -> Result<tracing_appender::non_blocking::WorkerGuard, LoggingError> {
+    init_with_stderr(config, false)
+}
+
+/// Initialize global tracing with file rotation, env-filter, and an
+/// optional stderr layer.
+///
+/// When `also_to_stderr` is `true`, log events are written to *both*
+/// the daily-rotated file *and* stderr. Both layers share the same
+/// env-filter (the configured [`LogConfig::level`], or `RUST_LOG` if
+/// set in the environment).
+///
+/// Typical usage: a desktop app reading a `--verbose` CLI flag or
+/// the presence of `RUST_LOG` to opt callers into an always-on
+/// stderr layer for development. Production deployments leave
+/// `also_to_stderr = false` and rely on file output.
+///
+/// The returned [`tracing_appender::non_blocking::WorkerGuard`] MUST
+/// be held for the program's lifetime — dropping it flushes the
+/// background writer and stops accepting log events.
+///
+/// # Errors
+///
+/// Same set as [`init`]:
+///
+/// - [`LoggingError::NoStateDir`] (platform state dir lookup failed
+///   and `log_dir` not set).
+/// - [`LoggingError::CreateDir`] (couldn't create the log directory).
+/// - [`LoggingError::SetGlobalDefault`] (a subscriber is already
+///   installed).
+#[cfg(not(test))]
+pub fn init_with_stderr(
+    config: LogConfig,
+    also_to_stderr: bool,
 ) -> Result<tracing_appender::non_blocking::WorkerGuard, LoggingError> {
     use tracing_subscriber::{EnvFilter, layer::SubscriberExt};
 
@@ -139,9 +177,16 @@ pub fn init(
     let env_filter =
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(level.to_string()));
 
+    // tracing_subscriber's `Option<L>: Layer` blanket impl makes the
+    // stderr layer no-op when `None`. Keeps both branches a single
+    // statically-typed subscriber.
+    let stderr_layer =
+        also_to_stderr.then(|| tracing_subscriber::fmt::layer().with_writer(std::io::stderr));
+
     let subscriber = tracing_subscriber::registry()
         .with(env_filter)
-        .with(tracing_subscriber::fmt::layer().with_writer(writer));
+        .with(tracing_subscriber::fmt::layer().with_writer(writer))
+        .with(stderr_layer);
 
     tracing::subscriber::set_global_default(subscriber).context(SetGlobalDefaultSnafu)?;
     Ok(guard)
