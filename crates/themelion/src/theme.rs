@@ -222,4 +222,71 @@ mod tests {
         let resolved = ThemeMode::System.resolve();
         assert!(resolved == ResolvedTheme::Dark || resolved == ResolvedTheme::Light);
     }
+
+    #[test]
+    fn next_cycles_dark_light_system_dark() {
+        assert_eq!(ThemeMode::Dark.next(), ThemeMode::Light);
+        assert_eq!(ThemeMode::Light.next(), ThemeMode::System);
+        assert_eq!(ThemeMode::System.next(), ThemeMode::Dark);
+    }
+
+    #[test]
+    fn next_full_cycle_returns_to_start() {
+        let start = ThemeMode::Dark;
+        let cycled = start.next().next().next();
+        assert_eq!(cycled, start);
+    }
+
+    #[test]
+    fn label_values_match_user_facing_strings() {
+        assert_eq!(ThemeMode::Dark.label(), "Dark");
+        assert_eq!(ThemeMode::Light.label(), "Light");
+        assert_eq!(ThemeMode::System.label(), "System");
+    }
+
+    #[test]
+    fn icon_values_are_distinct_unicode_glyphs() {
+        let dark = ThemeMode::Dark.icon();
+        let light = ThemeMode::Light.icon();
+        let system = ThemeMode::System.icon();
+        assert_ne!(dark, light);
+        assert_ne!(light, system);
+        assert_ne!(system, dark);
+        // Each is a single Unicode scalar, not an empty string or a multi-char sequence.
+        assert_eq!(dark.chars().count(), 1);
+        assert_eq!(light.chars().count(), 1);
+        assert_eq!(system.chars().count(), 1);
+    }
+
+    #[test]
+    fn resolved_theme_eq_and_copy_are_derived() {
+        // Compile-time check: ResolvedTheme is Copy + Eq (the
+        // derive in the source must hold). Used by chalkeion /
+        // proskenion view code to copy across closure boundaries.
+        fn assert_copy<T: Copy>() {}
+        fn assert_eq_trait<T: Eq>() {}
+        assert_copy::<ResolvedTheme>();
+        assert_copy::<ThemeMode>();
+        assert_eq_trait::<ResolvedTheme>();
+        assert_eq_trait::<ThemeMode>();
+    }
+
+    #[test]
+    fn resolve_is_pure_for_dark_and_light() {
+        // Calling resolve repeatedly on Dark / Light returns the
+        // same value (pure; no side effects, no state).
+        for _ in 0..3 {
+            assert_eq!(ThemeMode::Dark.resolve(), ResolvedTheme::Dark);
+            assert_eq!(ThemeMode::Light.resolve(), ResolvedTheme::Light);
+        }
+    }
+
+    #[test]
+    fn theme_mode_debug_includes_variant_name() {
+        // Debug derive yields the variant name verbatim. Useful
+        // for logging in consumer code.
+        assert_eq!(format!("{:?}", ThemeMode::Dark), "Dark");
+        assert_eq!(format!("{:?}", ThemeMode::Light), "Light");
+        assert_eq!(format!("{:?}", ThemeMode::System), "System");
+    }
 }
