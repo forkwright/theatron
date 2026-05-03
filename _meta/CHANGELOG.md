@@ -9,8 +9,84 @@ entry per release covers all eight.
 
 ## [Unreleased]
 
-Post-v1.0 development. See `_meta/STATE.md` and `_meta/ROADMAP.md`
-for active work.
+Post-v1.0 polish wave landed 2026-05-03 while waiting on chalkeion
+landing. No public API changes; additive surfaces, lint hardening,
+tests, docs. Likely a v1.0.1 patch on tag.
+
+### Added
+
+- **`examples/full_app/`** (PR #40) -- runnable Dioxus reference
+  consumer exercising all six desktop-bound crates (themelion,
+  mekhane, bathron, skeue, gramma, keryx) in one place. Operators
+  scaffolding harmonia-desktop / akroasis-desktop / their own
+  surfaces copy from this example.
+- **`_meta/INTEGRATION.md`** (PR #37) -- consumer guide covering
+  Cargo pin pattern, Dioxus version-pin pitfall, ThemeProvider
+  usage, mekhane launch + tray + menus + global-hotkey surface,
+  bathron OS-service feature flags, keryx SseStream usage,
+  parodos re-export pattern, gramma module split, full skeue v1.0
+  component inventory, dokimasia adoption pattern, common pitfalls.
+- **`crates/parodos/benches/`** (PR #44) -- criterion benchmarks
+  for `sanitize`, `hyperlink`, `fuzzy` parameterized over three
+  input sizes each. `criterion = "0.5"` added to
+  `[workspace.dependencies]`.
+- **Per-component a11y on `skeue`** (PR #43) -- ARIA roles + names
+  + live-region semantics + `# Accessibility` rustdoc section on
+  all 12 components. `dioxus-ssr = "=0.7.6"` added as a `skeue`
+  dev-dependency for SSR-rendered a11y tests.
+
+### Changed
+
+- **`#![deny(missing_docs, clippy::all, clippy::pedantic)]` workspace-wide**
+  (PR #39) -- promoted from `warn` on `keryx` / `bathron` /
+  `dokimasia` / `gramma` / `mekhane`. `themelion` / `parodos` /
+  `skeue` retain split form (`deny(missing_docs)` +
+  `warn(clippy::*)`) for legacy reasons. Workspace-wide review
+  fixed 7 broken intra-doc links in `mekhane`, 5 redundant /
+  ambiguous links in `parodos`, 2 redundant in `skeue`, 1 in
+  `keryx`. Two `bathron` public functions destructure their
+  by-value parameter at function top to consume ownership rather
+  than carry an `#[expect(needless_pass_by_value)]` suppression.
+- **Test coverage closed on parodos / gramma / skeue** (PR #41) --
+  +91 tests across hyperlink URL regex edge cases, sanitize
+  malformed-UTF-8 boundaries, clipboard `rgba_to_png`, gramma
+  `parse_unified_diff` + `align_side_by_side` edge cases, skeue
+  layout helpers (`bar_positions`, `polyline_points`,
+  `spacer_heights`, `visible_range`).
+- **`bathron::settings` cross-platform tests** (PR #42) -- +13
+  tests covering path resolution, cascade, persistence, TOML
+  round-trip, error paths.
+- **`bathron::logging` cross-platform tests** (PR #45) -- +11
+  tests covering `LogConfig` constructors / Clone / Debug,
+  `resolve_log_dir` default + override + abs-path behaviour,
+  `LoggingError` Display + Send/Sync/Error trait impls.
+
+### Fixed
+
+- **CHANGELOG**: corrected `mekhane` v2 launch fn name from the
+  documentation-only-typo `launch_cfg_with_props_ext` to the
+  shipped `launch_cfg_with_props_and_menu` (PR #38).
+- **`examples/full_app`**: changed theme-load chain from
+  `.and_then(|label| Some(...))` to `.map(|label| ...)` to satisfy
+  `clippy::bind_instead_of_map` exposed by PR #39's pedantic-deny
+  promotion (caught at bypass-merge gate, fixed in same PR cycle).
+- **`crates/bathron/src/{logging,notifications}.rs`**: destructure
+  `LogConfig` / `NotificationRequest` at function top so by-value
+  pass actually consumes ownership, removing two
+  `#[expect(needless_pass_by_value)]` suppressions added by the
+  PR #39 first-pass and rejected per the suppressions-are-violations
+  fleet rule.
+
+### Aletheia consumer-side (not theatron, but in lockstep)
+
+- aletheia#38 -- migrated `koilon` (`parodos` rev `4846ef4` ->
+  tag `v1.0.0`), `proskenion` (`themelion + skeue + gramma` rev
+  `9bf1e9e` -> tag `v1.0.0`), `skene` (`keryx` rev `9bf1e9e` ->
+  tag `v1.0.0`).
+- aletheia#39 -- `koilon::fuzzy` (186 LOC verbatim duplicate)
+  converted to `pub use parodos::fuzzy::*` shim, matching the
+  five other koilon modules already migrated in the W2
+  extraction.
 
 ---
 
