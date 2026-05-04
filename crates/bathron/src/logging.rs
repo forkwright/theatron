@@ -46,6 +46,24 @@ pub enum LoggingError {
     },
 }
 
+impl LoggingError {
+    /// Return the filesystem path embedded in this error, if the
+    /// variant carries one.
+    ///
+    /// Returns `Some(&Path)` for [`Self::CreateDir`] (the only
+    /// filesystem-touching variant) and `None` for the rest.
+    /// Symmetric to [`crate::settings::SettingsError::path`].
+    /// Useful for consumer code that wants to log the affected
+    /// path without destructuring per variant.
+    #[must_use]
+    pub fn path(&self) -> Option<&std::path::Path> {
+        match self {
+            Self::CreateDir { path, .. } => Some(path),
+            Self::NoStateDir | Self::SetGlobalDefault { .. } => None,
+        }
+    }
+}
+
 /// Logging configuration.
 ///
 /// `log_dir` defaults to `<state>/<app_name>/logs/` where `<state>` is
@@ -344,6 +362,25 @@ mod tests {
         // cross thread / await boundaries cleanly. Compile-time check.
         fn assert_send_sync<T: Send + Sync>() {}
         assert_send_sync::<LoggingError>();
+    }
+
+    #[test]
+    fn error_path_returns_some_for_create_dir() {
+        let p = PathBuf::from("/tmp/some/log/dir");
+        let err = LoggingError::CreateDir {
+            path: p.clone(),
+            source: std::io::Error::new(std::io::ErrorKind::PermissionDenied, "denied"),
+        };
+        assert_eq!(err.path(), Some(p.as_path()));
+    }
+
+    #[test]
+    fn error_path_returns_none_for_non_filesystem_variants() {
+        assert_eq!(LoggingError::NoStateDir.path(), None);
+        // SetGlobalDefault has a non-constructible source
+        // (tracing::dispatcher::SetGlobalDefaultError has no public
+        // constructor); covered by the existing test
+        // logging_error_implements_std_error indirectly.
     }
 
     #[test]

@@ -72,6 +72,11 @@ patch (`v1.0.1`) to minor (`v1.1.0`).
   at consumer call sites. Both are `const fn`, so usable in
   const contexts. +3 tests covering each branch + the
   mutually-exclusive partition. themelion tests: 19 → 22.
+- **`bathron::LoggingError::path`** (PR #65). Symmetric to
+  `SettingsError::path` (PR #64). Returns `Some(&Path)` for
+  `CreateDir` (the only filesystem-touching variant); `None` for
+  `NoStateDir` and `SetGlobalDefault`. +2 tests. bathron tests:
+  61 → 63.
 - **`bathron::SettingsError::path` + `::lookup_key`** (PR #64).
   Two accessors symmetric to keryx's `operation` / `status_code`
   pattern. `path()` returns `Some(&Path)` for the filesystem-
