@@ -42,6 +42,12 @@ patch (`v1.0.1`) to minor (`v1.1.0`).
 
   Existing consumers using a wildcard `match` arm continue to work;
   consumers can opt into the new variants for richer error routing.
+- **`keryx::ApiError::operation() -> Option<&'static str>`** (PR
+  #56). Accessor returning the operation name embedded in the
+  error variant, or `None` for context-free variants
+  (`Auth` / `InvalidToken`). Useful for consumer logging /
+  routing without manual destructuring per variant. +2 tests
+  covering both branches; keryx tests: 31 → 33.
 - **`skeue::EmptyState` component** (PR #52). Common pattern for
   views with no content (zero-result search, fresh app launch,
   disconnected state). Slots: `title` (required, accessible name),

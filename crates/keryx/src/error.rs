@@ -113,6 +113,36 @@ pub enum ApiError {
     InvalidToken,
 }
 
+impl ApiError {
+    /// Return the operation name embedded in this error, if the
+    /// variant carries one.
+    ///
+    /// Returns `None` for variants that have no operation context
+    /// ([`ApiError::Auth`], [`ApiError::InvalidToken`]). Returns
+    /// `Some(&'static str)` for the rest.
+    ///
+    /// Useful for consumer code that wants to log or route on the
+    /// operation name without manually destructuring each variant:
+    ///
+    /// ```ignore
+    /// match client.fetch().await {
+    ///     Err(e) => tracing::error!(op = ?e.operation(), "request failed: {e}"),
+    ///     Ok(v) => ...
+    /// }
+    /// ```
+    #[must_use]
+    pub fn operation(&self) -> Option<&'static str> {
+        match self {
+            Self::Http { operation, .. }
+            | Self::Timeout { operation, .. }
+            | Self::Server { operation, .. }
+            | Self::RateLimited { operation, .. }
+            | Self::BadResponse { operation, .. } => Some(operation),
+            Self::Auth | Self::InvalidToken => None,
+        }
+    }
+}
+
 /// Result alias for keryx API operations.
 pub type Result<T> = std::result::Result<T, ApiError>;
 
@@ -208,5 +238,51 @@ mod tests {
         // ApiError composes with `?` into anyhow / boxed-error chains.
         fn assert_error<T: std::error::Error>() {}
         assert_error::<ApiError>();
+    }
+
+    #[test]
+    fn operation_returns_some_for_operation_carrying_variants() {
+        let http = ApiError::Http {
+            operation: "fetch_pulls",
+            source: build_dummy_reqwest_error(),
+        };
+        let timeout = ApiError::Timeout {
+            operation: "fetch_runs",
+            timeout_secs: 30,
+        };
+        let server = ApiError::Server {
+            operation: "list_prs",
+            status: 500,
+            message: String::new(),
+        };
+        let rate_limited = ApiError::RateLimited {
+            operation: "list_users",
+            retry_after_secs: None,
+        };
+        let bad_response = ApiError::BadResponse {
+            operation: "get_repo",
+            source: serde_json::from_str::<i32>("nope").unwrap_err(),
+        };
+        assert_eq!(http.operation(), Some("fetch_pulls"));
+        assert_eq!(timeout.operation(), Some("fetch_runs"));
+        assert_eq!(server.operation(), Some("list_prs"));
+        assert_eq!(rate_limited.operation(), Some("list_users"));
+        assert_eq!(bad_response.operation(), Some("get_repo"));
+    }
+
+    #[test]
+    fn operation_returns_none_for_context_free_variants() {
+        assert_eq!(ApiError::Auth.operation(), None);
+        assert_eq!(ApiError::InvalidToken.operation(), None);
+    }
+
+    /// Build a `reqwest::Error` synchronously for the
+    /// `operation_returns_some` test. `reqwest::Error` has no
+    /// public constructor; the cheapest path is to call the async
+    /// client's builder with an invalid URL, which fails
+    /// pre-network at `build()` time and returns a real
+    /// `reqwest::Error`.
+    fn build_dummy_reqwest_error() -> reqwest::Error {
+        reqwest::Client::new().get("not a url").build().unwrap_err()
     }
 }
