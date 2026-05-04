@@ -724,3 +724,22 @@ fn change_type_predicates_form_an_exhaustive_partition() {
         assert_eq!(count, 1, "exactly one predicate true for {change:?}");
     }
 }
+
+#[test]
+fn diff_view_mode_is_unified_returns_true_only_for_unified() {
+    assert!(DiffViewMode::Unified.is_unified());
+    assert!(!DiffViewMode::SideBySide.is_unified());
+}
+
+#[test]
+fn diff_view_mode_is_side_by_side_returns_true_only_for_side_by_side() {
+    assert!(DiffViewMode::SideBySide.is_side_by_side());
+    assert!(!DiffViewMode::Unified.is_side_by_side());
+}
+
+#[test]
+fn diff_view_mode_predicates_are_mutually_exclusive() {
+    for mode in [DiffViewMode::Unified, DiffViewMode::SideBySide] {
+        assert_ne!(mode.is_unified(), mode.is_side_by_side());
+    }
+}

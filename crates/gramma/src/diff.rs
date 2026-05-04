@@ -25,6 +25,21 @@ impl DiffViewMode {
             Self::SideBySide => Self::Unified,
         }
     }
+
+    /// Whether this is the unified single-column view (`Unified`).
+    ///
+    /// Convenience predicate matching the pattern from
+    /// [`ChangeType::is_add`] and `themelion::ResolvedTheme::is_dark`.
+    #[must_use]
+    pub const fn is_unified(self) -> bool {
+        matches!(self, Self::Unified)
+    }
+
+    /// Whether this is the two-column side-by-side view (`SideBySide`).
+    #[must_use]
+    pub const fn is_side_by_side(self) -> bool {
+        matches!(self, Self::SideBySide)
+    }
 }
 
 impl fmt::Display for DiffViewMode {

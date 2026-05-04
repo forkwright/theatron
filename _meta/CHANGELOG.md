@@ -72,6 +72,12 @@ patch (`v1.0.1`) to minor (`v1.1.0`).
   at consumer call sites. Both are `const fn`, so usable in
   const contexts. +3 tests covering each branch + the
   mutually-exclusive partition. themelion tests: 19 → 22.
+- **`gramma::diff::DiffViewMode::is_unified` + `::is_side_by_side`**
+  (PR #68). Two convenience `const fn` predicates matching the
+  `ChangeType` (PR #67) / `ResolvedTheme` (PR #61) pattern.
+  Pre-existing `toggle()` already shipped at v1.0; the predicates
+  complete the API. +3 tests covering each branch + mutual-
+  exclusivity. gramma tests: 56 → 59.
 - **`gramma::diff::ChangeType` predicates** (PR #67). Four
   convenience `const fn` predicates: `is_add`, `is_remove`,
   `is_context`, `is_change` (the negation of `is_context`).
