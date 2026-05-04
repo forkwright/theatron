@@ -594,3 +594,92 @@ fn tokenize_treats_whitespace_as_boundary() {
     let tokens = tokenize("a b");
     assert_eq!(tokens, vec!["a", " ", "b"]);
 }
+
+#[test]
+fn diff_stats_from_empty_slice_is_empty() {
+    let stats = DiffStats::from_files(&[]);
+    assert!(stats.is_empty());
+    assert_eq!(stats.files_changed, 0);
+    assert_eq!(stats.additions, 0);
+    assert_eq!(stats.deletions, 0);
+}
+
+#[test]
+fn diff_stats_sums_across_multiple_files() {
+    let files = vec![
+        DiffFile {
+            path: "a.rs".to_string(),
+            hunks: Vec::new(),
+            additions: 10,
+            deletions: 3,
+            mode: DiffViewMode::Unified,
+        },
+        DiffFile {
+            path: "b.rs".to_string(),
+            hunks: Vec::new(),
+            additions: 5,
+            deletions: 7,
+            mode: DiffViewMode::Unified,
+        },
+        DiffFile {
+            path: "c.rs".to_string(),
+            hunks: Vec::new(),
+            additions: 0,
+            deletions: 12,
+            mode: DiffViewMode::Unified,
+        },
+    ];
+    let stats = DiffStats::from_files(&files);
+    assert_eq!(stats.files_changed, 3);
+    assert_eq!(stats.additions, 15);
+    assert_eq!(stats.deletions, 22);
+}
+
+#[test]
+fn diff_stats_total_lines_changed_sums_additions_and_deletions() {
+    let stats = DiffStats {
+        files_changed: 1,
+        additions: 100,
+        deletions: 50,
+    };
+    assert_eq!(stats.total_lines_changed(), 150);
+}
+
+#[test]
+fn diff_stats_saturates_on_overflow() {
+    // Two u32::MAX additions sum to u32::MAX (saturating), not panic.
+    let files = vec![
+        DiffFile {
+            path: "huge1".to_string(),
+            hunks: Vec::new(),
+            additions: u32::MAX,
+            deletions: 0,
+            mode: DiffViewMode::Unified,
+        },
+        DiffFile {
+            path: "huge2".to_string(),
+            hunks: Vec::new(),
+            additions: u32::MAX,
+            deletions: 0,
+            mode: DiffViewMode::Unified,
+        },
+    ];
+    let stats = DiffStats::from_files(&files);
+    assert_eq!(stats.additions, u32::MAX);
+}
+
+#[test]
+fn diff_stats_default_is_empty() {
+    let stats = DiffStats::default();
+    assert!(stats.is_empty());
+}
+
+#[test]
+fn diff_stats_is_empty_returns_false_when_files_present() {
+    let stats = DiffStats {
+        files_changed: 1,
+        additions: 0,
+        deletions: 0,
+    };
+    assert!(!stats.is_empty());
+}

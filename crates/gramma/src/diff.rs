@@ -114,6 +114,56 @@ pub struct SideBySideRow {
     pub right: Option<DiffLine>,
 }
 
+/// Aggregate stats summed across one or more [`DiffFile`]s.
+///
+/// Common use: a PR list view rendering "N files changed, +X / -Y"
+/// without iterating the file list at every render.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct DiffStats {
+    /// Number of files in the aggregate.
+    pub files_changed: usize,
+    /// Total inserted lines across all files.
+    pub additions: u32,
+    /// Total deleted lines across all files.
+    pub deletions: u32,
+}
+
+impl DiffStats {
+    /// Compute aggregate stats over a slice of `DiffFile`s.
+    ///
+    /// `additions` and `deletions` saturate at `u32::MAX` if the
+    /// total exceeds 4 billion lines (impossible for a real PR;
+    /// the saturating add prevents overflow panic on adversarial
+    /// input).
+    #[must_use]
+    pub fn from_files(files: &[DiffFile]) -> Self {
+        let mut additions: u32 = 0;
+        let mut deletions: u32 = 0;
+        for file in files {
+            additions = additions.saturating_add(file.additions);
+            deletions = deletions.saturating_add(file.deletions);
+        }
+        Self {
+            files_changed: files.len(),
+            additions,
+            deletions,
+        }
+    }
+
+    /// Total lines changed (additions plus deletions). Saturating;
+    /// see [`from_files`](Self::from_files).
+    #[must_use]
+    pub const fn total_lines_changed(self) -> u32 {
+        self.additions.saturating_add(self.deletions)
+    }
+
+    /// Whether the aggregate is empty (no files, no line changes).
+    #[must_use]
+    pub const fn is_empty(self) -> bool {
+        self.files_changed == 0 && self.additions == 0 && self.deletions == 0
+    }
+}
+
 /// Parse a unified diff string into a `DiffFile`.
 #[must_use]
 pub fn parse_unified_diff(path: &str, raw: &str) -> DiffFile {

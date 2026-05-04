@@ -72,6 +72,16 @@ patch (`v1.0.1`) to minor (`v1.1.0`).
   at consumer call sites. Both are `const fn`, so usable in
   const contexts. +3 tests covering each branch + the
   mutually-exclusive partition. themelion tests: 19 → 22.
+- **`gramma::diff::DiffStats`** (PR #62). Aggregate stats summed
+  across one or more `DiffFile`s -- `files_changed`, `additions`,
+  `deletions`. Constructed via `DiffStats::from_files(&[DiffFile])`
+  with saturating arithmetic on overflow. Convenience methods
+  `total_lines_changed()` and `is_empty()`. Common use: a PR list
+  view rendering "N files changed, +X / -Y" without iterating
+  the file list at every render. +6 tests covering empty slice,
+  multi-file aggregation, total-lines sum, saturating-overflow,
+  default-is-empty, files-present-not-empty. gramma tests:
+  45 → 51.
 - **`parodos::clipboard::supports_osc52`** (PR #58). Capability
   probe symmetric to `parodos::hyperlink::supports_hyperlinks` for
   OSC 8 — checks the running terminal's env-var signals to decide
