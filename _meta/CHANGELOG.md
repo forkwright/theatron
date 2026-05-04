@@ -58,6 +58,16 @@ patch (`v1.0.1`) to minor (`v1.1.0`).
   `Info`, `#[non_exhaustive]`). Lifts the wrapper boilerplate
   consumers were writing on top of `rfd::MessageDialog` directly
   into the bathron surface. +3 tests on the pure-logic side.
+- **`skeue::Spinner` component** (PR #55). Pure-CSS rotation
+  indicator for loading states. Three sizes (`SpinnerSize::Small`
+  / `Medium` (default) / `Large`, mapping to 16/24/32px). Optional
+  inline `label` prop; falls back to `aria-label="Loading"` when
+  absent. `role=status`, `aria-live=polite`. Inlines its own
+  keyframes (`@keyframes skeue-spinner-rotate`) so consumers don't
+  have to add CSS to their global stylesheet. Complements
+  `EmptyState` from PR #52 — together they cover the
+  pre-data and no-data states every fleet desktop view needs.
+  +7 SSR tests; skeue inventory: 13 → 14.
 - **`examples/full_app/`** (PR #40) -- runnable Dioxus reference
   consumer exercising all six desktop-bound crates (themelion,
   mekhane, bathron, skeue, gramma, keryx) in one place. Operators
