@@ -685,6 +685,89 @@ fn diff_stats_is_empty_returns_false_when_files_present() {
 }
 
 #[test]
+fn diff_stats_net_change_is_signed_difference() {
+    let grew = DiffStats {
+        files_changed: 1,
+        additions: 100,
+        deletions: 30,
+    };
+    let shrank = DiffStats {
+        files_changed: 1,
+        additions: 5,
+        deletions: 50,
+    };
+    let balanced = DiffStats {
+        files_changed: 1,
+        additions: 42,
+        deletions: 42,
+    };
+    assert_eq!(grew.net_change(), 70);
+    assert_eq!(shrank.net_change(), -45);
+    assert_eq!(balanced.net_change(), 0);
+}
+
+#[test]
+fn diff_stats_net_change_handles_saturated_bounds_without_overflow() {
+    // additions == u32::MAX, deletions == 0 must fit in i64
+    // (the whole point of returning i64).
+    let huge = DiffStats {
+        files_changed: 1,
+        additions: u32::MAX,
+        deletions: 0,
+    };
+    assert_eq!(huge.net_change(), i64::from(u32::MAX));
+
+    let huge_neg = DiffStats {
+        files_changed: 1,
+        additions: 0,
+        deletions: u32::MAX,
+    };
+    assert_eq!(huge_neg.net_change(), -i64::from(u32::MAX));
+}
+
+#[test]
+fn diff_stats_is_pure_addition_returns_true_when_no_deletions() {
+    let pure_add = DiffStats {
+        files_changed: 3,
+        additions: 100,
+        deletions: 0,
+    };
+    let mixed = DiffStats {
+        files_changed: 1,
+        additions: 100,
+        deletions: 1,
+    };
+    assert!(pure_add.is_pure_addition());
+    assert!(!mixed.is_pure_addition());
+}
+
+#[test]
+fn diff_stats_is_pure_deletion_returns_true_when_no_additions() {
+    let pure_del = DiffStats {
+        files_changed: 2,
+        additions: 0,
+        deletions: 50,
+    };
+    let mixed = DiffStats {
+        files_changed: 1,
+        additions: 1,
+        deletions: 100,
+    };
+    assert!(pure_del.is_pure_deletion());
+    assert!(!mixed.is_pure_deletion());
+}
+
+#[test]
+fn diff_stats_empty_is_both_pure_addition_and_pure_deletion() {
+    // Vacuous truth: no lines means every line (of which there are
+    // none) is an addition AND every line is a deletion.
+    let empty = DiffStats::default();
+    assert!(empty.is_pure_addition());
+    assert!(empty.is_pure_deletion());
+    assert_eq!(empty.net_change(), 0);
+}
+
+#[test]
 fn change_type_is_add_returns_true_only_for_add() {
     assert!(ChangeType::Add.is_add());
     assert!(!ChangeType::Remove.is_add());

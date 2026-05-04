@@ -183,6 +183,23 @@ patch (`v1.0.1`) to minor (`v1.1.0`).
   destructuring per variant. +3 tests covering server-status
   passthrough, `RateLimited` always-429, response-less variants
   None. keryx tests: 38 → 41.
+- **`gramma::diff::DiffStats` shape helpers** (PR #75). Three new
+  `const fn` accessors on the v1.1 `DiffStats` aggregate:
+    - `net_change() -> i64` — signed `additions - deletions`;
+      returns `i64` so the difference of two `u32`s fits even at
+      the saturated bounds. Useful for at-a-glance PR sizing
+      (a refactor netting near zero looks very different from a
+      feature add netting hundreds of lines).
+    - `is_pure_addition() -> bool` — true when `deletions == 0`
+      (every line change is an addition). Vacuously true for
+      empty stats.
+    - `is_pure_deletion() -> bool` — true when `additions == 0`.
+      Vacuously true for empty stats.
+
+  All three are `const fn`. +6 tests covering signed-grew /
+  signed-shrank / signed-balanced / saturated-bounds-without-
+  overflow / pure-addition / pure-deletion / empty-is-vacuously-
+  both. gramma tests grow accordingly.
 - **`gramma::diff::DiffStats`** (PR #62). Aggregate stats summed
   across one or more `DiffFile`s -- `files_changed`, `additions`,
   `deletions`. Constructed via `DiffStats::from_files(&[DiffFile])`

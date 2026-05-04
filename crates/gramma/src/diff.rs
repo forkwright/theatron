@@ -209,6 +209,43 @@ impl DiffStats {
     pub const fn is_empty(self) -> bool {
         self.files_changed == 0 && self.additions == 0 && self.deletions == 0
     }
+
+    /// Signed net change: `additions` minus `deletions`.
+    ///
+    /// Positive values indicate net growth (the change adds more
+    /// lines than it removes), negative values indicate net
+    /// shrinkage. Returns `i64` so the difference of two `u32`s
+    /// fits without overflow even at the saturated bounds.
+    ///
+    /// Useful for at-a-glance PR sizing (a refactor that nets near
+    /// zero looks very different from a feature add that nets
+    /// hundreds of lines).
+    #[must_use]
+    pub const fn net_change(self) -> i64 {
+        self.additions as i64 - self.deletions as i64
+    }
+
+    /// Whether every line change in the aggregate is an addition
+    /// (no deletions). True for empty stats — vacuously every line
+    /// (of which there are none) is an addition.
+    ///
+    /// Useful for "did this PR only grow the codebase?" checks
+    /// such as new-file-only PRs or pure documentation adds.
+    #[must_use]
+    pub const fn is_pure_addition(self) -> bool {
+        self.deletions == 0
+    }
+
+    /// Whether every line change in the aggregate is a deletion
+    /// (no additions). True for empty stats — vacuously every
+    /// line is a deletion.
+    ///
+    /// Useful for "did this PR only remove code?" checks such as
+    /// dead-code sweeps or feature retirements.
+    #[must_use]
+    pub const fn is_pure_deletion(self) -> bool {
+        self.additions == 0
+    }
 }
 
 /// Parse a unified diff string into a `DiffFile`.
