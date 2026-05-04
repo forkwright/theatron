@@ -150,6 +150,44 @@ impl ApiError {
         }
     }
 
+    /// Return the HTTP status code carried by this error, if any.
+    ///
+    /// Returns `Some(status)` for variants that received an HTTP
+    /// response:
+    ///
+    /// - [`ApiError::Server`] — the wire status (4xx, 5xx, etc).
+    /// - [`ApiError::RateLimited`] — always `429` (the variant
+    ///   exists exactly because the response was 429).
+    ///
+    /// Returns `None` for variants that didn't receive a response
+    /// or whose status would be ambiguous:
+    ///
+    /// - [`ApiError::Http`] — transport-level failure (no response).
+    /// - [`ApiError::Timeout`] — no response received.
+    /// - [`ApiError::BadResponse`] — 2xx response but unparseable
+    ///   body; the specific 2xx code isn't preserved.
+    /// - [`ApiError::Auth`] — the credential rejection could be
+    ///   401 or 403; returning a single specific value would lose
+    ///   information. Use the original `Server` variant if status
+    ///   precision matters for auth failures.
+    /// - [`ApiError::InvalidToken`] — pre-flight failure, no
+    ///   request was sent.
+    ///
+    /// Useful for consumer code that wants to log or branch on
+    /// the wire status without manual destructuring per variant.
+    #[must_use]
+    pub fn status_code(&self) -> Option<u16> {
+        match self {
+            Self::Server { status, .. } => Some(*status),
+            Self::RateLimited { .. } => Some(429),
+            Self::Http { .. }
+            | Self::Timeout { .. }
+            | Self::BadResponse { .. }
+            | Self::Auth
+            | Self::InvalidToken => None,
+        }
+    }
+
     /// Return the operation name embedded in this error, if the
     /// variant carries one.
     ///
@@ -374,6 +412,53 @@ mod tests {
         assert!(!bad_response.is_retryable());
         assert!(!ApiError::Auth.is_retryable());
         assert!(!ApiError::InvalidToken.is_retryable());
+    }
+
+    #[test]
+    fn status_code_returns_wire_status_for_server() {
+        for status in [400, 404, 500, 503] {
+            let err = ApiError::Server {
+                operation: "x",
+                status,
+                message: String::new(),
+            };
+            assert_eq!(err.status_code(), Some(status));
+        }
+    }
+
+    #[test]
+    fn status_code_returns_429_for_rate_limited() {
+        let with = ApiError::RateLimited {
+            operation: "x",
+            retry_after_secs: Some(60),
+        };
+        let without = ApiError::RateLimited {
+            operation: "x",
+            retry_after_secs: None,
+        };
+        assert_eq!(with.status_code(), Some(429));
+        assert_eq!(without.status_code(), Some(429));
+    }
+
+    #[test]
+    fn status_code_returns_none_for_response_less_variants() {
+        let http = ApiError::Http {
+            operation: "x",
+            source: build_dummy_reqwest_error(),
+        };
+        let timeout = ApiError::Timeout {
+            operation: "x",
+            timeout_secs: 5,
+        };
+        let bad_response = ApiError::BadResponse {
+            operation: "x",
+            source: serde_json::from_str::<i32>("nope").unwrap_err(),
+        };
+        assert_eq!(http.status_code(), None);
+        assert_eq!(timeout.status_code(), None);
+        assert_eq!(bad_response.status_code(), None);
+        assert_eq!(ApiError::Auth.status_code(), None);
+        assert_eq!(ApiError::InvalidToken.status_code(), None);
     }
 
     /// Build a `reqwest::Error` synchronously for the

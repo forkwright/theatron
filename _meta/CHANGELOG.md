@@ -72,6 +72,17 @@ patch (`v1.0.1`) to minor (`v1.1.0`).
   at consumer call sites. Both are `const fn`, so usable in
   const contexts. +3 tests covering each branch + the
   mutually-exclusive partition. themelion tests: 19 → 22.
+- **`keryx::ApiError::status_code() -> Option<u16>`** (PR #63).
+  Accessor for the HTTP status code carried by the variant.
+  Returns `Some(status)` for `Server` (the wire value) and
+  `RateLimited` (always `429`); `None` for variants without a
+  wire response (`Http`, `Timeout`, `BadResponse`, `Auth`,
+  `InvalidToken`). Symmetric to `operation()` from PR #56 and
+  `is_retryable()` from PR #59 — together the three accessors
+  let consumer code log / route / retry on errors without manual
+  destructuring per variant. +3 tests covering server-status
+  passthrough, `RateLimited` always-429, response-less variants
+  None. keryx tests: 38 → 41.
 - **`gramma::diff::DiffStats`** (PR #62). Aggregate stats summed
   across one or more `DiffFile`s -- `files_changed`, `additions`,
   `deletions`. Constructed via `DiffStats::from_files(&[DiffFile])`
