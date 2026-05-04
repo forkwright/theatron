@@ -66,6 +66,12 @@ patch (`v1.0.1`) to minor (`v1.1.0`).
   covering existing key / missing key / missing file / type-
   coercion-free presence / idempotent re-set. bathron tests:
   53 → 58.
+- **`themelion::ResolvedTheme::is_dark`** + **`::is_light`**
+  (PR #61). Two convenience predicates on `ResolvedTheme`.
+  `theme.is_dark()` reads better than `theme == ResolvedTheme::Dark`
+  at consumer call sites. Both are `const fn`, so usable in
+  const contexts. +3 tests covering each branch + the
+  mutually-exclusive partition. themelion tests: 19 → 22.
 - **`parodos::clipboard::supports_osc52`** (PR #58). Capability
   probe symmetric to `parodos::hyperlink::supports_hyperlinks` for
   OSC 8 — checks the running terminal's env-var signals to decide

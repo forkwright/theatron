@@ -37,6 +37,24 @@ impl ResolvedTheme {
             Self::Light => "light",
         }
     }
+
+    /// Whether the resolved theme is dark.
+    ///
+    /// Convenience predicate: `theme.is_dark()` reads better than
+    /// `theme == ResolvedTheme::Dark` at consumer call sites.
+    #[must_use]
+    pub const fn is_dark(self) -> bool {
+        matches!(self, Self::Dark)
+    }
+
+    /// Whether the resolved theme is light.
+    ///
+    /// Convenience predicate: `theme.is_light()` reads better than
+    /// `theme == ResolvedTheme::Light` at consumer call sites.
+    #[must_use]
+    pub const fn is_light(self) -> bool {
+        matches!(self, Self::Light)
+    }
 }
 
 impl ThemeMode {
@@ -377,6 +395,27 @@ mod tests {
             match mode {
                 ThemeMode::Dark | ThemeMode::Light | ThemeMode::System => (),
             }
+        }
+    }
+
+    #[test]
+    fn resolved_theme_is_dark_returns_true_only_for_dark() {
+        assert!(ResolvedTheme::Dark.is_dark());
+        assert!(!ResolvedTheme::Light.is_dark());
+    }
+
+    #[test]
+    fn resolved_theme_is_light_returns_true_only_for_light() {
+        assert!(ResolvedTheme::Light.is_light());
+        assert!(!ResolvedTheme::Dark.is_light());
+    }
+
+    #[test]
+    fn resolved_theme_predicates_are_mutually_exclusive() {
+        // is_dark and is_light are exhaustive partitions of
+        // ResolvedTheme — exactly one is true for any value.
+        for theme in [ResolvedTheme::Dark, ResolvedTheme::Light] {
+            assert_ne!(theme.is_dark(), theme.is_light());
         }
     }
 }
