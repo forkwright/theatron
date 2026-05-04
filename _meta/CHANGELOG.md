@@ -48,6 +48,17 @@ patch (`v1.0.1`) to minor (`v1.1.0`).
   (`Auth` / `InvalidToken`). Useful for consumer logging /
   routing without manual destructuring per variant. +2 tests
   covering both branches; keryx tests: 31 → 33.
+- **`parodos::clipboard::supports_osc52`** (PR #58). Capability
+  probe symmetric to `parodos::hyperlink::supports_hyperlinks` for
+  OSC 8 — checks the running terminal's env-var signals to decide
+  if OSC 52 clipboard escapes will work. Returns `true` for
+  iTerm2, Kitty, `WezTerm`, Alacritty, Ghostty, foot, Windows
+  Terminal, tmux (with passthrough), and the `xterm` / `screen` /
+  `tmux` `TERM` families. Useful when consumer code wants to know
+  upfront whether `copy_to_clipboard` will fall through to OSC 52.
+  Result is cached for the process lifetime. +10 tests covering
+  each detection branch via the `Env` trait stub. parodos tests:
+  162 → 172.
 - **`themelion::ThemeMode::from_label`** + **`::all`** (PR #57).
   Two small additions on `ThemeMode`. `from_label(s) -> Option<Self>`
   parses back from the `label()` string for round-trip with settings

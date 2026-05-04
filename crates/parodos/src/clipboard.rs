@@ -112,6 +112,87 @@ fn read_system_clipboard_text() -> ClipboardContent {
     ClipboardContent::Empty
 }
 
+/// Probe whether the running terminal likely supports OSC 52
+/// clipboard escapes.
+///
+/// Symmetric to [`crate::hyperlink::supports_hyperlinks`] for OSC 8.
+/// Useful for consumer code that wants to know up front whether
+/// `copy_to_clipboard` will fall through to OSC 52 (vs the native
+/// `arboard` backend, which works regardless of terminal).
+///
+/// Returns `true` for terminals known to support OSC 52: iTerm2,
+/// Kitty, `WezTerm`, Alacritty, Ghostty, foot, Windows Terminal,
+/// GNOME Terminal (VTE 0.76+), tmux (with passthrough), and the
+/// `xterm` / `screen` / `tmux` `TERM` families. `false` for raw
+/// Linux console and unknown terminals.
+///
+/// The result is cached for the process lifetime — terminal
+/// capabilities don't change while the program runs.
+///
+/// # Caveats
+///
+/// This is a heuristic, not a runtime probe. False positives are
+/// possible (a terminal pretending to be xterm without OSC 52
+/// support); false negatives are possible (an unrecognized
+/// terminal that does support OSC 52). The conservative path is
+/// to call [`copy_to_clipboard`] regardless and rely on the
+/// arboard-first fallback chain.
+#[must_use]
+pub fn supports_osc52() -> bool {
+    static CACHE: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| probe_osc52(&RealEnv));
+    *CACHE
+}
+
+fn probe_osc52(env: &impl Env) -> bool {
+    // TERM_PROGRAM: most reliable signal on macOS and some Linux terminals.
+    if let Some(prog) = env.var("TERM_PROGRAM") {
+        match prog.as_str() {
+            "iTerm.app" | "WezTerm" | "ghostty" | "Ghostty" | "kitty" | "vscode" => return true,
+            _ => {
+                // unrecognized TERM_PROGRAM — continue probing
+            }
+        }
+    }
+
+    // Ghostty / WezTerm / Kitty / Alacritty / Windows Terminal — same env-var
+    // signals as supports_hyperlinks; these terminals all support OSC 52.
+    if env.var("GHOSTTY_BIN_DIR").is_some()
+        || env.var("GHOSTTY_RESOURCES_DIR").is_some()
+        || env.var("WEZTERM_EXECUTABLE").is_some()
+        || env.var("WEZTERM_PANE").is_some()
+        || env.var("KITTY_PID").is_some()
+        || env.var("KITTY_WINDOW_ID").is_some()
+        || env.var("ALACRITTY_SOCKET").is_some()
+        || env.var("WT_SESSION").is_some()
+    {
+        return true;
+    }
+
+    // foot
+    if let Some(term) = env.var("TERM")
+        && (term == "foot" || term == "foot-extra")
+    {
+        return true;
+    }
+
+    // tmux passthrough — OSC 52 works inside tmux when the surrounding
+    // terminal supports it (and the copy_osc52 wrapper handles the
+    // \x1bPtmux escape). Conservatively say yes on tmux.
+    if env.var("TMUX").is_some() {
+        return true;
+    }
+
+    // Generic xterm / screen TERM families — most modern members
+    // support OSC 52.
+    if let Some(term) = env.var("TERM") {
+        if term.starts_with("xterm") || term.starts_with("screen") || term.starts_with("tmux") {
+            return true;
+        }
+    }
+
+    false
+}
+
 /// OSC52 clipboard escape sequence: works over SSH, inside tmux/screen.
 /// Supported by: iTerm2, Kitty, `WezTerm`, Alacritty, GNOME Terminal (VTE 0.76+).
 fn copy_osc52(text: &str) -> Result<(), String> {
@@ -229,5 +310,85 @@ mod tests {
     #[test]
     fn clipboard_content_empty_is_empty() {
         assert!(matches!(ClipboardContent::Empty, ClipboardContent::Empty));
+    }
+
+    /// In-memory `Env` for terminal-detection tests.
+    struct TestEnv {
+        vars: std::collections::HashMap<String, String>,
+    }
+    impl TestEnv {
+        fn new(pairs: &[(&str, &str)]) -> Self {
+            Self {
+                vars: pairs
+                    .iter()
+                    .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
+                    .collect(),
+            }
+        }
+    }
+    impl Env for TestEnv {
+        fn var(&self, name: &str) -> Option<String> {
+            self.vars.get(name).cloned()
+        }
+    }
+
+    #[test]
+    fn probe_osc52_returns_true_for_kitty_term_program() {
+        let env = TestEnv::new(&[("TERM_PROGRAM", "kitty")]);
+        assert!(probe_osc52(&env));
+    }
+
+    #[test]
+    fn probe_osc52_returns_true_for_iterm2() {
+        let env = TestEnv::new(&[("TERM_PROGRAM", "iTerm.app")]);
+        assert!(probe_osc52(&env));
+    }
+
+    #[test]
+    fn probe_osc52_returns_true_for_kitty_pid_signal() {
+        let env = TestEnv::new(&[("KITTY_PID", "1234")]);
+        assert!(probe_osc52(&env));
+    }
+
+    #[test]
+    fn probe_osc52_returns_true_inside_tmux() {
+        let env = TestEnv::new(&[("TMUX", "/tmp/tmux-1000/default,1234,0")]);
+        assert!(probe_osc52(&env));
+    }
+
+    #[test]
+    fn probe_osc52_returns_true_for_xterm_term_family() {
+        let env = TestEnv::new(&[("TERM", "xterm-256color")]);
+        assert!(probe_osc52(&env));
+    }
+
+    #[test]
+    fn probe_osc52_returns_true_for_screen_term() {
+        let env = TestEnv::new(&[("TERM", "screen")]);
+        assert!(probe_osc52(&env));
+    }
+
+    #[test]
+    fn probe_osc52_returns_true_for_foot() {
+        let env = TestEnv::new(&[("TERM", "foot")]);
+        assert!(probe_osc52(&env));
+    }
+
+    #[test]
+    fn probe_osc52_returns_false_for_raw_linux_console() {
+        let env = TestEnv::new(&[("TERM", "linux")]);
+        assert!(!probe_osc52(&env));
+    }
+
+    #[test]
+    fn probe_osc52_returns_false_for_unknown_term() {
+        let env = TestEnv::new(&[("TERM", "vt100")]);
+        assert!(!probe_osc52(&env));
+    }
+
+    #[test]
+    fn probe_osc52_returns_false_for_empty_env() {
+        let env = TestEnv::new(&[]);
+        assert!(!probe_osc52(&env));
     }
 }
