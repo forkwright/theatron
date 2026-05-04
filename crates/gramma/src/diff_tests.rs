@@ -683,3 +683,44 @@ fn diff_stats_is_empty_returns_false_when_files_present() {
     };
     assert!(!stats.is_empty());
 }
+
+#[test]
+fn change_type_is_add_returns_true_only_for_add() {
+    assert!(ChangeType::Add.is_add());
+    assert!(!ChangeType::Remove.is_add());
+    assert!(!ChangeType::Context.is_add());
+}
+
+#[test]
+fn change_type_is_remove_returns_true_only_for_remove() {
+    assert!(ChangeType::Remove.is_remove());
+    assert!(!ChangeType::Add.is_remove());
+    assert!(!ChangeType::Context.is_remove());
+}
+
+#[test]
+fn change_type_is_context_returns_true_only_for_context() {
+    assert!(ChangeType::Context.is_context());
+    assert!(!ChangeType::Add.is_context());
+    assert!(!ChangeType::Remove.is_context());
+}
+
+#[test]
+fn change_type_is_change_inverts_is_context() {
+    assert!(ChangeType::Add.is_change());
+    assert!(ChangeType::Remove.is_change());
+    assert!(!ChangeType::Context.is_change());
+}
+
+#[test]
+fn change_type_predicates_form_an_exhaustive_partition() {
+    // Exactly one of is_add / is_remove / is_context is true for
+    // any given variant. If a fourth variant is added, this
+    // count would change and surface the ambiguity.
+    for change in [ChangeType::Add, ChangeType::Remove, ChangeType::Context] {
+        let count = u32::from(change.is_add())
+            + u32::from(change.is_remove())
+            + u32::from(change.is_context());
+        assert_eq!(count, 1, "exactly one predicate true for {change:?}");
+    }
+}

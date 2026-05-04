@@ -48,6 +48,38 @@ pub enum ChangeType {
     Remove,
 }
 
+impl ChangeType {
+    /// Whether this line is an addition (`Add`).
+    ///
+    /// Convenience predicate: `change.is_add()` reads better than
+    /// `change == ChangeType::Add` at consumer call sites.
+    #[must_use]
+    pub const fn is_add(self) -> bool {
+        matches!(self, Self::Add)
+    }
+
+    /// Whether this line is a deletion (`Remove`).
+    #[must_use]
+    pub const fn is_remove(self) -> bool {
+        matches!(self, Self::Remove)
+    }
+
+    /// Whether this line is unchanged context (`Context`).
+    #[must_use]
+    pub const fn is_context(self) -> bool {
+        matches!(self, Self::Context)
+    }
+
+    /// Whether this line carries a change (added or removed).
+    ///
+    /// Useful for filtering out context lines when computing
+    /// stats or rendering only the modified rows.
+    #[must_use]
+    pub const fn is_change(self) -> bool {
+        !self.is_context()
+    }
+}
+
 /// A single line in a diff hunk.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DiffLine {

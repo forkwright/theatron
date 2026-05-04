@@ -72,6 +72,14 @@ patch (`v1.0.1`) to minor (`v1.1.0`).
   at consumer call sites. Both are `const fn`, so usable in
   const contexts. +3 tests covering each branch + the
   mutually-exclusive partition. themelion tests: 19 → 22.
+- **`gramma::diff::ChangeType` predicates** (PR #67). Four
+  convenience `const fn` predicates: `is_add`, `is_remove`,
+  `is_context`, `is_change` (the negation of `is_context`).
+  Matching pattern from `themelion::ResolvedTheme::is_dark`
+  (PR #61). Useful for filtering / counting / styling diff lines
+  without per-variant matching. +5 tests covering each predicate
+  + the exhaustive-partition compile-time check. gramma tests:
+  51 → 56.
 - **`skeue::ErrorState` component** (PR #66). Sibling to
   `EmptyState` (PR #52) and `Spinner` (PR #55) -- together the
   three cover the asynchronous-view triad: loading / no-data /
