@@ -71,6 +71,24 @@ pub enum ThemeMode {
     Light,
 }
 
+impl ThemeMode {
+    /// Whether this is the dark palette (`Dark`).
+    ///
+    /// Convenience predicate matching the pattern from
+    /// `themelion::ResolvedTheme::is_dark` and the rest of the
+    /// v1.1 enum predicates.
+    #[must_use]
+    pub const fn is_dark(self) -> bool {
+        matches!(self, Self::Dark)
+    }
+
+    /// Whether this is the light palette (`Light`).
+    #[must_use]
+    pub const fn is_light(self) -> bool {
+        matches!(self, Self::Light)
+    }
+}
+
 /// Background and accent colors.
 #[derive(Debug, Clone)]
 pub struct Colors {
@@ -853,6 +871,25 @@ mod tests {
         assert!(ColorDepth::TrueColor.has_256());
         assert!(ColorDepth::Color256.has_256());
         assert!(!ColorDepth::Basic.has_256());
+    }
+
+    #[test]
+    fn theme_mode_is_dark_returns_true_only_for_dark() {
+        assert!(ThemeMode::Dark.is_dark());
+        assert!(!ThemeMode::Light.is_dark());
+    }
+
+    #[test]
+    fn theme_mode_is_light_returns_true_only_for_light() {
+        assert!(ThemeMode::Light.is_light());
+        assert!(!ThemeMode::Dark.is_light());
+    }
+
+    #[test]
+    fn theme_mode_predicates_are_mutually_exclusive() {
+        for mode in [ThemeMode::Dark, ThemeMode::Light] {
+            assert_ne!(mode.is_dark(), mode.is_light());
+        }
     }
 
     #[test]

@@ -72,6 +72,12 @@ patch (`v1.0.1`) to minor (`v1.1.0`).
   at consumer call sites. Both are `const fn`, so usable in
   const contexts. +3 tests covering each branch + the
   mutually-exclusive partition. themelion tests: 19 → 22.
+- **`parodos::theme::ThemeMode::is_dark` + `::is_light`** (PR #70).
+  Two `const fn` predicates on parodos's local `ThemeMode`
+  (distinct from `themelion::ThemeMode` which has 3 variants).
+  Mirrors `themelion::ResolvedTheme::is_dark` (PR #61) and the
+  `ColorDepth` predicate pattern (PR #69). +3 tests covering
+  each branch + mutual-exclusivity. parodos tests: 177 → 180.
 - **`parodos::theme::ColorDepth` predicates** (PR #69). Four
   convenience `const fn` predicates: `is_truecolor`, `is_256`,
   `is_basic`, plus `has_256` (true for `TrueColor` or
