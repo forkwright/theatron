@@ -72,6 +72,17 @@ patch (`v1.0.1`) to minor (`v1.1.0`).
   at consumer call sites. Both are `const fn`, so usable in
   const contexts. +3 tests covering each branch + the
   mutually-exclusive partition. themelion tests: 19 → 22.
+- **`skeue::ErrorState` component** (PR #66). Sibling to
+  `EmptyState` (PR #52) and `Spinner` (PR #55) -- together the
+  three cover the asynchronous-view triad: loading / no-data /
+  error. Slots: `title` (required, accessible name), optional
+  `message` / `icon` / `action`. Marked `role=alert` with
+  `aria-live=assertive` (distinct from `EmptyState`'s `role=status`
+  + `aria-live=polite`). Defaults to a warning glyph when no icon
+  is provided. +6 SSR tests covering title-only, default icon
+  fallback, custom icon override, message rendering, message-
+  omitted-when-None, action slot wiring. skeue inventory:
+  14 -> 15 components.
 - **`bathron::LoggingError::path`** (PR #65). Symmetric to
   `SettingsError::path` (PR #64). Returns `Some(&Path)` for
   `CreateDir` (the only filesystem-touching variant); `None` for
