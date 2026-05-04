@@ -29,6 +29,40 @@ pub enum ColorDepth {
     Basic,
 }
 
+impl ColorDepth {
+    /// Whether this is the 24-bit RGB depth (`TrueColor`).
+    ///
+    /// Convenience predicate matching the pattern from
+    /// `gramma::diff::ChangeType::is_add` and
+    /// `themelion::ResolvedTheme::is_dark`.
+    #[must_use]
+    pub const fn is_truecolor(self) -> bool {
+        matches!(self, Self::TrueColor)
+    }
+
+    /// Whether this is the 256-color palette (`Color256`).
+    #[must_use]
+    pub const fn is_256(self) -> bool {
+        matches!(self, Self::Color256)
+    }
+
+    /// Whether this is the basic 16-color depth (`Basic`).
+    #[must_use]
+    pub const fn is_basic(self) -> bool {
+        matches!(self, Self::Basic)
+    }
+
+    /// Whether this depth supports at least 256 colors
+    /// (`TrueColor` or `Color256`).
+    ///
+    /// Useful for "use a richer palette if available" branches:
+    /// `let palette = if depth.has_256() { rich } else { basic };`.
+    #[must_use]
+    pub const fn has_256(self) -> bool {
+        matches!(self, Self::TrueColor | Self::Color256)
+    }
+}
+
 /// Background brightness: drives palette selection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
@@ -791,5 +825,49 @@ mod tests {
         let _ = theme.status.success;
         let _ = theme.code.fg;
         let _ = theme.thinking.fg;
+    }
+
+    #[test]
+    fn color_depth_is_truecolor_returns_true_only_for_truecolor() {
+        assert!(ColorDepth::TrueColor.is_truecolor());
+        assert!(!ColorDepth::Color256.is_truecolor());
+        assert!(!ColorDepth::Basic.is_truecolor());
+    }
+
+    #[test]
+    fn color_depth_is_256_returns_true_only_for_color256() {
+        assert!(ColorDepth::Color256.is_256());
+        assert!(!ColorDepth::TrueColor.is_256());
+        assert!(!ColorDepth::Basic.is_256());
+    }
+
+    #[test]
+    fn color_depth_is_basic_returns_true_only_for_basic() {
+        assert!(ColorDepth::Basic.is_basic());
+        assert!(!ColorDepth::TrueColor.is_basic());
+        assert!(!ColorDepth::Color256.is_basic());
+    }
+
+    #[test]
+    fn color_depth_has_256_returns_true_for_truecolor_and_256() {
+        assert!(ColorDepth::TrueColor.has_256());
+        assert!(ColorDepth::Color256.has_256());
+        assert!(!ColorDepth::Basic.has_256());
+    }
+
+    #[test]
+    fn color_depth_predicates_form_an_exhaustive_partition() {
+        // Exactly one of is_truecolor / is_256 / is_basic is true
+        // for any given variant.
+        for depth in [
+            ColorDepth::TrueColor,
+            ColorDepth::Color256,
+            ColorDepth::Basic,
+        ] {
+            let count = u32::from(depth.is_truecolor())
+                + u32::from(depth.is_256())
+                + u32::from(depth.is_basic());
+            assert_eq!(count, 1, "exactly one predicate true for {depth:?}");
+        }
     }
 }
