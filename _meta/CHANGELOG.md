@@ -9,13 +9,24 @@ entry per release covers all eight.
 
 ## [Unreleased]
 
-Post-v1.0 polish wave landed 2026-05-03 while waiting on chalkeion
-landing. Mostly additive surfaces, lint hardening, tests, docs.
-The `bathron::logging::init_with_stderr` addition is the first
-genuinely new public API since v1.0.0  -  flips the upcoming tag from
-patch (`v1.0.1`) to minor (`v1.1.0`).
+Empty for now — the next entry here flows into the v1.2 minor when
+demand pulls one.
 
-### Added
+---
+
+## v1.1.0 — 2026-05-04
+
+Additive minor release accumulated 2026-05-03 → 2026-05-04 while
+waiting on chalkeion landing. **31 fully additive PRs, no breaking
+changes.** Consumers re-pin `tag = "v1.0.0"` → `tag = "v1.1.0"` at
+their own pace; no migration required.
+
+The `bathron::logging::init_with_stderr` addition (PR #50) is the
+first genuinely new public API since v1.0.0 and flipped the planned
+patch (`v1.0.1`) to a minor (`v1.1.0`). The wave kept that minor
+slot open through 28 more additive items before the cut.
+
+### Added (since v1.0.0)
 
 - **`bathron::logging::init_with_stderr(config, also_to_stderr)`**
   (PR-A of the proskenion logging-migration sequence) -- new public

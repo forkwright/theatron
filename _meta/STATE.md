@@ -2,15 +2,16 @@
 
 ## Current phase
 
-**v1.0.0 released 2026-05-02.** API frozen across all eight Greek-named
-crates (themelion, mekhane, skeue, gramma, keryx, bathron, parodos,
-dokimasia) per `_meta/SEMVER.md`. Consumers pin via `tag = "v1.0.0"`.
+**v1.1.0 released 2026-05-04.** Additive minor bundling 31 PRs
+(#50-#82, sans #46-#49 docs and #80 superseded by #81) on top of
+v1.0.0. No breaking changes. Consumers re-pin via
+`tag = "v1.1.0"` at their own pace.
 
-**v1.1 surface bundle accumulating on `main` since 2026-05-03**, fully
-additive (no breaking changes). The next release will be **v1.1.0**
-(SemVer minor) — flipped from v1.0.1 the moment the first new public
-function landed in PR #50. No tag has been cut yet; the bundle is
-under `_meta/CHANGELOG.md` `## [Unreleased]` and ready to ship.
+**v1.0.0 released 2026-05-02.** First stable release; API frozen
+across all eight Greek-named crates (themelion, mekhane, skeue,
+gramma, keryx, bathron, parodos, dokimasia) per `_meta/SEMVER.md`.
+Consumers pinning `tag = "v1.0.0"` keep working unchanged — v1.1.0
+is fully additive.
 
 Updated: 2026-05-04.
 
@@ -93,27 +94,21 @@ By crate:
 **CI / tooling** (1 PR)
 - `cargo doc -D warnings` stage in `.kanon-ci.toml` — PR #53
 
-### v1.1 cut criteria
+### v1.1.0 tag cut — 2026-05-04
 
-The bundle is ready to tag whenever the operator decides. Soft criteria:
+Tagged on 2026-05-04 from `main` after the 31-PR additive wave. Cut
+criteria #3 (no fmt/clippy/doc backlog) was met. Criteria #1/#2
+(consumer-pull validation, PR-B logging migration) were **deferred
+to v1.2** rather than blocking the v1.1 cut — the rationale being
+that consumers can't validate a wave that hasn't been tagged, so
+shipping the tag IS the validation step. Any v1.2 surface
+additions go through the fresh `## [Unreleased]` section.
 
-1. **Hold for consumer-pull validation** — the v1.1 wave was operator
-   guess-and-ship; before tagging, hold for at least one named consumer
-   (proskenion, chalkeion, harmonia-desktop) to validate they would
-   adopt one of the new surfaces. The PR-B logging-migration thread on
-   PR #50 is the most direct test of this.
-2. **Resolve PR-B logging migration** (see Active blockers) — the
-   decision affects whether v1.1 includes further `bathron::logging`
-   surface (the three options range from "no further change" to "two
-   more knobs").
-3. **No fmt / clippy backlog**, no orphaned doc references, CHANGELOG
-   `[Unreleased]` covers every shipped item.
+Aletheia consumer-pin update (koilon / proskenion / skene re-pinning
+`tag = "v1.0.0"` → `tag = "v1.1.0"`) is the immediate follow-up — see
+the next-steps section.
 
-When tagged: `v1.1.0` per `_meta/SEMVER.md`. Aletheia consumers (koilon,
-proskenion, skene) re-pin `tag = "v1.0.0"` → `tag = "v1.1.0"` in
-lockstep.
-
-### Active fleet consumers at v1.0
+### Active fleet consumers at v1.1
 
 - `aletheia/crates/theatron/koilon`  -  consuming `parodos` for theme,
   sanitize, clipboard, highlight, hyperlink, fuzzy
@@ -179,16 +174,18 @@ full multi-month plan and Phase 0 progress capture.
 
 If resuming this work cold:
 
-1. **Pick from the v1.1 surface bundle's natural completions** if
-   continuing the additive wave — see `_meta/CHANGELOG.md` `[Unreleased]`
-   for what already shipped, and check whether the next iteration would
-   actually be pulled by a named consumer. The wave was operator-paced
-   and can stop at any merged PR boundary.
-2. **Or cut v1.1.0** per `_meta/RELEASE.md`: bump workspace version,
-   move `[Unreleased]` to a `## [v1.1.0] - 2026-MM-DD` section,
-   `git tag v1.1.0`, push tag, update aletheia consumers.
-3. **Or unblock one of the four blockers above** — D-062 / GH#118 /
+1. **Land the aletheia consumer-pin update** — three Cargo.toml
+   files (`crates/theatron/koilon/`, `crates/theatron/proskenion/`,
+   `crates/theatron/skene/`) re-pinning `tag = "v1.0.0"` →
+   `tag = "v1.1.0"`. Goes through aletheia CI normally (not via
+   bypass-merge — we want the new surface exercised against real
+   consumer code as the post-v1.1.0 validation step).
+2. **Continue waiting on the four blockers** — D-062 / GH#118 /
    PR-B / chalkeion main land — to advance Phase 5a / Phase 6.
-
-Theatron-side work outside the v1.1 surface bundle is in maintenance
-mode pending the four blockers above.
+   Theatron-side work outside aletheia consumer-pin pickup is in
+   maintenance mode pending these.
+3. **v1.2 surface additions** go to a fresh `## [Unreleased]` in
+   CHANGELOG and ship as v1.2.0 when consumer pull or another
+   wave's worth of items accumulates. The v1.1 wave's deferred
+   cut criteria (consumer-pull validation, PR-B resolution) carry
+   forward as v1.2 cut criteria.
