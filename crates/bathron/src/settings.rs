@@ -196,6 +196,23 @@ impl Settings {
         Ok(Some(parsed))
     }
 
+    /// Whether `key` is present in the settings file.
+    ///
+    /// Cheaper than [`get`](Self::get) when the consumer only
+    /// needs to know presence (e.g. "has the user set a value
+    /// yet?"). Skips the [`DeserializeOwned`] cost of [`get`];
+    /// reports presence regardless of the value's TOML type.
+    ///
+    /// # Errors
+    ///
+    /// [`SettingsError::ReadFile`], [`SettingsError::ParseToml`].
+    /// Cannot return [`SettingsError::DeserializeValue`] since no
+    /// value-deserialization happens.
+    pub fn contains(&self, key: &str) -> Result<bool, SettingsError> {
+        let doc = self.read_doc()?;
+        Ok(doc.get(key).is_some())
+    }
+
     /// Write `value` at `key`. Atomic via tempfile + rename; a
     /// crash mid-write leaves the previous on-disk state intact.
     ///
@@ -494,5 +511,50 @@ mod tests {
             .or_else(|| user.get::<String>("missing").unwrap())
             .or_else(|| system.get::<String>("missing").unwrap());
         assert_eq!(missing, None);
+    }
+
+    #[test]
+    fn contains_returns_true_for_existing_key() {
+        let tmp = tempfile::tempdir().unwrap();
+        let settings = Settings::open_at(tmp.path()).unwrap();
+        settings.set("theme", &"dark").unwrap();
+        assert!(settings.contains("theme").unwrap());
+    }
+
+    #[test]
+    fn contains_returns_false_for_missing_key() {
+        let tmp = tempfile::tempdir().unwrap();
+        let settings = Settings::open_at(tmp.path()).unwrap();
+        assert!(!settings.contains("nonexistent").unwrap());
+    }
+
+    #[test]
+    fn contains_returns_false_when_file_is_missing() {
+        let tmp = tempfile::tempdir().unwrap();
+        let settings = Settings::open_at(tmp.path()).unwrap();
+        // No set() call — file doesn't exist on disk yet.
+        assert!(!settings.contains("any_key").unwrap());
+    }
+
+    #[test]
+    fn contains_succeeds_regardless_of_value_type() {
+        // contains() doesn't deserialize, so type coercion errors
+        // that would surface in get::<T>() don't surface here.
+        let tmp = tempfile::tempdir().unwrap();
+        let settings = Settings::open_at(tmp.path()).unwrap();
+        settings.set("count", &42i64).unwrap();
+        // get::<String>("count") would fail with DeserializeValue;
+        // contains("count") just reports presence.
+        assert!(settings.contains("count").unwrap());
+        assert!(settings.get::<String>("count").is_err());
+    }
+
+    #[test]
+    fn contains_returns_true_after_idempotent_set() {
+        let tmp = tempfile::tempdir().unwrap();
+        let settings = Settings::open_at(tmp.path()).unwrap();
+        settings.set("theme", &"dark").unwrap();
+        settings.set("theme", &"dark").unwrap(); // re-set same value
+        assert!(settings.contains("theme").unwrap());
     }
 }

@@ -57,6 +57,15 @@ patch (`v1.0.1`) to minor (`v1.1.0`).
   retries (e.g. on 4xx for idempotent reads) make their own
   judgment. +5 tests covering each branch; keryx tests:
   33 → 38.
+- **`bathron::settings::Settings::contains(key) -> Result<bool, …>`**
+  (PR #60). Cheaper presence check than `get::<T>(key)` when the
+  consumer only needs to know whether a key is set (e.g. "has the
+  user configured a theme yet?"). Skips the `DeserializeOwned`
+  cost; reports presence regardless of value type. Cannot return
+  `DeserializeValue` since no deserialization happens. +5 tests
+  covering existing key / missing key / missing file / type-
+  coercion-free presence / idempotent re-set. bathron tests:
+  53 → 58.
 - **`parodos::clipboard::supports_osc52`** (PR #58). Capability
   probe symmetric to `parodos::hyperlink::supports_hyperlinks` for
   OSC 8 — checks the running terminal's env-var signals to decide
