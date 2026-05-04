@@ -48,6 +48,18 @@ patch (`v1.0.1`) to minor (`v1.1.0`).
   (`Auth` / `InvalidToken`). Useful for consumer logging /
   routing without manual destructuring per variant. +2 tests
   covering both branches; keryx tests: 31 → 33.
+- **`themelion::ThemeMode::from_label`** + **`::all`** (PR #57).
+  Two small additions on `ThemeMode`. `from_label(s) -> Option<Self>`
+  parses back from the `label()` string for round-trip with settings
+  storage (the inverse of `label()`); case-sensitive, returns
+  `None` for unknown input. `all() -> [ThemeMode; 3]` returns the
+  three modes in canonical order (Dark, Light, System) for
+  rendering complete settings selectors without hard-coding the
+  variant list. Replaces the inline `match label.as_str() {
+  "Dark" => ThemeMode::Dark, … }` boilerplate present in the
+  `examples/full_app` (PR #40) — consumers can now write
+  `ThemeMode::from_label(label).unwrap_or(ThemeMode::System)`.
+  +5 tests; themelion tests: 14 → 19.
 - **`skeue::EmptyState` component** (PR #52). Common pattern for
   views with no content (zero-result search, fresh app launch,
   disconnected state). Slots: `title` (required, accessible name),

@@ -79,6 +79,54 @@ impl ThemeMode {
             Self::System => "\u{25D0}",
         }
     }
+
+    /// Parse a [`ThemeMode`] from its [`label`](Self::label) string.
+    ///
+    /// Returns `None` if the input doesn't match any known label.
+    /// Useful for consumers round-tripping the mode through a
+    /// settings-storage layer that persists the human-readable
+    /// label (e.g. `bathron::settings`).
+    ///
+    /// Recognized labels (case-sensitive): `"Dark"`, `"Light"`,
+    /// `"System"`. The match is case-sensitive so consumer code
+    /// that wants a forgiving round-trip should normalize before
+    /// calling.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use themelion::ThemeMode;
+    /// assert_eq!(ThemeMode::from_label("Dark"), Some(ThemeMode::Dark));
+    /// assert_eq!(ThemeMode::from_label("dark"), None); // case-sensitive
+    /// assert_eq!(ThemeMode::from_label("garbage"), None);
+    /// ```
+    #[must_use]
+    pub fn from_label(label: &str) -> Option<Self> {
+        match label {
+            "Dark" => Some(Self::Dark),
+            "Light" => Some(Self::Light),
+            "System" => Some(Self::System),
+            _ => None,
+        }
+    }
+
+    /// All three theme modes in canonical order: Dark, Light, System.
+    ///
+    /// Useful for rendering a complete settings-selector UI without
+    /// hard-coding the variant list at the call site.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use themelion::ThemeMode;
+    /// for mode in ThemeMode::all() {
+    ///     println!("{}", mode.label());
+    /// }
+    /// ```
+    #[must_use]
+    pub const fn all() -> [Self; 3] {
+        [Self::Dark, Self::Light, Self::System]
+    }
 }
 
 /// Detect OS color preference from environment variables.
@@ -288,5 +336,47 @@ mod tests {
         assert_eq!(format!("{:?}", ThemeMode::Dark), "Dark");
         assert_eq!(format!("{:?}", ThemeMode::Light), "Light");
         assert_eq!(format!("{:?}", ThemeMode::System), "System");
+    }
+
+    #[test]
+    fn from_label_round_trips_each_variant() {
+        for mode in ThemeMode::all() {
+            assert_eq!(ThemeMode::from_label(mode.label()), Some(mode));
+        }
+    }
+
+    #[test]
+    fn from_label_is_case_sensitive() {
+        assert_eq!(ThemeMode::from_label("dark"), None);
+        assert_eq!(ThemeMode::from_label("DARK"), None);
+        assert_eq!(ThemeMode::from_label("Dark"), Some(ThemeMode::Dark));
+    }
+
+    #[test]
+    fn from_label_returns_none_for_unknown() {
+        assert_eq!(ThemeMode::from_label(""), None);
+        assert_eq!(ThemeMode::from_label("Auto"), None);
+        assert_eq!(ThemeMode::from_label("garbage"), None);
+    }
+
+    #[test]
+    fn all_returns_three_variants_in_canonical_order() {
+        let modes = ThemeMode::all();
+        assert_eq!(modes.len(), 3);
+        assert_eq!(modes[0], ThemeMode::Dark);
+        assert_eq!(modes[1], ThemeMode::Light);
+        assert_eq!(modes[2], ThemeMode::System);
+    }
+
+    #[test]
+    fn all_covers_every_variant_exhaustively() {
+        // If a fourth variant is ever added, this loop forces a
+        // compile-time consideration of whether it should appear in
+        // all() — the match is exhaustive.
+        for mode in ThemeMode::all() {
+            match mode {
+                ThemeMode::Dark | ThemeMode::Light | ThemeMode::System => (),
+            }
+        }
     }
 }
