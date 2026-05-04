@@ -94,6 +94,45 @@ pub enum SettingsError {
     },
 }
 
+impl SettingsError {
+    /// Return the filesystem path embedded in this error, if the
+    /// variant carries one.
+    ///
+    /// Returns `Some(&Path)` for filesystem-touching variants
+    /// ([`Self::CreateDir`], [`Self::ReadFile`], [`Self::WriteFile`],
+    /// [`Self::PersistFile`]) and `None` for the rest. Useful for
+    /// consumer code that wants to log the affected path without
+    /// destructuring per variant.
+    #[must_use]
+    pub fn path(&self) -> Option<&Path> {
+        match self {
+            Self::CreateDir { path, .. }
+            | Self::ReadFile { path, .. }
+            | Self::WriteFile { path, .. }
+            | Self::PersistFile { path, .. } => Some(path),
+            Self::NoConfigDir
+            | Self::ParseToml { .. }
+            | Self::SerializeToml { .. }
+            | Self::DeserializeValue { .. } => None,
+        }
+    }
+
+    /// Return the settings key embedded in this error, if the
+    /// variant carries one.
+    ///
+    /// Returns `Some(&str)` only for [`Self::DeserializeValue`]
+    /// (the only variant that knows which key was being read).
+    /// Useful for consumer code surfacing "couldn't read setting
+    /// 'theme'" diagnostics.
+    #[must_use]
+    pub fn lookup_key(&self) -> Option<&str> {
+        match self {
+            Self::DeserializeValue { lookup_key, .. } => Some(lookup_key),
+            _ => None,
+        }
+    }
+}
+
 /// Operator-tier KV store. One instance per app; cheap to clone the
 /// underlying path if needed (each [`get`]/[`set`] re-reads the file).
 ///
@@ -556,5 +595,51 @@ mod tests {
         settings.set("theme", &"dark").unwrap();
         settings.set("theme", &"dark").unwrap(); // re-set same value
         assert!(settings.contains("theme").unwrap());
+    }
+
+    #[test]
+    fn error_path_returns_some_for_filesystem_variants() {
+        let p = PathBuf::from("/tmp/some/path");
+        let create_dir = SettingsError::CreateDir {
+            path: p.clone(),
+            source: std::io::Error::new(std::io::ErrorKind::PermissionDenied, "x"),
+        };
+        let read_file = SettingsError::ReadFile {
+            path: p.clone(),
+            source: std::io::Error::new(std::io::ErrorKind::NotFound, "x"),
+        };
+        let write_file = SettingsError::WriteFile {
+            path: p.clone(),
+            source: std::io::Error::other("x"),
+        };
+        assert_eq!(create_dir.path(), Some(p.as_path()));
+        assert_eq!(read_file.path(), Some(p.as_path()));
+        assert_eq!(write_file.path(), Some(p.as_path()));
+    }
+
+    #[test]
+    fn error_path_returns_none_for_non_filesystem_variants() {
+        let parse_toml = SettingsError::ParseToml {
+            source: toml::from_str::<toml::Value>("not = =")
+                .expect_err("malformed TOML must error"),
+        };
+        assert_eq!(SettingsError::NoConfigDir.path(), None);
+        assert_eq!(parse_toml.path(), None);
+    }
+
+    #[test]
+    fn error_lookup_key_returns_some_only_for_deserialize_value() {
+        let dv = SettingsError::DeserializeValue {
+            lookup_key: "theme".to_string(),
+            source: toml::from_str::<i64>("not_a_number").err().unwrap(),
+        };
+        assert_eq!(dv.lookup_key(), Some("theme"));
+        assert_eq!(SettingsError::NoConfigDir.lookup_key(), None);
+
+        let read_file = SettingsError::ReadFile {
+            path: PathBuf::from("/x"),
+            source: std::io::Error::new(std::io::ErrorKind::NotFound, "x"),
+        };
+        assert_eq!(read_file.lookup_key(), None);
     }
 }

@@ -72,6 +72,17 @@ patch (`v1.0.1`) to minor (`v1.1.0`).
   at consumer call sites. Both are `const fn`, so usable in
   const contexts. +3 tests covering each branch + the
   mutually-exclusive partition. themelion tests: 19 → 22.
+- **`bathron::SettingsError::path` + `::lookup_key`** (PR #64).
+  Two accessors symmetric to keryx's `operation` / `status_code`
+  pattern. `path()` returns `Some(&Path)` for the filesystem-
+  touching variants (`CreateDir`, `ReadFile`, `WriteFile`,
+  `PersistFile`) and `None` for the rest. `lookup_key()` returns
+  `Some(&str)` only for `DeserializeValue` (the only variant
+  that knows which key was being read). Useful for consumer code
+  that wants "couldn't read setting 'theme' from /…/file" log
+  lines without per-variant destructuring. +3 tests covering
+  fs-variant passthrough, non-fs-variant None, deserialize-value
+  key. bathron tests: 58 → 61.
 - **`keryx::ApiError::status_code() -> Option<u16>`** (PR #63).
   Accessor for the HTTP status code carried by the variant.
   Returns `Some(status)` for `Server` (the wire value) and
