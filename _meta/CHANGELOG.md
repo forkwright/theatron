@@ -100,6 +100,19 @@ patch (`v1.0.1`) to minor (`v1.1.0`).
   covering existing key / missing key / missing file / type-
   coercion-free presence / idempotent re-set. bathron tests:
   53 → 58.
+- **`themelion::ThemeMode::is_dark` + `::is_light` + `::is_system`**
+  (PR #76). Three `const fn` predicates on the desktop-side
+  `ThemeMode` (the 3-variant enum). These are `user preference`
+  predicates — to ask whether the *rendered* theme is dark, call
+  `mode.resolve().is_dark()` (which goes through the existing
+  `ResolvedTheme` predicates from PR #61). `is_system()` is the
+  new piece — tells consumers when `resolve()` would consult the
+  desktop-environment preference vs. return a forced value.
+  Symmetric with `parodos::ThemeMode::is_dark` + `::is_light`
+  (PR #70; parodos has no `System` because terminals don't have
+  an OS preference to resolve). +4 tests covering each branch
+  + the exhaustive-partition compile-time check. themelion
+  tests grow accordingly.
 - **`themelion::ResolvedTheme::is_dark`** + **`::is_light`**
   (PR #61). Two convenience predicates on `ResolvedTheme`.
   `theme.is_dark()` reads better than `theme == ResolvedTheme::Dark`

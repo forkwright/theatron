@@ -58,6 +58,36 @@ impl ResolvedTheme {
 }
 
 impl ThemeMode {
+    /// Whether this mode is `Dark`.
+    ///
+    /// Note this is the *user preference* — to ask whether the
+    /// rendered theme is dark (after resolving `System`), call
+    /// [`resolve`](Self::resolve)`().is_dark()`.
+    #[must_use]
+    pub const fn is_dark(self) -> bool {
+        matches!(self, Self::Dark)
+    }
+
+    /// Whether this mode is `Light`.
+    ///
+    /// Note this is the *user preference* — to ask whether the
+    /// rendered theme is light (after resolving `System`), call
+    /// [`resolve`](Self::resolve)`().is_light()`.
+    #[must_use]
+    pub const fn is_light(self) -> bool {
+        matches!(self, Self::Light)
+    }
+
+    /// Whether this mode follows the OS preference (`System`).
+    ///
+    /// `is_system()` is true exactly when [`resolve`](Self::resolve)
+    /// would consult the desktop-environment preference rather
+    /// than returning a forced value.
+    #[must_use]
+    pub const fn is_system(self) -> bool {
+        matches!(self, Self::System)
+    }
+
     /// Cycle to the next mode: Dark -> Light -> System -> Dark.
     #[must_use]
     pub fn next(self) -> Self {
@@ -395,6 +425,40 @@ mod tests {
             match mode {
                 ThemeMode::Dark | ThemeMode::Light | ThemeMode::System => (),
             }
+        }
+    }
+
+    #[test]
+    fn theme_mode_is_dark_true_only_for_dark() {
+        assert!(ThemeMode::Dark.is_dark());
+        assert!(!ThemeMode::Light.is_dark());
+        assert!(!ThemeMode::System.is_dark());
+    }
+
+    #[test]
+    fn theme_mode_is_light_true_only_for_light() {
+        assert!(!ThemeMode::Dark.is_light());
+        assert!(ThemeMode::Light.is_light());
+        assert!(!ThemeMode::System.is_light());
+    }
+
+    #[test]
+    fn theme_mode_is_system_true_only_for_system() {
+        assert!(!ThemeMode::Dark.is_system());
+        assert!(!ThemeMode::Light.is_system());
+        assert!(ThemeMode::System.is_system());
+    }
+
+    #[test]
+    fn theme_mode_predicates_form_an_exhaustive_partition() {
+        // Exactly one of is_dark / is_light / is_system is true for
+        // any given variant. Mirrors the ColorDepth partition test
+        // in parodos and the ResolvedTheme mutual-exclusivity test.
+        for mode in ThemeMode::all() {
+            let count = u32::from(mode.is_dark())
+                + u32::from(mode.is_light())
+                + u32::from(mode.is_system());
+            assert_eq!(count, 1, "exactly one predicate true for {mode:?}");
         }
     }
 
