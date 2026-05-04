@@ -215,6 +215,39 @@ impl ApiError {
             Self::Auth | Self::InvalidToken => None,
         }
     }
+
+    /// Return the `Retry-After` delta-seconds value carried by a
+    /// rate-limit error, if the server supplied one.
+    ///
+    /// Returns `Some(secs)` when the variant is
+    /// [`ApiError::RateLimited`] and the server included a
+    /// `Retry-After` header in delta-seconds form (per RFC 9110
+    /// § 10.2.3). Returns `None` for every other variant, and also
+    /// for [`ApiError::RateLimited`] when the header was absent or
+    /// in HTTP-date form that the caller didn't parse.
+    ///
+    /// Useful for retry layers that want to honour server backoff
+    /// hints without manually destructuring:
+    ///
+    /// ```ignore
+    /// if let Some(secs) = err.retry_after() {
+    ///     tokio::time::sleep(Duration::from_secs(secs)).await;
+    /// }
+    /// ```
+    #[must_use]
+    pub fn retry_after(&self) -> Option<u64> {
+        match self {
+            Self::RateLimited {
+                retry_after_secs, ..
+            } => *retry_after_secs,
+            Self::Http { .. }
+            | Self::Timeout { .. }
+            | Self::Server { .. }
+            | Self::BadResponse { .. }
+            | Self::Auth
+            | Self::InvalidToken => None,
+        }
+    }
 }
 
 /// Result alias for keryx API operations.
@@ -459,6 +492,51 @@ mod tests {
         assert_eq!(bad_response.status_code(), None);
         assert_eq!(ApiError::Auth.status_code(), None);
         assert_eq!(ApiError::InvalidToken.status_code(), None);
+    }
+
+    #[test]
+    fn retry_after_returns_some_for_rate_limited_with_header() {
+        let err = ApiError::RateLimited {
+            operation: "list_prs",
+            retry_after_secs: Some(60),
+        };
+        assert_eq!(err.retry_after(), Some(60));
+    }
+
+    #[test]
+    fn retry_after_returns_none_for_rate_limited_without_header() {
+        let err = ApiError::RateLimited {
+            operation: "list_prs",
+            retry_after_secs: None,
+        };
+        assert_eq!(err.retry_after(), None);
+    }
+
+    #[test]
+    fn retry_after_returns_none_for_other_variants() {
+        let http = ApiError::Http {
+            operation: "x",
+            source: build_dummy_reqwest_error(),
+        };
+        let timeout = ApiError::Timeout {
+            operation: "x",
+            timeout_secs: 5,
+        };
+        let server = ApiError::Server {
+            operation: "x",
+            status: 503,
+            message: String::new(),
+        };
+        let bad_response = ApiError::BadResponse {
+            operation: "x",
+            source: serde_json::from_str::<i32>("nope").unwrap_err(),
+        };
+        assert_eq!(http.retry_after(), None);
+        assert_eq!(timeout.retry_after(), None);
+        assert_eq!(server.retry_after(), None);
+        assert_eq!(bad_response.retry_after(), None);
+        assert_eq!(ApiError::Auth.retry_after(), None);
+        assert_eq!(ApiError::InvalidToken.retry_after(), None);
     }
 
     /// Build a `reqwest::Error` synchronously for the

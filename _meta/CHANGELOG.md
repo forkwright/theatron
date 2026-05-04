@@ -57,6 +57,16 @@ patch (`v1.0.1`) to minor (`v1.1.0`).
   retries (e.g. on 4xx for idempotent reads) make their own
   judgment. +5 tests covering each branch; keryx tests:
   33 → 38.
+- **`keryx::ApiError::retry_after() -> Option<u64>`** (PR #71).
+  Accessor for the `Retry-After` delta-seconds value carried by
+  `RateLimited`. Returns `Some(secs)` when the variant is
+  `RateLimited` and the server supplied a `Retry-After` header
+  in delta-seconds form (per RFC 9110 § 10.2.3); `None`
+  everywhere else (other variants, or `RateLimited` without a
+  parseable header). Lets retry layers honour server backoff
+  hints without manually destructuring. +3 tests covering the
+  `Some` branch, `None`-on-`RateLimited` branch, and every other
+  variant; keryx tests: 19 → 22 in error.rs.
 - **`bathron::settings::Settings::contains(key) -> Result<bool, …>`**
   (PR #60). Cheaper presence check than `get::<T>(key)` when the
   consumer only needs to know whether a key is set (e.g. "has the
