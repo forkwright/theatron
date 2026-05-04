@@ -67,6 +67,19 @@ patch (`v1.0.1`) to minor (`v1.1.0`).
   hints without manually destructuring. +3 tests covering the
   `Some` branch, `None`-on-`RateLimited` branch, and every other
   variant; keryx tests: 19 → 22 in error.rs.
+- **`bathron::settings::Settings::keys() -> Result<Vec<String>, …>`**
+  (PR #73). Enumerates every top-level key currently present in
+  the on-disk settings file, in TOML document order. Useful for
+  migration code (drop or rename keys whose schema changed),
+  debug UIs, and consumer-side validation that warns about
+  unrecognised keys. Returns an empty vector when the file is
+  missing or empty (symmetric with `get` returning `None`).
+  Only enumerates **top-level** keys; nested `[ui]`-style tables
+  appear as a single key whose value is the table. Cannot
+  return `DeserializeValue` since no value deserialization
+  happens. +4 tests covering missing-file / multi-key
+  enumeration / `keys`↔`contains` round-trip / values-don't-leak.
+  bathron settings tests: 30 → 34.
 - **`bathron::settings::Settings::contains(key) -> Result<bool, …>`**
   (PR #60). Cheaper presence check than `get::<T>(key)` when the
   consumer only needs to know whether a key is set (e.g. "has the

@@ -252,6 +252,34 @@ impl Settings {
         Ok(doc.get(key).is_some())
     }
 
+    /// Every top-level key currently present in the settings file,
+    /// in TOML document order.
+    ///
+    /// Useful for migration code (enumerate everything stored, drop
+    /// or rename keys whose schema changed), debug UIs (show "what
+    /// is in my settings file?"), and consumer-side config
+    /// validation (warn about unrecognised keys).
+    ///
+    /// Returns an empty vector when the settings file is missing or
+    /// empty — symmetric with [`get`](Self::get) returning `None`
+    /// in those cases.
+    ///
+    /// Only enumerates **top-level** keys; nested table values
+    /// (e.g. `[ui]` sections) appear as a single key whose value is
+    /// the table. Consumers wanting nested enumeration should call
+    /// [`get`](Self::get) on the top-level key and recurse on the
+    /// returned structure.
+    ///
+    /// # Errors
+    ///
+    /// [`SettingsError::ReadFile`], [`SettingsError::ParseToml`].
+    /// Cannot return [`SettingsError::DeserializeValue`] since no
+    /// value-deserialization happens.
+    pub fn keys(&self) -> Result<Vec<String>, SettingsError> {
+        let doc = self.read_doc()?;
+        Ok(doc.keys().cloned().collect())
+    }
+
     /// Write `value` at `key`. Atomic via tempfile + rename; a
     /// crash mid-write leaves the previous on-disk state intact.
     ///
@@ -595,6 +623,51 @@ mod tests {
         settings.set("theme", &"dark").unwrap();
         settings.set("theme", &"dark").unwrap(); // re-set same value
         assert!(settings.contains("theme").unwrap());
+    }
+
+    #[test]
+    fn keys_returns_empty_when_file_missing() {
+        let tmp = tempfile::tempdir().unwrap();
+        let settings = Settings::open_at(tmp.path()).unwrap();
+        let keys = settings.keys().unwrap();
+        assert!(keys.is_empty(), "missing file → empty keys, got {keys:?}");
+    }
+
+    #[test]
+    fn keys_lists_every_top_level_key() {
+        let tmp = tempfile::tempdir().unwrap();
+        let settings = Settings::open_at(tmp.path()).unwrap();
+        settings.set("theme", &"dark").unwrap();
+        settings.set("verbose", &true).unwrap();
+        settings.set("retries", &3_i64).unwrap();
+        let mut keys = settings.keys().unwrap();
+        keys.sort();
+        assert_eq!(keys, vec!["retries", "theme", "verbose"]);
+    }
+
+    #[test]
+    fn keys_round_trips_with_contains() {
+        let tmp = tempfile::tempdir().unwrap();
+        let settings = Settings::open_at(tmp.path()).unwrap();
+        settings.set("a", &1_i64).unwrap();
+        settings.set("b", &2_i64).unwrap();
+        for key in settings.keys().unwrap() {
+            assert!(
+                settings.contains(&key).unwrap(),
+                "every enumerated key should be contained: {key}"
+            );
+        }
+    }
+
+    #[test]
+    fn keys_does_not_include_values() {
+        let tmp = tempfile::tempdir().unwrap();
+        let settings = Settings::open_at(tmp.path()).unwrap();
+        settings.set("greeting", &"hello world").unwrap();
+        let keys = settings.keys().unwrap();
+        assert_eq!(keys, vec!["greeting"]);
+        // The value "hello world" must not leak into the keys list.
+        assert!(!keys.iter().any(|k| k.contains("hello")));
     }
 
     #[test]
