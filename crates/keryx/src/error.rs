@@ -114,6 +114,42 @@ pub enum ApiError {
 }
 
 impl ApiError {
+    /// Whether this error is worth retrying.
+    ///
+    /// Returns `true` for transient failure modes that a retry
+    /// layer should back off and retry:
+    ///
+    /// - [`ApiError::Timeout`] — request exceeded its budget;
+    ///   the server may respond on a retry.
+    /// - [`ApiError::RateLimited`] — back off (honoring
+    ///   `retry_after_secs` if set) and retry.
+    /// - [`ApiError::Http`] when the underlying `reqwest::Error`
+    ///   is a connect failure or timeout.
+    /// - [`ApiError::Server`] for 5xx responses.
+    ///
+    /// Returns `false` for terminal failures that won't change on
+    /// retry without external intervention:
+    ///
+    /// - [`ApiError::Server`] for 4xx responses (caller error).
+    /// - [`ApiError::BadResponse`] — schema mismatch.
+    /// - [`ApiError::Auth`] — need a fresh credential.
+    /// - [`ApiError::InvalidToken`] — token is malformed.
+    /// - [`ApiError::Http`] for non-connect / non-timeout errors
+    ///   (TLS handshake failure, body decode error, etc).
+    ///
+    /// Conservative by default: retry layers that want more
+    /// aggressive behaviour (e.g. retry on 4xx for idempotent
+    /// reads) should make their own judgment.
+    #[must_use]
+    pub fn is_retryable(&self) -> bool {
+        match self {
+            Self::Timeout { .. } | Self::RateLimited { .. } => true,
+            Self::Http { source, .. } => source.is_connect() || source.is_timeout(),
+            Self::Server { status, .. } => *status >= 500,
+            Self::BadResponse { .. } | Self::Auth | Self::InvalidToken => false,
+        }
+    }
+
     /// Return the operation name embedded in this error, if the
     /// variant carries one.
     ///
@@ -274,6 +310,70 @@ mod tests {
     fn operation_returns_none_for_context_free_variants() {
         assert_eq!(ApiError::Auth.operation(), None);
         assert_eq!(ApiError::InvalidToken.operation(), None);
+    }
+
+    #[test]
+    fn is_retryable_true_for_timeout() {
+        let err = ApiError::Timeout {
+            operation: "x",
+            timeout_secs: 5,
+        };
+        assert!(err.is_retryable());
+    }
+
+    #[test]
+    fn is_retryable_true_for_rate_limited() {
+        let with_retry = ApiError::RateLimited {
+            operation: "x",
+            retry_after_secs: Some(60),
+        };
+        let without_retry = ApiError::RateLimited {
+            operation: "x",
+            retry_after_secs: None,
+        };
+        assert!(with_retry.is_retryable());
+        assert!(without_retry.is_retryable());
+    }
+
+    #[test]
+    fn is_retryable_true_for_5xx_server() {
+        for status in [500, 502, 503, 504, 599] {
+            let err = ApiError::Server {
+                operation: "x",
+                status,
+                message: String::new(),
+            };
+            assert!(
+                err.is_retryable(),
+                "5xx status {status} should be retryable"
+            );
+        }
+    }
+
+    #[test]
+    fn is_retryable_false_for_4xx_server() {
+        for status in [400, 403, 404, 422, 499] {
+            let err = ApiError::Server {
+                operation: "x",
+                status,
+                message: String::new(),
+            };
+            assert!(
+                !err.is_retryable(),
+                "4xx status {status} should not be retryable"
+            );
+        }
+    }
+
+    #[test]
+    fn is_retryable_false_for_terminal_variants() {
+        let bad_response = ApiError::BadResponse {
+            operation: "x",
+            source: serde_json::from_str::<i32>("nope").unwrap_err(),
+        };
+        assert!(!bad_response.is_retryable());
+        assert!(!ApiError::Auth.is_retryable());
+        assert!(!ApiError::InvalidToken.is_retryable());
     }
 
     /// Build a `reqwest::Error` synchronously for the

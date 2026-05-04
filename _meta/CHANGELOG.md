@@ -48,6 +48,15 @@ patch (`v1.0.1`) to minor (`v1.1.0`).
   (`Auth` / `InvalidToken`). Useful for consumer logging /
   routing without manual destructuring per variant. +2 tests
   covering both branches; keryx tests: 31 → 33.
+- **`keryx::ApiError::is_retryable() -> bool`** (PR #59).
+  Predicate for retry layers. Returns `true` for transient
+  failures (`Timeout`, `RateLimited`, 5xx `Server`, connect /
+  timeout `Http`), `false` for terminal failures (4xx `Server`,
+  `BadResponse`, `Auth`, `InvalidToken`, non-connect `Http`).
+  Conservative default — consumers wanting more aggressive
+  retries (e.g. on 4xx for idempotent reads) make their own
+  judgment. +5 tests covering each branch; keryx tests:
+  33 → 38.
 - **`parodos::clipboard::supports_osc52`** (PR #58). Capability
   probe symmetric to `parodos::hyperlink::supports_hyperlinks` for
   OSC 8 — checks the running terminal's env-var signals to decide
