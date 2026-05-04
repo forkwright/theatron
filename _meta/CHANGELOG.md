@@ -162,6 +162,14 @@ patch (`v1.0.1`) to minor (`v1.1.0`).
   Pre-existing `toggle()` already shipped at v1.0; the predicates
   complete the API. +3 tests covering each branch + mutual-
   exclusivity. gramma tests: 56 → 59.
+- **`gramma::diff::ChangeType::glyph() -> char`** (PR #79).
+  Returns the canonical unified-diff prefix character for the
+  variant: `'+'` for `Add`, `'-'` for `Remove`, `' '` (space)
+  for `Context`. Matches the prefix bytes used by every
+  unified-diff renderer (git, patch(1), GNU diff -u). `const
+  fn`. Useful for consumer code rendering a line gutter without
+  per-variant matching. +3 tests: canonical mapping, predicate
+  round-trip, glyph uniqueness.
 - **`gramma::diff::ChangeType` predicates** (PR #67). Four
   convenience `const fn` predicates: `is_add`, `is_remove`,
   `is_context`, `is_change` (the negation of `is_context`).

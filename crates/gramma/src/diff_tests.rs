@@ -809,6 +809,46 @@ fn change_type_predicates_form_an_exhaustive_partition() {
 }
 
 #[test]
+fn change_type_glyph_returns_canonical_unified_diff_prefix() {
+    assert_eq!(ChangeType::Add.glyph(), '+');
+    assert_eq!(ChangeType::Remove.glyph(), '-');
+    assert_eq!(ChangeType::Context.glyph(), ' ');
+}
+
+#[test]
+fn change_type_glyph_round_trips_through_predicates() {
+    // Every variant's glyph round-trips with its predicate: the
+    // glyph maps 1:1 to the variant identity.
+    for change in [ChangeType::Add, ChangeType::Remove, ChangeType::Context] {
+        match change.glyph() {
+            '+' => assert!(change.is_add()),
+            '-' => assert!(change.is_remove()),
+            ' ' => assert!(change.is_context()),
+            other => panic!("unexpected glyph {other:?} for {change:?}"),
+        }
+    }
+}
+
+#[test]
+fn change_type_glyphs_are_unique() {
+    // Every variant must produce a distinct glyph. If a future
+    // variant is added that aliases an existing prefix, this
+    // catches it.
+    let glyphs: Vec<char> = [ChangeType::Add, ChangeType::Remove, ChangeType::Context]
+        .iter()
+        .map(|c| c.glyph())
+        .collect();
+    let mut sorted = glyphs.clone();
+    sorted.sort_unstable();
+    sorted.dedup();
+    assert_eq!(
+        sorted.len(),
+        glyphs.len(),
+        "glyphs must be unique: {glyphs:?}"
+    );
+}
+
+#[test]
 fn diff_view_mode_is_unified_returns_true_only_for_unified() {
     assert!(DiffViewMode::Unified.is_unified());
     assert!(!DiffViewMode::SideBySide.is_unified());

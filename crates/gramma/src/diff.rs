@@ -93,6 +93,33 @@ impl ChangeType {
     pub const fn is_change(self) -> bool {
         !self.is_context()
     }
+
+    /// Canonical unified-diff prefix character for this change type.
+    ///
+    /// Returns `'+'` for [`ChangeType::Add`], `'-'` for
+    /// [`ChangeType::Remove`], and `' '` (space) for
+    /// [`ChangeType::Context`] — the prefix bytes used by every
+    /// unified-diff renderer (git, patch(1), GNU diff -u).
+    ///
+    /// Useful for consumer code rendering a line gutter:
+    ///
+    /// ```
+    /// use gramma::diff::ChangeType;
+    /// let formatted = format!("{} hello", ChangeType::Add.glyph());
+    /// assert_eq!(formatted, "+ hello");
+    /// ```
+    ///
+    /// Pairs with [`is_add`](Self::is_add) / [`is_remove`](Self::is_remove)
+    /// / [`is_context`](Self::is_context) for the most common
+    /// rendering branches.
+    #[must_use]
+    pub const fn glyph(self) -> char {
+        match self {
+            Self::Add => '+',
+            Self::Remove => '-',
+            Self::Context => ' ',
+        }
+    }
 }
 
 /// A single line in a diff hunk.
