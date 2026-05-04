@@ -125,6 +125,22 @@ patch (`v1.0.1`) to minor (`v1.1.0`).
   an OS preference to resolve). +4 tests covering each branch
   + the exhaustive-partition compile-time check. themelion
   tests grow accordingly.
+- **`themelion::ResolvedTheme::parse_data_attr` + `::all`**
+  (PR #81). Round-trip with `as_str` (the canonical
+  `[data-theme="…"]` attribute value applied by `ThemeProvider`).
+  `parse_data_attr("dark" | "light")` is case-sensitive (matches
+  the lowercase attribute the DOM actually carries) and returns
+  `None` for any other input. Name is deliberately specific —
+  `from_str` would clash with `std::str::FromStr` conventions,
+  and the function only accepts the canonical attribute value,
+  not arbitrary strings. `all()` returns the fixed-size
+  `[Dark, Light]` array (no `System` since `ResolvedTheme` is
+  the post-resolve enum). Useful for tests reading the attribute
+  back off the DOM and for any consumer iterating every
+  resolved value. Symmetric with `ThemeMode::from_label` +
+  `::all` (PR #57). +5 tests: canonical, case-sensitive,
+  unrecognized input, `parse_data_attr↔as_str` round-trip,
+  and every-variant exhaustive.
 - **`themelion::ResolvedTheme::is_dark`** + **`::is_light`**
   (PR #61). Two convenience predicates on `ResolvedTheme`.
   `theme.is_dark()` reads better than `theme == ResolvedTheme::Dark`

@@ -55,6 +55,54 @@ impl ResolvedTheme {
     pub const fn is_light(self) -> bool {
         matches!(self, Self::Light)
     }
+
+    /// Parse a `ResolvedTheme` from its [`as_str`](Self::as_str) value
+    /// — i.e. the lowercase `[data-theme="…"]` attribute value that
+    /// [`ThemeProvider`] applies to the DOM.
+    ///
+    /// Recognises `"dark"` and `"light"` (case-sensitive — they
+    /// match the canonical attribute lowercase). Returns `None`
+    /// for any other input.
+    ///
+    /// Round-trips with [`as_str`](Self::as_str) for any
+    /// `ResolvedTheme`:
+    ///
+    /// ```
+    /// use themelion::ResolvedTheme;
+    /// for theme in [ResolvedTheme::Dark, ResolvedTheme::Light] {
+    ///     assert_eq!(ResolvedTheme::parse_data_attr(theme.as_str()), Some(theme));
+    /// }
+    /// ```
+    ///
+    /// Useful for consumers reading the `[data-theme]` attribute
+    /// back off the DOM (e.g. tests, settings round-trip). The
+    /// name is deliberately specific — `from_str` would clash with
+    /// `std::str::FromStr` conventions, and the function only
+    /// accepts the canonical attribute value, not arbitrary
+    /// strings.
+    ///
+    /// Parallels `themelion::ThemeMode::from_label` (PR #57).
+    #[must_use]
+    pub fn parse_data_attr(s: &str) -> Option<Self> {
+        match s {
+            "dark" => Some(Self::Dark),
+            "light" => Some(Self::Light),
+            _ => None,
+        }
+    }
+
+    /// All `ResolvedTheme` variants, in canonical order:
+    /// `[Dark, Light]`.
+    ///
+    /// Useful for exhaustiveness tests and any consumer iterating
+    /// every possible resolved value. Symmetric with
+    /// `themelion::ThemeMode::all` (PR #57); the resolved array has
+    /// two elements (no `System` since this is the post-resolve
+    /// enum).
+    #[must_use]
+    pub const fn all() -> [Self; 2] {
+        [Self::Dark, Self::Light]
+    }
 }
 
 impl ThemeMode {
@@ -481,5 +529,50 @@ mod tests {
         for theme in [ResolvedTheme::Dark, ResolvedTheme::Light] {
             assert_ne!(theme.is_dark(), theme.is_light());
         }
+    }
+
+    #[test]
+    fn resolved_theme_parse_data_attr_recognizes_canonical_values() {
+        assert_eq!(
+            ResolvedTheme::parse_data_attr("dark"),
+            Some(ResolvedTheme::Dark)
+        );
+        assert_eq!(
+            ResolvedTheme::parse_data_attr("light"),
+            Some(ResolvedTheme::Light)
+        );
+    }
+
+    #[test]
+    fn resolved_theme_parse_data_attr_is_case_sensitive() {
+        // Canonical [data-theme="..."] is lowercase; case-sensitive
+        // parsing matches what's actually written. Same semantics
+        // as ThemeMode::from_label.
+        assert_eq!(ResolvedTheme::parse_data_attr("Dark"), None);
+        assert_eq!(ResolvedTheme::parse_data_attr("DARK"), None);
+        assert_eq!(ResolvedTheme::parse_data_attr("Light"), None);
+    }
+
+    #[test]
+    fn resolved_theme_parse_data_attr_returns_none_for_unrecognized() {
+        assert_eq!(ResolvedTheme::parse_data_attr(""), None);
+        assert_eq!(ResolvedTheme::parse_data_attr("system"), None);
+        assert_eq!(ResolvedTheme::parse_data_attr("auto"), None);
+        assert_eq!(ResolvedTheme::parse_data_attr("dark "), None);
+    }
+
+    #[test]
+    fn resolved_theme_parse_data_attr_round_trips_with_as_str() {
+        for theme in [ResolvedTheme::Dark, ResolvedTheme::Light] {
+            assert_eq!(ResolvedTheme::parse_data_attr(theme.as_str()), Some(theme));
+        }
+    }
+
+    #[test]
+    fn resolved_theme_all_returns_every_variant() {
+        let variants = ResolvedTheme::all();
+        assert_eq!(variants.len(), 2);
+        assert!(variants.contains(&ResolvedTheme::Dark));
+        assert!(variants.contains(&ResolvedTheme::Light));
     }
 }
