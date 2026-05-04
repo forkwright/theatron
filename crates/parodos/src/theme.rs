@@ -87,6 +87,40 @@ impl ThemeMode {
     pub const fn is_light(self) -> bool {
         matches!(self, Self::Light)
     }
+
+    /// Parse a string label into a `ThemeMode`.
+    ///
+    /// Recognises `"dark"` and `"light"` (case-insensitive). Returns
+    /// `None` for any other input, including `"system"` — parodos
+    /// runs in a terminal where there is no OS-level light/dark
+    /// preference to resolve, so unlike `themelion::ThemeMode` this
+    /// enum has no `System` variant.
+    ///
+    /// Symmetric with `themelion::ThemeMode::from_label` (theatron
+    /// PR #57) for crates that round-trip a config string into the
+    /// TUI palette.
+    #[must_use]
+    pub fn from_label(s: &str) -> Option<Self> {
+        match s.to_ascii_lowercase().as_str() {
+            "dark" => Some(Self::Dark),
+            "light" => Some(Self::Light),
+            _ => None,
+        }
+    }
+
+    /// Every `ThemeMode` variant, in canonical order.
+    ///
+    /// Useful for building selection UIs and for exhaustiveness
+    /// tests that need to iterate every variant. Returns a fixed-size
+    /// array so callers can iterate without allocation.
+    ///
+    /// Symmetric with `themelion::ThemeMode::all` (theatron PR #57);
+    /// parodos's array has two elements (`[Dark, Light]`) because
+    /// the terminal-side enum has no `System` variant.
+    #[must_use]
+    pub const fn all() -> [Self; 2] {
+        [Self::Dark, Self::Light]
+    }
 }
 
 /// Background and accent colors.
@@ -889,6 +923,48 @@ mod tests {
     fn theme_mode_predicates_are_mutually_exclusive() {
         for mode in [ThemeMode::Dark, ThemeMode::Light] {
             assert_ne!(mode.is_dark(), mode.is_light());
+        }
+    }
+
+    #[test]
+    fn theme_mode_from_label_recognizes_canonical_lowercase() {
+        assert_eq!(ThemeMode::from_label("dark"), Some(ThemeMode::Dark));
+        assert_eq!(ThemeMode::from_label("light"), Some(ThemeMode::Light));
+    }
+
+    #[test]
+    fn theme_mode_from_label_is_case_insensitive() {
+        assert_eq!(ThemeMode::from_label("Dark"), Some(ThemeMode::Dark));
+        assert_eq!(ThemeMode::from_label("DARK"), Some(ThemeMode::Dark));
+        assert_eq!(ThemeMode::from_label("Light"), Some(ThemeMode::Light));
+        assert_eq!(ThemeMode::from_label("LIGHT"), Some(ThemeMode::Light));
+    }
+
+    #[test]
+    fn theme_mode_from_label_returns_none_for_unrecognized_labels() {
+        assert_eq!(ThemeMode::from_label(""), None);
+        assert_eq!(ThemeMode::from_label("system"), None);
+        assert_eq!(ThemeMode::from_label("auto"), None);
+        assert_eq!(ThemeMode::from_label("nope"), None);
+        assert_eq!(ThemeMode::from_label("dark "), None);
+    }
+
+    #[test]
+    fn theme_mode_all_returns_every_variant() {
+        let variants = ThemeMode::all();
+        assert_eq!(variants.len(), 2);
+        assert!(variants.contains(&ThemeMode::Dark));
+        assert!(variants.contains(&ThemeMode::Light));
+    }
+
+    #[test]
+    fn theme_mode_all_round_trips_through_from_label_and_display() {
+        for mode in ThemeMode::all() {
+            let label = match mode {
+                ThemeMode::Dark => "dark",
+                ThemeMode::Light => "light",
+            };
+            assert_eq!(ThemeMode::from_label(label), Some(mode));
         }
     }
 

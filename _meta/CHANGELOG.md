@@ -82,6 +82,17 @@ patch (`v1.0.1`) to minor (`v1.1.0`).
   at consumer call sites. Both are `const fn`, so usable in
   const contexts. +3 tests covering each branch + the
   mutually-exclusive partition. themelion tests: 19 → 22.
+- **`parodos::theme::ThemeMode::from_label` + `::all`** (PR #72).
+  Two helpers symmetric with `themelion::ThemeMode::from_label` /
+  `::all` (PR #57). `from_label("dark" | "light")` is
+  case-insensitive and returns `None` for any other input,
+  including `"system"` — parodos runs in a terminal where there's
+  no OS-level light/dark preference to resolve, so the parodos
+  enum has no `System` variant. `all()` returns the
+  fixed-size `[Dark, Light]` array (vs. themelion's three-element
+  array). +5 tests covering canonical / case-insensitive /
+  unrecognized input + every-variant + round-trip; parodos
+  theme tests: 29 → 34.
 - **`parodos::theme::ThemeMode::is_dark` + `::is_light`** (PR #70).
   Two `const fn` predicates on parodos's local `ThemeMode`
   (distinct from `themelion::ThemeMode` which has 3 variants).
