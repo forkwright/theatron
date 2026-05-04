@@ -294,6 +294,35 @@ impl Settings {
         self.write_doc(&doc)?;
         Ok(())
     }
+
+    /// Remove `key` from the settings file.
+    ///
+    /// Returns `Ok(true)` if the key was present and removed,
+    /// `Ok(false)` if the key was already absent. Idempotent:
+    /// removing an absent key is not an error.
+    ///
+    /// Atomic via tempfile + rename, like [`set`](Self::set); a
+    /// crash mid-write leaves the previous on-disk state intact.
+    /// Skips the write entirely when the key is absent (no I/O
+    /// cost, no settings-file mtime bump).
+    ///
+    /// Symmetric with [`set`](Self::set) and rounds out the CRUD
+    /// surface alongside [`get`](Self::get) / [`contains`](Self::contains)
+    /// / [`keys`](Self::keys).
+    ///
+    /// # Errors
+    ///
+    /// [`SettingsError::ReadFile`], [`SettingsError::ParseToml`],
+    /// [`SettingsError::WriteFile`], [`SettingsError::PersistFile`],
+    /// [`SettingsError::SerializeToml`].
+    pub fn remove(&self, key: &str) -> Result<bool, SettingsError> {
+        let mut doc = self.read_doc()?;
+        if doc.remove(key).is_none() {
+            return Ok(false);
+        }
+        self.write_doc(&doc)?;
+        Ok(true)
+    }
 }
 
 #[cfg(test)]
@@ -668,6 +697,63 @@ mod tests {
         assert_eq!(keys, vec!["greeting"]);
         // The value "hello world" must not leak into the keys list.
         assert!(!keys.iter().any(|k| k.contains("hello")));
+    }
+
+    #[test]
+    fn remove_returns_true_for_existing_key() {
+        let tmp = tempfile::tempdir().unwrap();
+        let settings = Settings::open_at(tmp.path()).unwrap();
+        settings.set("theme", &"dark").unwrap();
+        assert!(settings.remove("theme").unwrap());
+        assert!(!settings.contains("theme").unwrap());
+    }
+
+    #[test]
+    fn remove_returns_false_for_missing_key() {
+        let tmp = tempfile::tempdir().unwrap();
+        let settings = Settings::open_at(tmp.path()).unwrap();
+        assert!(!settings.remove("never_set").unwrap());
+    }
+
+    #[test]
+    fn remove_is_idempotent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let settings = Settings::open_at(tmp.path()).unwrap();
+        settings.set("theme", &"dark").unwrap();
+        assert!(settings.remove("theme").unwrap());
+        // Second remove on the same key returns false but does not error.
+        assert!(!settings.remove("theme").unwrap());
+        assert!(!settings.remove("theme").unwrap());
+    }
+
+    #[test]
+    fn remove_only_affects_named_key() {
+        let tmp = tempfile::tempdir().unwrap();
+        let settings = Settings::open_at(tmp.path()).unwrap();
+        settings.set("a", &1_i64).unwrap();
+        settings.set("b", &2_i64).unwrap();
+        settings.set("c", &3_i64).unwrap();
+        assert!(settings.remove("b").unwrap());
+        let mut remaining = settings.keys().unwrap();
+        remaining.sort();
+        assert_eq!(remaining, vec!["a", "c"]);
+        assert_eq!(settings.get::<i64>("a").unwrap(), Some(1));
+        assert_eq!(settings.get::<i64>("c").unwrap(), Some(3));
+    }
+
+    #[test]
+    fn remove_skips_write_when_key_absent() {
+        // Removing a nonexistent key from a missing file must not
+        // create the file (no-op when there is nothing to remove).
+        let tmp = tempfile::tempdir().unwrap();
+        let settings = Settings::open_at(tmp.path()).unwrap();
+        let file = settings.file().to_path_buf();
+        assert!(!file.exists(), "settings file should not exist yet");
+        assert!(!settings.remove("ghost").unwrap());
+        assert!(
+            !file.exists(),
+            "remove of absent key must not create the settings file"
+        );
     }
 
     #[test]

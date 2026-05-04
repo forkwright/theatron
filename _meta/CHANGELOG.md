@@ -67,6 +67,17 @@ patch (`v1.0.1`) to minor (`v1.1.0`).
   hints without manually destructuring. +3 tests covering the
   `Some` branch, `None`-on-`RateLimited` branch, and every other
   variant; keryx tests: 19 → 22 in error.rs.
+- **`bathron::settings::Settings::remove(key) -> Result<bool, …>`**
+  (PR #74). Symmetric with `set`; rounds out the CRUD surface
+  (`get` / `contains` / `keys` / `set` / `remove`). Returns
+  `Ok(true)` if the key was present and removed, `Ok(false)`
+  if already absent — idempotent, removing an absent key is not
+  an error. Atomic via tempfile + rename like `set`. Skips the
+  write entirely when the key is absent (no I/O cost, no mtime
+  bump, no settings file created if it didn't already exist).
+  +4 tests covering existing-key removal / missing-key returns
+  false / idempotent re-remove / scoped-to-named-key /
+  no-write-when-absent. bathron settings tests: 34 → 38.
 - **`bathron::settings::Settings::keys() -> Result<Vec<String>, …>`**
   (PR #73). Enumerates every top-level key currently present in
   the on-disk settings file, in TOML document order. Useful for
