@@ -248,6 +248,61 @@ impl ApiError {
             | Self::InvalidToken => None,
         }
     }
+
+    /// Whether this error is a 4xx client-error response.
+    ///
+    /// Returns `true` for [`ApiError::Server`] with a status in
+    /// `400..=499`, and for [`ApiError::RateLimited`] (always 429).
+    /// Returns `false` for every other variant — those are
+    /// transport-level (`Http`, `Timeout`), payload (`BadResponse`),
+    /// or pre-flight (`InvalidToken`) failures, which by definition
+    /// did not receive a 4xx response. [`ApiError::Auth`] also
+    /// returns `false` because the variant erases the specific
+    /// 401-vs-403 status; consumers wanting to count it as a
+    /// client error should check `is_auth_failure()` separately
+    /// (when that lands).
+    ///
+    /// Pairs with [`is_server_error`](Self::is_server_error) and
+    /// [`is_retryable`](Self::is_retryable) to give consumers the
+    /// canonical HTTP-class trio without manual status arithmetic.
+    #[must_use]
+    pub fn is_client_error(&self) -> bool {
+        match self {
+            Self::Server { status, .. } => (400..=499).contains(status),
+            Self::RateLimited { .. } => true,
+            Self::Http { .. }
+            | Self::Timeout { .. }
+            | Self::BadResponse { .. }
+            | Self::Auth
+            | Self::InvalidToken => false,
+        }
+    }
+
+    /// Whether this error is a 5xx server-error response.
+    ///
+    /// Returns `true` for [`ApiError::Server`] with a status in
+    /// `500..=599`. Returns `false` for every other variant —
+    /// transport / payload / pre-flight failures didn't receive
+    /// a 5xx response by definition, and `RateLimited` is always
+    /// 429 (a client error).
+    ///
+    /// Pairs with [`is_client_error`](Self::is_client_error) and
+    /// [`is_retryable`](Self::is_retryable). Note `is_server_error`
+    /// is a strict subset of `is_retryable` (every 5xx is
+    /// retryable, but `is_retryable` also catches `Timeout`,
+    /// `RateLimited`, and connect-failure `Http`).
+    #[must_use]
+    pub fn is_server_error(&self) -> bool {
+        match self {
+            Self::Server { status, .. } => (500..=599).contains(status),
+            Self::Http { .. }
+            | Self::Timeout { .. }
+            | Self::RateLimited { .. }
+            | Self::BadResponse { .. }
+            | Self::Auth
+            | Self::InvalidToken => false,
+        }
+    }
 }
 
 /// Result alias for keryx API operations.
@@ -537,6 +592,91 @@ mod tests {
         assert_eq!(bad_response.retry_after(), None);
         assert_eq!(ApiError::Auth.retry_after(), None);
         assert_eq!(ApiError::InvalidToken.retry_after(), None);
+    }
+
+    #[test]
+    fn is_client_error_true_for_4xx_server() {
+        for status in [400, 401, 403, 404, 422, 429, 499] {
+            let err = ApiError::Server {
+                operation: "x",
+                status,
+                message: String::new(),
+            };
+            assert!(err.is_client_error(), "{status} should be client error");
+            assert!(
+                !err.is_server_error(),
+                "{status} should not be server error"
+            );
+        }
+    }
+
+    #[test]
+    fn is_server_error_true_for_5xx_server() {
+        for status in [500, 502, 503, 504, 599] {
+            let err = ApiError::Server {
+                operation: "x",
+                status,
+                message: String::new(),
+            };
+            assert!(err.is_server_error(), "{status} should be server error");
+            assert!(
+                !err.is_client_error(),
+                "{status} should not be client error"
+            );
+        }
+    }
+
+    #[test]
+    fn rate_limited_is_client_error_not_server_error() {
+        let err = ApiError::RateLimited {
+            operation: "x",
+            retry_after_secs: Some(60),
+        };
+        assert!(err.is_client_error());
+        assert!(!err.is_server_error());
+    }
+
+    #[test]
+    fn class_predicates_false_for_response_less_variants() {
+        let http = ApiError::Http {
+            operation: "x",
+            source: build_dummy_reqwest_error(),
+        };
+        let timeout = ApiError::Timeout {
+            operation: "x",
+            timeout_secs: 5,
+        };
+        let bad_response = ApiError::BadResponse {
+            operation: "x",
+            source: serde_json::from_str::<i32>("nope").unwrap_err(),
+        };
+        for err in [
+            http,
+            timeout,
+            bad_response,
+            ApiError::Auth,
+            ApiError::InvalidToken,
+        ] {
+            assert!(!err.is_client_error(), "no response → not 4xx ({err:?})");
+            assert!(!err.is_server_error(), "no response → not 5xx ({err:?})");
+        }
+    }
+
+    #[test]
+    fn class_predicates_partition_server_status_codes() {
+        // Every 4xx is client_error xor server_error; same for 5xx.
+        // Boundary statuses (399, 600) fall in neither.
+        let make = |status| ApiError::Server {
+            operation: "x",
+            status,
+            message: String::new(),
+        };
+        assert!(!make(399).is_client_error() && !make(399).is_server_error());
+        assert!(make(400).is_client_error() && !make(400).is_server_error());
+        assert!(make(499).is_client_error() && !make(499).is_server_error());
+        assert!(!make(500).is_client_error() && make(500).is_server_error());
+        assert!(!make(599).is_client_error() && make(599).is_server_error());
+        assert!(!make(600).is_client_error() && !make(600).is_server_error());
     }
 
     /// Build a `reqwest::Error` synchronously for the

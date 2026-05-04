@@ -48,6 +48,18 @@ patch (`v1.0.1`) to minor (`v1.1.0`).
   (`Auth` / `InvalidToken`). Useful for consumer logging /
   routing without manual destructuring per variant. +2 tests
   covering both branches; keryx tests: 31 → 33.
+- **`keryx::ApiError::is_client_error()` + `::is_server_error()`**
+  (PR #77). HTTP-class predicates that complete the trio with
+  `is_retryable`. `is_client_error()` returns `true` for
+  `Server` with a 4xx status (and `RateLimited`, always 429);
+  `is_server_error()` returns `true` for `Server` with a 5xx
+  status. Both return `false` for transport / payload /
+  pre-flight variants (those didn't receive a response in the
+  named class by definition). `Auth` returns `false` from both
+  because the variant erases the specific 401-vs-403 status.
+  +5 tests covering 4xx range / 5xx range / `RateLimited` is
+  client-not-server / response-less-variants are neither /
+  boundary partition (399, 400, 499, 500, 599, 600).
 - **`keryx::ApiError::is_retryable() -> bool`** (PR #59).
   Predicate for retry layers. Returns `true` for transient
   failures (`Timeout`, `RateLimited`, 5xx `Server`, connect /
