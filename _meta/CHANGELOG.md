@@ -232,6 +232,15 @@ patch (`v1.0.1`) to minor (`v1.1.0`).
   destructuring per variant. +3 tests covering server-status
   passthrough, `RateLimited` always-429, response-less variants
   None. keryx tests: 38 → 41.
+- **`gramma::diff::DiffFile::stats() -> DiffStats`** (PR #82).
+  Single-file aggregate convenience: returns a `DiffStats` with
+  `files_changed = 1` and the file's `additions` /
+  `deletions`. Flattens the `DiffStats::from_files(&[diff_file])`
+  call site for consumers that already have a `DiffFile` in
+  hand (e.g. per-file rows in a tree view). `const fn`. +3
+  tests: returns the right values for a populated file, matches
+  `DiffStats::from_files(slice::from_ref(&file))`, and a
+  zero-change file still counts as 1 file changed.
 - **`gramma::diff::DiffStats` shape helpers** (PR #75). Three new
   `const fn` accessors on the v1.1 `DiffStats` aggregate:
     - `net_change() -> i64` — signed `additions - deletions`;

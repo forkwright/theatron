@@ -685,6 +685,52 @@ fn diff_stats_is_empty_returns_false_when_files_present() {
 }
 
 #[test]
+fn diff_file_stats_returns_single_file_aggregate() {
+    let file = DiffFile {
+        path: "src/main.rs".to_string(),
+        hunks: vec![],
+        additions: 17,
+        deletions: 4,
+        mode: DiffViewMode::Unified,
+    };
+    let stats = file.stats();
+    assert_eq!(stats.files_changed, 1);
+    assert_eq!(stats.additions, 17);
+    assert_eq!(stats.deletions, 4);
+}
+
+#[test]
+fn diff_file_stats_matches_from_files_for_single_element_slice() {
+    let file = DiffFile {
+        path: "src/main.rs".to_string(),
+        hunks: vec![],
+        additions: 42,
+        deletions: 9,
+        mode: DiffViewMode::SideBySide,
+    };
+    let from_method = file.stats();
+    let from_aggregate = DiffStats::from_files(std::slice::from_ref(&file));
+    assert_eq!(from_method, from_aggregate);
+}
+
+#[test]
+fn diff_file_stats_zero_changes_still_counts_as_one_file() {
+    // Even an empty file (0 additions, 0 deletions) counts as 1
+    // file when stats() is called — the file existed in the diff.
+    // is_empty() returns false because files_changed > 0.
+    let file = DiffFile {
+        path: "renamed.rs".to_string(),
+        hunks: vec![],
+        additions: 0,
+        deletions: 0,
+        mode: DiffViewMode::Unified,
+    };
+    let stats = file.stats();
+    assert_eq!(stats.files_changed, 1);
+    assert!(!stats.is_empty());
+}
+
+#[test]
 fn diff_stats_net_change_is_signed_difference() {
     let grew = DiffStats {
         files_changed: 1,

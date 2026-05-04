@@ -179,6 +179,27 @@ pub struct DiffFile {
     pub mode: DiffViewMode,
 }
 
+impl DiffFile {
+    /// Aggregate stats for this single file.
+    ///
+    /// Returns a [`DiffStats`] with `files_changed = 1` and the
+    /// file's own `additions` / `deletions`. Convenience over
+    /// `DiffStats::from_files(&[diff_file])` when the consumer
+    /// already has a single `DiffFile` in hand.
+    ///
+    /// Useful when a consumer renders per-file stats (e.g. a
+    /// per-file row in a tree view) and wants the same shape it
+    /// uses for aggregate stats elsewhere.
+    #[must_use]
+    pub const fn stats(&self) -> DiffStats {
+        DiffStats {
+            files_changed: 1,
+            additions: self.additions,
+            deletions: self.deletions,
+        }
+    }
+}
+
 /// Aligned row for side-by-side display.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SideBySideRow {
