@@ -13,7 +13,7 @@ gramma, keryx, bathron, parodos, dokimasia) per `_meta/SEMVER.md`.
 Consumers pinning `tag = "v1.0.0"` keep working unchanged — v1.1.0
 is fully additive.
 
-Updated: 2026-05-05.
+Updated: 2026-05-08.
 
 ### 2026-05-03 maintenance wave (PRs #37-#49)
 
@@ -104,17 +104,53 @@ that consumers can't validate a wave that hasn't been tagged, so
 shipping the tag IS the validation step. Any v1.2 surface
 additions go through the fresh `## [Unreleased]` section.
 
-Aletheia consumer-pin update (koilon / proskenion / skene re-pinning
-`tag = "v1.0.0"` → `tag = "v1.1.0"`) is the immediate follow-up — see
-the next-steps section.
+### 2026-05-08 post-tag wave (PRs #85-#87) + cut-criterion #1 satisfied
+
+Three PRs landed this session via `manual-pr-merge` bypass while
+forge CI was queue-contended (3+ concurrent workspace nextest jobs
+from sister codex teams on aletheia drove run latency past 70 min).
+Local gates (fmt + check + clippy `-D warnings` + nextest +
+`RUSTDOCFLAGS='-D warnings' cargo doc` + `kanon lint --summary`
+PR-scoped) were green for every PR before bypass.
+
+| PR | Subject | Scope |
+|---|---|---|
+| #85 | `bathron`/`mekhane` broken-intra-doc-links repair | docs (lib doctests on bathron `settings.rs:242` + mekhane `hotkey.rs:4`) |
+| #86 | `keryx::response` — `ensure_success` + `decode_json` helpers | feat (16 unit tests, new module) |
+| #87 | v1.2 surface bundle: `keryx::url` + `gramma::syntax` + `themelion::ThemeMode::{slug, from_slug}` | feat (3 STRONG candidates from 2026-05-09 rescan; 19 unit tests + 9 doctests across 3 crates) |
+
+**v1.2 cut criterion #1 (consumer-pull validation) now SATISFIED** —
+aletheia PR #40 (re-pin koilon/skene/proskenion to `tag = "v1.1.0"`)
+shipped 2026-05-08 22:46 via local cargo-check on the 3 consumer
+crates plus bypass-merge (kanon-server CI continued unstable). Real
+consumer code now compiles against the v1.1.0 substrate.
+
+PR #80 (themelion `ResolvedTheme::from_str + ::all`) closed-as-
+superseded — verification post-#81 confirmed `parse_data_attr` is
+also case-sensitive (`crates/themelion/src/theme.rs:547`), making
+the two PRs functionally identical.
+
+**v1.2 surface accumulated under `[Unreleased]`** (5 additions
+across 3 crates):
+
+- `keryx::response::ensure_success` + `decode_json` (2 STRONG, 2026-05-04 audit)
+- `keryx::url::encode_path_segment` (STRONG, 2026-05-09 rescan)
+- `gramma::syntax::language_from_path` + `language_from_extension` (STRONG, 2026-05-09 rescan)
+- `themelion::ThemeMode::slug` + `from_slug` (STRONG, 2026-05-09 rescan)
+
+Per-detail entries in `_meta/CHANGELOG.md` `## [Unreleased]`.
+
+### Active fleet consumers at v1.1 (post-#40 land)
 
 ### Active fleet consumers at v1.1
 
 - `aletheia/crates/theatron/koilon`  -  consuming `parodos` for theme,
-  sanitize, clipboard, highlight, hyperlink, fuzzy
+  sanitize, clipboard, highlight, hyperlink, fuzzy. **Pinned to
+  `tag = "v1.1.0"` as of 2026-05-08** (aletheia PR #40 squash 0b3cdd8c).
 - `aletheia/crates/theatron/proskenion`  -  consuming `themelion`,
-  `skeue`, `gramma`
-- `aletheia/crates/theatron/skene`  -  consuming `keryx`
+  `skeue`, `gramma`. **Pinned to `tag = "v1.1.0"` as of 2026-05-08.**
+- `aletheia/crates/theatron/skene`  -  consuming `keryx`. **Pinned to
+  `tag = "v1.1.0"` as of 2026-05-08.**
 - `kanon/crates/chalkeion`  -  ported through Phase 4 Tier 5
   (sitting on unmerged feature branches; landing on kanon main is
   Cody's queue)
@@ -152,80 +188,73 @@ full multi-month plan and Phase 0 progress capture.
 
 ## Active blockers
 
-- **kanon-server CI infrastructure instability** (surfaced 2026-05-04).
-  Blocks aletheia PR #40 validation (the v1.1.0 consumer-pin bump,
-  https://127.0.0.1:7878/forkwright/aletheia/pulls/40). Two CI
-  attempts on PR #40 failed: first on queue contention (`active_runs=4`
-  saturation, 3h21m runtime, sccache+target-dir thrash); second on
-  kanon-server restart at 20:29:26 killing the in-flight cargo
-  check (`Recovering LSM-tree at .../failure_embeddings` in journal).
-  PR #40 is functionally a one-line `tag = "v1.1.0"` swap across 5
-  Cargo.toml lines — content is fine, only validation is blocked.
-  Workarounds: per-PR bypass-merge gate already validated theatron
-  substrate; for PR #40 specifically, local `cargo check -p koilon
-  -p skene -p proskenion` would prove consumer-side compiles.
+- **kanon-server CI infrastructure instability** (still active as of
+  2026-05-08). Queue contention + LSM-tree recovery on restart
+  remain symptoms; mitigation is per-PR `manual-pr-merge` bypass
+  with `RUSTC_WRAPPER=` override (used 4× this session). No longer
+  blocks aletheia PR #40 (that landed via bypass on 2026-05-08).
+  Lane: kanon CI infra (Cody / kanon-server work).
 - **chalkeion main on kanon** — unmerged feature branches; Cody's lane.
   Blocks chalkeion Phase 5a (operator-dispatch view, chalkeion-side
   polish) and Phase 5b chalkeion-side (operator dispatch view).
-- **D-062** (kanon PR #517) — themelion harmonia/theatron consumer-
-  pressure decision (three options on the PR). Blocks Phase 6
-  harmonia-desktop migration.
-- **akroasis GH #118** — surface-order rethink (TUI → web → desktop
-  vs desktop-first via theatron). Blocks Phase 6 akroasis-desktop side.
+- **akroasis GH #118 + akroasis own roadmap** — doubly blocked. GH
+  #118 surface-order debate (TUI → web → desktop vs desktop-first
+  via theatron) needs resolution AND akroasis itself is at Phase 02
+  (kerykeion mesh networking complete); zero HTTP API surface,
+  STATE.md locks order TUI → web → desktop. Phase 6 akroasis-
+  desktop work doubly blocked until both clear.
 - **PR-B proskenion::logging migration** — three options posted on
   theatron PR #50 timeline. proskenion's local `logging.rs` (88 LOC)
   diverges from `bathron::logging::init_with_stderr` in 5 behavioural
   details (log dir, file name, ANSI, EnvFilter directive, stderr
   trigger). Decision needed before retiring proskenion's local
-  module. Carries forward as a v1.2 cut criterion.
-- **Aletheia main red on `cargo nextest`** since 2026-05-03 17:43
-  (sha 5634c65, run 1777844479342134601). Different failure mode
-  from PR #40's CI infra issue: passes fmt/check/clippy, fails
-  nextest. Real test failure, undiagnosed. `kanon ci show` doesn't
-  expose stage stderr; needs direct fjall partition read of
-  `/storage/kanon-forge/db/partitions/ci_logs/` or local nextest
-  reproduction (paused 2026-05-04 to free menos resources, ~40 min
-  into compile, log at `/tmp/aletheia-nextest-run.log`).
+  module. **Last remaining v1.2 cut criterion** (criterion #1 —
+  consumer-pull validation — was satisfied 2026-05-08 via PR #40).
 - Gate 2 (dioxus#2138 tray-icon upstream) is closed via composition
   layer in `mekhane`; not a blocker.
+
+### Resolved blockers (since 2026-05-04)
+
+- **D-062** (kanon PR #517) — themelion harmonia/theatron consumer-
+  pressure decision. **Resolved 2026-05-04** via fleet-wide collision
+  scan in PR #517 comment chain + NAMING rule scope captured. Phase 6
+  harmonia-desktop no longer blocked on D-062 (still blocked by
+  harmonia's own roadmap; out of scope here).
+- **aletheia PR #40** (consumer-pin v1.0.0 → v1.1.0). **Resolved
+  2026-05-08 22:46** via local `cargo check -p koilon -p skene` +
+  `cargo check --manifest-path crates/theatron/proskenion/Cargo.toml`
+  + bypass-merge (squash 0b3cdd8c). v1.2 cut criterion #1 satisfied.
+- **Aletheia main red on `cargo nextest`** (since 2026-05-03 17:43).
+  **Diagnosed 2026-05-08** via codex middle-manager Team B (filed as
+  aletheia issue #215). Root cause: NOT a test regression — CI build
+  infra (sccache connection reset during ndarray compile in original
+  run; subsequent runs time out ~40 min before reaching test
+  execution). Recommended fix: rerun with `RUSTC_WRAPPER=` or healthy
+  sccache + longer timeout; lane is kanon CI infra, not theatron.
 
 ## Next steps
 
 If resuming this work cold:
 
-1. **Land aletheia PR #40** — re-pin koilon/proskenion/skene to
-   `tag = "v1.1.0"`. Two paths depending on kanon-server health:
-   - **Via CI** (preferred for real-consumer-validation):
-     `kanon ci run forkwright/aletheia
-     ed3f118346f66b36b5e955821287e2ebe2cfc922
-     --ref-name refs/heads/chore/theatron-v1.1.0-pin --trigger manual`.
-     Verify `active_runs` is below cap and journal has no recent
-     "claim deferred" spam first; otherwise the run will fail on
-     contention again.
-   - **Via local + bypass-merge** (when CI is unstable): in the
-     PR #40 worktree, run `CARGO_TARGET_DIR=/data/target cargo
-     check -p koilon -p skene -p proskenion` (touches only the
-     three consumer crates, fast under sccache warmth). On green,
-     `~/menos-ops/bin/manual-pr-merge aletheia 40`. Note: bypass
-     gate skips check on TOML-only diffs per
-     `feedback_bypass_skips_check_on_toml_only`, so the local
-     check is load-bearing.
-2. **Continue waiting on the four upstream blockers** — D-062 /
-   GH#118 / PR-B / chalkeion main land — to advance Phase 5a /
-   Phase 6. Theatron-side work outside aletheia consumer-pin
-   pickup is in maintenance mode pending these.
-3. **Diagnose the 17h-old aletheia main nextest red** (separate
-   from today's PR #40 infra issue). Resume local reproduction:
-   `cd ~/dev/aletheia && CARGO_TARGET_DIR=/data/target cargo
-   nextest run --workspace --features test-core --build-jobs 8
-   --test-threads 8 --no-fail-fast 2>&1 | tee
-   /tmp/aletheia-nextest-run.log` and grep FAIL.
-4. **v1.2 surface additions** go to a fresh `## [Unreleased]` in
-   CHANGELOG and ship as v1.2.0 when consumer pull or another
-   wave's worth of items accumulates. The v1.1 wave's deferred
-   cut criteria (consumer-pull validation, PR-B resolution) carry
-   forward as v1.2 cut criteria. **v1.2 plan available**:
-   `~/menos-ops/research-archive/2026-05-04-theatron-v1.2-consumer-pull.md`
-   — codex-derived audit of koilon + skene with two STRONG
-   candidates (`keryx::response::ensure_success`,
-   `keryx::response::decode_json`) + one MODERATE.
+1. **Resolve PR-B logging migration design** (last v1.2 cut
+   criterion). Three options posted on theatron PR #50 timeline.
+   Operator decision needed; once decided, implementation is a
+   small additive change in `bathron::logging` (if the chosen
+   option requires bathron tweaks) plus a proskenion-side switch
+   from local `logging.rs` to `bathron::logging::init_with_stderr`.
+   Once PR-B lands, **v1.2 cut is feasible**: both deferred cut
+   criteria from v1.1 will be satisfied.
+2. **Continue waiting on chalkeion main + akroasis** for Phase 5a /
+   Phase 6 advancement — theatron-side work outside ongoing v1.2
+   surface accumulation is in maintenance mode pending these.
+3. **v1.2 surface accumulation continues** under `## [Unreleased]`.
+   5 additive helpers landed 2026-05-08 (see post-tag wave section
+   above). 7 MODERATE candidates from 2026-05-09 rescan are
+   documented in `~/menos-ops/research-archive/2026-05-09-theatron-v1.2-consumer-pull-rescan.md`
+   and tracked as theatron forge issues for incremental shipment
+   when consumer pull strengthens. Next consumer-pull rescan can
+   re-walk koilon / proskenion / skene once they've absorbed the
+   v1.1.0 pin into normal feature work.
+4. **v1.2 cut.** Once PR-B is resolved + landed, cut v1.2.0 from
+   `main` per `_meta/RELEASE.md`. The `[Unreleased]` accumulator
+   becomes the v1.2.0 entry; tag pushed at the cut sha.
