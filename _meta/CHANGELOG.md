@@ -9,8 +9,32 @@ entry per release covers all eight.
 
 ## [Unreleased]
 
-Empty for now — the next entry here flows into the v1.2 minor when
-demand pulls one.
+The next entry here flows into the v1.2 minor when demand pulls one.
+
+### Added
+
+- **`keryx::response` module — `ensure_success` + `decode_json` helpers**
+  (consumer-pull, ranks #1 + #2 STRONG in
+  `~/menos-ops/research-archive/2026-05-04-theatron-v1.2-consumer-pull.md`).
+  Two async helpers that make the v1.1 `ApiError` variants reachable
+  from `reqwest::Response` without per-consumer status-table
+  boilerplate:
+    - `ensure_success(response, operation) -> Result<Response>` — 2xx
+      passthrough; 401/403 → `Auth`; 429 → `RateLimited` (with
+      `Retry-After` parsed when delta-seconds); other non-2xx →
+      `Server` with `message` extracted from JSON `message`/`error`
+      fields, falling back to `"<status> <reason>"`.
+    - `decode_json::<T>(response, operation) -> Result<T>` — body
+      read → `Http` on transport failure; `serde_json::from_str` →
+      `BadResponse` on parse failure. Use after `ensure_success` for
+      typed DTO extraction from validated 2xx bodies.
+  Replaces the hand-rolled `check_status` / `check_auth` /
+  `resp.json().await.context(HttpSnafu)` patterns at ≥ 19 sites in
+  `aletheia/crates/theatron/skene/src/api/{client,sse,streaming}.rs`
+  per the audit. 16 new unit tests covering 2xx / 401 / 403 / 429
+  with + without `Retry-After` / 5xx with `message` field / 5xx
+  with `error` field / 5xx with non-JSON body / valid + malformed
+  JSON decode.
 
 ---
 
