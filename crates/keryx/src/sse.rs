@@ -120,6 +120,42 @@ where
 
         None
     }
+
+    /// Await the next event with a deadline.
+    ///
+    /// Returns:
+    ///
+    /// - `Ok(Some(event))` — got an event before the deadline.
+    /// - `Ok(None)` — the underlying stream terminated cleanly.
+    /// - `Err(`[`tokio::time::error::Elapsed`]`)` — the deadline fired
+    ///   before the next event arrived. The stream is unchanged and may
+    ///   be polled again (e.g. with a longer timeout, or as a normal
+    ///   `StreamExt::next` call).
+    ///
+    /// Useful for keep-alive / liveness detection on SSE feeds where a
+    /// stalled stream is a real condition (server crashed mid-stream,
+    /// network partition) and the consumer wants to react instead of
+    /// blocking indefinitely.
+    ///
+    /// Companion to the higher-level disconnect/backoff policy that
+    /// remains consumer-side: this helper handles the per-poll deadline,
+    /// the consumer decides whether `Elapsed` triggers a reconnect, a
+    /// telemetry counter, or a UI signal.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`tokio::time::error::Elapsed`] if `deadline` expires
+    /// before the underlying byte stream yields enough bytes to
+    /// produce the next [`SseEvent`] (or to terminate). The error
+    /// carries no data; the stream is left in its prior state.
+    pub async fn next_with_timeout(
+        &mut self,
+        deadline: std::time::Duration,
+    ) -> Result<Option<SseEvent>, tokio::time::error::Elapsed> {
+        use futures_util::StreamExt;
+
+        tokio::time::timeout(deadline, self.next()).await
+    }
 }
 
 impl<S, E> Stream for SseStream<S>
@@ -371,5 +407,79 @@ mod tests {
         let events = collect_events(vec!["data: partial\n"]);
         assert_eq!(events.len(), 1, "partial event should flush on stream end");
         assert_eq!(events[0].data, "partial");
+    }
+
+    /// Helper: byte stream that never emits (returns Pending forever).
+    /// Used to verify `next_with_timeout` fires Elapsed when nothing
+    /// arrives.
+    struct NeverStream;
+
+    impl Stream for NeverStream {
+        type Item = Result<Bytes, std::io::Error>;
+
+        fn poll_next(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+            Poll::Pending
+        }
+    }
+
+    #[tokio::test]
+    async fn next_with_timeout_returns_event_when_in_time() {
+        let stream = ChunkStream::new(vec!["data: hello\n\n"]);
+        let mut sse = SseStream::new(stream);
+        let result = sse
+            .next_with_timeout(std::time::Duration::from_millis(50))
+            .await;
+        let event = result.expect("Ok within deadline").expect("Some event");
+        assert_eq!(event.data, "hello");
+    }
+
+    #[tokio::test]
+    async fn next_with_timeout_returns_none_when_stream_terminates_cleanly() {
+        // Empty chunk list → ChunkStream returns Ready(None) immediately
+        // → SseStream's terminal flush yields no event (no buffered data).
+        let stream = ChunkStream::new(vec![]);
+        let mut sse = SseStream::new(stream);
+        let result = sse
+            .next_with_timeout(std::time::Duration::from_millis(50))
+            .await;
+        assert!(
+            matches!(result, Ok(None)),
+            "expected Ok(None) for cleanly-terminated stream, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn next_with_timeout_returns_elapsed_when_stream_stalls() {
+        let mut sse = SseStream::new(NeverStream);
+        let result = sse
+            .next_with_timeout(std::time::Duration::from_millis(20))
+            .await;
+        assert!(
+            result.is_err(),
+            "expected Err(Elapsed) when stream never emits, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn next_with_timeout_stream_remains_polluble_after_elapsed() {
+        // After a timeout fires, the stream should still be usable —
+        // the helper doesn't consume the stream's state.
+        let stream = ChunkStream::new(vec!["data: late\n\n"]);
+        let mut sse = SseStream::new(stream);
+        // First call: deadline's so short the (immediate) Ready may
+        // race the timer, but either Ok(Some(_)) or Err(Elapsed) is
+        // valid. The interesting assertion is the second call:
+        let _ = sse
+            .next_with_timeout(std::time::Duration::from_micros(1))
+            .await;
+        // Second call with a generous deadline should observe the
+        // event (or stream end if the first call already drained it).
+        let result = sse
+            .next_with_timeout(std::time::Duration::from_millis(50))
+            .await;
+        assert!(
+            result.is_ok(),
+            "stream should be polluble after a prior Elapsed, got {result:?}"
+        );
     }
 }

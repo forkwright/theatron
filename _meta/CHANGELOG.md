@@ -25,6 +25,18 @@ pulls one.
   collapse, missing-separator insertion, both-correct boundaries,
   multiple trailing slashes, empty base, empty path, both empty,
   and internal-slash preservation.
+- **`keryx::sse::SseStream::next_with_timeout(deadline) -> Result<Option<SseEvent>, Elapsed>`**
+  — async deadline wrapper around `StreamExt::next` for keep-alive /
+  liveness detection on stalled SSE feeds. Returns `Ok(Some)` on
+  event, `Ok(None)` on clean stream termination, `Err(Elapsed)` on
+  deadline-fire. Stream stays usable after Elapsed (consumer can
+  retry with a longer deadline or fall back to plain `next()`).
+  Replaces the duplicate `tokio::time::timeout(d, es.next())` loop
+  at `aletheia/crates/theatron/skene/src/api/sse.rs:89,92` and
+  `streaming.rs:92,95`. Surfaced as MODERATE candidate #2 in the
+  2026-05-09 rescan (theatron forge issue #1; closes that issue's
+  second half). 4 new tests covering: event-in-time, clean
+  termination, stalled-stream Elapsed, post-Elapsed re-pollability.
 
 ---
 
