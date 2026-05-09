@@ -35,6 +35,36 @@ The next entry here flows into the v1.2 minor when demand pulls one.
   with + without `Retry-After` / 5xx with `message` field / 5xx
   with `error` field / 5xx with non-JSON body / valid + malformed
   JSON decode.
+- **`keryx::url::encode_path_segment(segment: &str) -> String`** —
+  RFC 3986 percent-encoding for URL path segments. Unreserved
+  characters (`A`-`Z`, `a`-`z`, `0`-`9`, `-`, `.`, `_`, `~`) pass
+  through unchanged; everything else becomes `%XX` uppercase hex.
+  Replaces `skene`'s local `encode_path` (~24 endpoint-builder call
+  sites at `aletheia/crates/theatron/skene/src/api/client.rs`) and
+  consolidates the implementation as keryx substrate. Surfaced as
+  STRONG candidate #1 in the 2026-05-09 consumer-pull rescan
+  (`~/menos-ops/research-archive/2026-05-09-theatron-v1.2-consumer-pull-rescan.md`).
+- **`gramma::syntax::language_from_path(path: &str) -> &'static str`**
+  and **`gramma::syntax::language_from_extension(ext: &str) -> &'static str`** —
+  file-path-to-syntect-language resolution covering 30+ extensions
+  (rust, python, ts/tsx/js/jsx as distinct tokens, c/cpp groupings,
+  bash/sh/zsh/fish, yaml/yml, html/htm, markdown, etc.). Returns
+  `"text"` for unknown extensions (the syntect plain-text fallback).
+  Companion to the existing `highlight::detect_language` (which
+  parses Markdown fenced-code-block info strings). Replaces
+  `proskenion`'s two divergent extension maps at
+  `aletheia/crates/theatron/proskenion/src/state/files.rs:140` and
+  `views/files/diff.rs:190`. STRONG candidate #2 in the rescan.
+- **`themelion::ThemeMode::slug(self) -> &'static str`** and
+  **`themelion::ThemeMode::from_slug(s: &str) -> Option<Self>`** —
+  lowercase storage-slug round-trip pair (`"dark"`, `"light"`,
+  `"system"`). Distinct surface from existing `from_label`/`label`
+  (which produces `"Dark"`/`"Light"`/`"System"` for UI display);
+  `from_slug` is intentionally case-sensitive for config-file
+  parsing. Replaces hand-rolled lowercase parsing at 4 proskenion
+  call sites (`app.rs`, `views/settings/wizard.rs`,
+  `views/settings/appearance.rs`, `components/theme_toggle.rs`).
+  STRONG candidate #3 in the rescan.
 
 ---
 

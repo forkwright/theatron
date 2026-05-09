@@ -15,12 +15,16 @@
 //!   and decode helpers ([`decode_json`](response::decode_json)) that
 //!   make the v1.1 [`ApiError`] variants reachable from `reqwest::Response`
 //!   without per-consumer status-table boilerplate.
+//! - [`url`] — URL helpers ([`encode_path_segment`](url::encode_path_segment))
+//!   for endpoint construction. RFC 3986 unreserved-character
+//!   passthrough, `%XX` uppercase-hex for everything else.
 
 #![deny(missing_docs, clippy::all, clippy::pedantic)]
 
 pub mod error;
 pub mod response;
 pub mod sse;
+pub mod url;
 
 pub use error::{ApiError, Result};
 pub use sse::{SseEvent, SseStream};

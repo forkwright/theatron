@@ -14,11 +14,17 @@
 //!   [`WordSpan`], [`DiffViewMode`], plus side-by-side alignment +
 //!   word-level diffing). Pure logic; the Dioxus components that render
 //!   diffs live in `skeue::{diff_hunk, diff_line}`.
+//! - [`syntax`] — file-path-to-syntect-language resolution
+//!   ([`language_from_path`](syntax::language_from_path),
+//!   [`language_from_extension`](syntax::language_from_extension))
+//!   for file viewers + diff views that need a syntect token from a
+//!   path without re-implementing the extension table.
 
 #![deny(missing_docs, clippy::all, clippy::pedantic)]
 
 pub mod diff;
 pub mod highlight;
+pub mod syntax;
 
 pub use diff::{
     ChangeType, DiffFile, DiffHunk, DiffLine, DiffViewMode, SideBySideRow, WordSpan,

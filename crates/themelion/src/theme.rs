@@ -223,6 +223,59 @@ impl ThemeMode {
     pub const fn all() -> [Self; 3] {
         [Self::Dark, Self::Light, Self::System]
     }
+
+    /// Lowercase storage slug suitable for config files (`"dark"`,
+    /// `"light"`, `"system"`).
+    ///
+    /// Companion to [`from_slug`](Self::from_slug) for round-tripping
+    /// the mode through a config / settings layer that wants a
+    /// stable, lowercase, label-independent wire format. Distinct
+    /// from [`label`](Self::label) (which produces human-facing
+    /// `"Dark"` / `"Light"` / `"System"` for UI display).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use themelion::ThemeMode;
+    ///
+    /// assert_eq!(ThemeMode::Dark.slug(), "dark");
+    /// assert_eq!(ThemeMode::Light.slug(), "light");
+    /// assert_eq!(ThemeMode::System.slug(), "system");
+    /// ```
+    #[must_use]
+    pub const fn slug(self) -> &'static str {
+        match self {
+            Self::Dark => "dark",
+            Self::Light => "light",
+            Self::System => "system",
+        }
+    }
+
+    /// Parse a lowercase storage slug back into a [`ThemeMode`].
+    ///
+    /// Returns `None` if the input doesn't match `"dark"`, `"light"`,
+    /// or `"system"`. The match is **case-sensitive** and intended
+    /// for config-file parsing — consumers persisting display
+    /// labels should use [`from_label`](Self::from_label) instead.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use themelion::ThemeMode;
+    ///
+    /// assert_eq!(ThemeMode::from_slug("dark"), Some(ThemeMode::Dark));
+    /// assert_eq!(ThemeMode::from_slug("Dark"), None); // case-sensitive
+    /// assert_eq!(ThemeMode::from_slug("garbage"), None);
+    /// ```
+    #[must_use]
+    pub fn from_slug(s: &str) -> Option<Self> {
+        match s {
+            "dark" => Some(Self::Dark),
+            "light" => Some(Self::Light),
+            "system" => Some(Self::System),
+            _ => None,
+        }
+    }
 }
 
 /// Detect OS color preference from environment variables.
@@ -507,6 +560,49 @@ mod tests {
                 + u32::from(mode.is_light())
                 + u32::from(mode.is_system());
             assert_eq!(count, 1, "exactly one predicate true for {mode:?}");
+        }
+    }
+
+    #[test]
+    fn theme_mode_slug_returns_lowercase_canonical() {
+        assert_eq!(ThemeMode::Dark.slug(), "dark");
+        assert_eq!(ThemeMode::Light.slug(), "light");
+        assert_eq!(ThemeMode::System.slug(), "system");
+    }
+
+    #[test]
+    fn theme_mode_from_slug_round_trips_with_slug() {
+        for mode in ThemeMode::all() {
+            assert_eq!(ThemeMode::from_slug(mode.slug()), Some(mode));
+        }
+    }
+
+    #[test]
+    fn theme_mode_from_slug_is_case_sensitive() {
+        // Distinct from from_label (which takes "Dark") — slugs are
+        // lowercase storage form.
+        assert_eq!(ThemeMode::from_slug("Dark"), None);
+        assert_eq!(ThemeMode::from_slug("DARK"), None);
+        assert_eq!(ThemeMode::from_slug("Light"), None);
+        assert_eq!(ThemeMode::from_slug("System"), None);
+    }
+
+    #[test]
+    fn theme_mode_from_slug_returns_none_for_unrecognized() {
+        assert_eq!(ThemeMode::from_slug(""), None);
+        assert_eq!(ThemeMode::from_slug("auto"), None);
+        assert_eq!(ThemeMode::from_slug("garbage"), None);
+        assert_eq!(ThemeMode::from_slug("dark "), None);
+    }
+
+    #[test]
+    fn theme_mode_slug_distinct_from_label() {
+        // slug and label are intentionally different surfaces:
+        // slug for config, label for UI.
+        for mode in ThemeMode::all() {
+            assert_ne!(mode.slug(), mode.label());
+            // slug should be a lowercase variant of label
+            assert_eq!(mode.slug(), mode.label().to_lowercase());
         }
     }
 
