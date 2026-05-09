@@ -1,3 +1,8 @@
 [toolchain]
-channel = "1.85"
+# nightly: theatron's pre-#89 implicit toolchain. The dioxus-native/
+# blitz/vello chain (vello_shaders 0.6.0) needs >= 1.86, and the rfd
+# dialog crate has lint regressions on stable 1.86. Nightly threads
+# both. Bumped from "1.85" (PR #89, which slipped through single-
+# crate validation but failed `cargo check --workspace`).
+channel = "nightly"
 components = ["rustfmt", "clippy"]

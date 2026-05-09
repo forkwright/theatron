@@ -65,6 +65,20 @@ The next entry here flows into the v1.2 minor when demand pulls one.
   call sites (`app.rs`, `views/settings/wizard.rs`,
   `views/settings/appearance.rs`, `components/theme_toggle.rs`).
   STRONG candidate #3 in the rescan.
+- **`bathron::logging::LogConfig::with_ansi_on_file(bool)`** and
+  **`bathron::logging::LogConfig::with_filter_directive(impl Into<String>)`** —
+  PR-B Option 3 substrate, the two builder knobs that make the
+  pending proskenion logging migration behavior-preserving.
+  `with_ansi_on_file` toggles ANSI escape sequences on the rotated
+  file appender (defaults to `true`; set `false` for journal /
+  tail-grep pipelines that mis-render SGR). `with_filter_directive`
+  sets an `EnvFilter`-compatible directive string used as the
+  fallback filter when `RUST_LOG` is unset, supporting per-namespace
+  filters (e.g. `"proskenion=info"`) instead of a single global
+  level. `LogConfig` gains two new public fields (`ansi_on_file`,
+  `filter_directive`); `init`/`init_with_stderr` honor both. 6 new
+  tests covering defaults, builder chains, str+String acceptance,
+  and Debug-rendering of the new fields.
 
 ---
 

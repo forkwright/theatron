@@ -20,7 +20,7 @@ edition = "2024"
 license = "Apache-2.0 OR MIT"
 homepage = "https://forge.forkwright.com/forkwright/theatron"
 repository = "https://forge.forkwright.com/forkwright/theatron"
-rust-version = "1.85"
+rust-version = "1.86"
 authors = ["forkwright"]
 
 [workspace.dependencies]

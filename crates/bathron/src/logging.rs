@@ -74,22 +74,38 @@ impl LoggingError {
 pub struct LogConfig {
     /// App name — segments the log directory and prefixes log files.
     pub app_name: String,
-    /// Default log level if `RUST_LOG` is unset.
+    /// Default log level if `RUST_LOG` is unset and
+    /// [`Self::filter_directive`] is `None`.
     pub level: tracing::Level,
     /// Optional override for the log directory. If `None`, resolved
     /// via [`LogConfig::resolve_log_dir`].
     pub log_dir: Option<PathBuf>,
+    /// Whether the file appender layer emits ANSI escape sequences.
+    /// Defaults to `true` (preserves the original [`init`] behaviour);
+    /// set to `false` for consumers that tail-grep the file or pipe
+    /// it into a journal that mis-renders SGR codes.
+    pub ansi_on_file: bool,
+    /// Optional [`tracing_subscriber::EnvFilter`]-compatible directive
+    /// string used as the env-filter fallback when `RUST_LOG` is
+    /// unset. When `None`, falls back to [`Self::level`]. Useful for
+    /// consumers that want a per-namespace filter (e.g.
+    /// `"proskenion=info,hyper=warn"`) instead of a single global
+    /// level. `RUST_LOG` always wins when set.
+    pub filter_directive: Option<String>,
 }
 
 impl LogConfig {
     /// Construct a config for `app_name` at the given default level.
-    /// `log_dir` is left as `None` (auto-resolved at init time).
+    /// `log_dir` is left as `None` (auto-resolved at init time);
+    /// `ansi_on_file` defaults to `true`; `filter_directive` to `None`.
     #[must_use]
     pub fn new(app_name: impl Into<String>, level: tracing::Level) -> Self {
         Self {
             app_name: app_name.into(),
             level,
             log_dir: None,
+            ansi_on_file: true,
+            filter_directive: None,
         }
     }
 
@@ -97,6 +113,38 @@ impl LogConfig {
     #[must_use]
     pub fn with_log_dir(mut self, dir: impl Into<PathBuf>) -> Self {
         self.log_dir = Some(dir.into());
+        self
+    }
+
+    /// Set whether the file appender layer emits ANSI escape sequences.
+    ///
+    /// Defaults to `true`. Set `false` to keep the rotated log files
+    /// free of SGR codes — useful when the log is consumed by
+    /// `tail -f`, `grep`, journal pipelines, or anything that
+    /// mis-renders ANSI. The optional stderr layer is always
+    /// rendered with the `tracing_subscriber::fmt::layer` defaults
+    /// for the active terminal.
+    #[must_use]
+    pub fn with_ansi_on_file(mut self, ansi: bool) -> Self {
+        self.ansi_on_file = ansi;
+        self
+    }
+
+    /// Set an [`tracing_subscriber::EnvFilter`]-compatible directive
+    /// string used as the env-filter fallback when `RUST_LOG` is
+    /// unset.
+    ///
+    /// When both this directive and [`Self::level`] are set, the
+    /// directive wins at init time. `RUST_LOG` from the environment
+    /// always wins over both.
+    ///
+    /// Common shape: `"<crate>=<level>"` (e.g. `"proskenion=info"`)
+    /// or comma-separated namespaces (e.g.
+    /// `"proskenion=info,hyper=warn"`). See the
+    /// [`tracing_subscriber::EnvFilter`] docs for the full grammar.
+    #[must_use]
+    pub fn with_filter_directive(mut self, directive: impl Into<String>) -> Self {
+        self.filter_directive = Some(directive.into());
         self
     }
 
@@ -182,7 +230,11 @@ pub fn init_with_stderr(
     std::fs::create_dir_all(&dir).context(CreateDirSnafu { path: dir.clone() })?;
 
     let LogConfig {
-        app_name, level, ..
+        app_name,
+        level,
+        ansi_on_file,
+        filter_directive,
+        ..
     } = config;
 
     let file_appender = tracing_appender::rolling::RollingFileAppender::new(
@@ -192,8 +244,13 @@ pub fn init_with_stderr(
     );
     let (writer, guard) = tracing_appender::non_blocking(file_appender);
 
-    let env_filter =
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(level.to_string()));
+    // RUST_LOG always wins; if unset, fall back to filter_directive
+    // when set, else the global level.
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+        filter_directive
+            .as_deref()
+            .map_or_else(|| EnvFilter::new(level.to_string()), EnvFilter::new)
+    });
 
     // tracing_subscriber's `Option<L>: Layer` blanket impl makes the
     // stderr layer no-op when `None`. Keeps both branches a single
@@ -203,7 +260,11 @@ pub fn init_with_stderr(
 
     let subscriber = tracing_subscriber::registry()
         .with(env_filter)
-        .with(tracing_subscriber::fmt::layer().with_writer(writer))
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_writer(writer)
+                .with_ansi(ansi_on_file),
+        )
         .with(stderr_layer);
 
     tracing::subscriber::set_global_default(subscriber).context(SetGlobalDefaultSnafu)?;
@@ -276,11 +337,68 @@ mod tests {
     #[test]
     fn config_clone_preserves_fields() {
         let original = LogConfig::new("myapp", tracing::Level::DEBUG)
-            .with_log_dir(PathBuf::from("/var/log/myapp"));
+            .with_log_dir(PathBuf::from("/var/log/myapp"))
+            .with_ansi_on_file(false)
+            .with_filter_directive("myapp=debug,hyper=warn");
         let cloned = original.clone();
         assert_eq!(cloned.app_name, original.app_name);
         assert_eq!(cloned.level, original.level);
         assert_eq!(cloned.log_dir, original.log_dir);
+        assert_eq!(cloned.ansi_on_file, original.ansi_on_file);
+        assert_eq!(cloned.filter_directive, original.filter_directive);
+    }
+
+    #[test]
+    fn ansi_on_file_defaults_to_true() {
+        let cfg = LogConfig::new("x", tracing::Level::INFO);
+        assert!(cfg.ansi_on_file);
+    }
+
+    #[test]
+    fn with_ansi_on_file_toggles_field() {
+        let off = LogConfig::new("x", tracing::Level::INFO).with_ansi_on_file(false);
+        assert!(!off.ansi_on_file);
+        let on = LogConfig::new("x", tracing::Level::INFO).with_ansi_on_file(true);
+        assert!(on.ansi_on_file);
+    }
+
+    #[test]
+    fn filter_directive_defaults_to_none() {
+        let cfg = LogConfig::new("x", tracing::Level::INFO);
+        assert_eq!(cfg.filter_directive, None);
+    }
+
+    #[test]
+    fn with_filter_directive_accepts_str_and_string() {
+        let from_str =
+            LogConfig::new("x", tracing::Level::INFO).with_filter_directive("foo=info,bar=warn");
+        let from_string = LogConfig::new("x", tracing::Level::INFO)
+            .with_filter_directive(String::from("foo=info,bar=warn"));
+        assert_eq!(from_str.filter_directive, Some("foo=info,bar=warn".into()));
+        assert_eq!(from_str.filter_directive, from_string.filter_directive);
+    }
+
+    #[test]
+    fn builder_chain_preserves_all_overrides() {
+        let cfg = LogConfig::new("proskenion", tracing::Level::INFO)
+            .with_log_dir(PathBuf::from("/custom/logs"))
+            .with_ansi_on_file(false)
+            .with_filter_directive("proskenion=info");
+        assert_eq!(cfg.app_name, "proskenion");
+        assert_eq!(cfg.level, tracing::Level::INFO);
+        assert_eq!(cfg.log_dir, Some(PathBuf::from("/custom/logs")));
+        assert!(!cfg.ansi_on_file);
+        assert_eq!(cfg.filter_directive, Some("proskenion=info".into()));
+    }
+
+    #[test]
+    fn debug_format_includes_new_fields() {
+        let cfg = LogConfig::new("x", tracing::Level::INFO)
+            .with_ansi_on_file(false)
+            .with_filter_directive("x=trace");
+        let formatted = format!("{cfg:?}");
+        assert!(formatted.contains("ansi_on_file"), "got {formatted}");
+        assert!(formatted.contains("filter_directive"), "got {formatted}");
     }
 
     #[test]
