@@ -9,9 +9,37 @@ entry per release covers all eight.
 
 ## [Unreleased]
 
-The next entry here flows into the v1.2 minor when demand pulls one.
+Empty for now — the next entry here flows into the next minor (v1.3)
+when demand pulls one.
 
-### Added
+---
+
+## v1.2.0 — 2026-05-08
+
+Additive minor release bundling 5 helpers across keryx + gramma +
+themelion + bathron, the first wave of consumer-pull surface from the
+2026-05-04 + 2026-05-09 audits + the PR-B (Option 3) substrate that
+makes the pending proskenion logging migration behavior-preserving.
+**Fully additive, no breaking changes.** Consumers re-pin
+`tag = "v1.1.0"` → `tag = "v1.2.0"` at their own pace; no migration
+required.
+
+Cut criteria status (vs v1.1's deferred list):
+- Criterion #1 — consumer-pull validation — **satisfied** by aletheia
+  PR #40 land (squash 0b3cdd8c) re-pinning koilon / proskenion /
+  skene to v1.1.0 + this v1.2.0 substrate compiling cleanly against
+  current consumers via local `cargo check`.
+- Criterion #2 — PR-B logging-migration completion — **partially
+  satisfied** at the substrate level (the bathron knobs are landed
+  here); the proskenion-side migration ships next as PR-B.2 against
+  this tag.
+
+Workspace MSRV bumped from `1.85` → `1.86` (PR #91 chore commit) to
+reflect the actual transitive minimum imposed by `vello_shaders 0.6`
+in the dioxus-native / blitz / vello chain. `rust-toolchain.toml`
+channel set to `nightly` (the pre-PR-#89 implicit default).
+
+### Added (since v1.1.0)
 
 - **`keryx::response` module — `ensure_success` + `decode_json` helpers**
   (consumer-pull, ranks #1 + #2 STRONG in
@@ -79,6 +107,14 @@ The next entry here flows into the v1.2 minor when demand pulls one.
   `filter_directive`); `init`/`init_with_stderr` honor both. 6 new
   tests covering defaults, builder chains, str+String acceptance,
   and Debug-rendering of the new fields.
+
+### Changed
+
+- **Workspace MSRV** bumped from `1.85` → `1.86` to reflect the
+  actual transitive minimum imposed by `vello_shaders 0.6` in the
+  dioxus-native / blitz / vello chain. **`rust-toolchain.toml`**
+  channel set to `nightly` (theatron's pre-#89 implicit default —
+  threads both the 1.86 floor and lint regressions on stable).
 
 ---
 

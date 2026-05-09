@@ -2,6 +2,17 @@
 
 ## Current phase
 
+**v1.2.0 released 2026-05-08.** Additive minor bundling 5 helpers
+across keryx + gramma + themelion + bathron (PRs #86 / #87 / #91)
+plus the post-tag wave doc-link fix (#85). No breaking changes;
+consumers re-pin via `tag = "v1.2.0"` at their own pace. Workspace
+MSRV bumped 1.85 → 1.86 (transitive vello_shaders requirement);
+`rust-toolchain.toml` channel `nightly`. v1.1's deferred cut
+criterion #1 (consumer-pull validation) **satisfied** via aletheia
+PR #40 land 2026-05-08; criterion #2 (PR-B logging migration)
+substrate-side complete (bathron knobs in this release); proskenion-
+side migration ships next as PR-B.2 against this tag.
+
 **v1.1.0 released 2026-05-04.** Additive minor bundling 31 PRs
 (#50-#82, sans #46-#49 docs and #80 superseded by #81) on top of
 v1.0.0. No breaking changes. Consumers re-pin via
@@ -11,7 +22,7 @@ v1.0.0. No breaking changes. Consumers re-pin via
 across all eight Greek-named crates (themelion, mekhane, skeue,
 gramma, keryx, bathron, parodos, dokimasia) per `_meta/SEMVER.md`.
 Consumers pinning `tag = "v1.0.0"` keep working unchanged — v1.1.0
-is fully additive.
++ v1.2.0 are fully additive.
 
 Updated: 2026-05-08.
 
