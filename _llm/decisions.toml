@@ -1,0 +1,53 @@
+[meta]
+name = "theatron"
+repo = "forkwright/theatron"
+generated = false
+source_docs = [
+  "README.md",
+  "_meta/STATE.md",
+  "_meta/ROADMAP.md",
+  "_meta/SEMVER.md",
+]
+
+[decisions]
+summary = "Core decisions for the fleet desktop UI substrate."
+
+[[decision]]
+id = "D-eight-crates"
+title = "Use eight standalone Greek-named crates"
+status = "accepted"
+context = "The project extracted generic UI infrastructure from aletheia and needs clear domain identities."
+decision = "Ship themelion, mekhane, skeue, gramma, keryx, bathron, parodos, and dokimasia without a theatron prefix."
+consequences = "Each crate is a reusable fleet primitive with a stable name and role."
+
+[[decision]]
+id = "D-dioxus-blitz"
+title = "Use Dioxus and Blitz without forking"
+status = "accepted"
+context = "Fleet desktop surfaces need native rendering without wry/webview fallback."
+decision = "Wrap unmodified Dioxus + Blitz via composition, primarily in mekhane."
+consequences = "Theatron can ship today while dioptron remains the long-term render-band owner."
+
+[[decision]]
+id = "D-semver-lockstep"
+title = "Version all crates in lockstep"
+status = "accepted"
+context = "Consumers pin one repo tag for a coherent UI substrate."
+decision = "Use workspace versioning and additive minor bumps after v1.0.0."
+consequences = "Consumer upgrades stay simple and breaking changes require v2."
+
+[[decision]]
+id = "D-linux-first"
+title = "Linux-first through Phase 5"
+status = "accepted"
+context = "menos/fleet consumers run on Linux and cross-platform support would dilute the first stable cut."
+decision = "Keep macOS and Windows out of scope through Phase 5."
+consequences = "APIs can harden around the immediate consumer path."
+
+[[decision]]
+id = "D-accessibility"
+title = "Accessibility is required component behavior"
+status = "accepted"
+context = "Reusable components need keyboard navigation and semantic states before fleet reuse."
+decision = "Ship per-component ARIA and hookable AccessKit semantics."
+consequences = "Skeue and consumers inherit a baseline rather than retrofitting accessibility later."

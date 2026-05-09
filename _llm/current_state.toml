@@ -1,0 +1,32 @@
+[meta]
+name = "theatron"
+repo = "forkwright/theatron"
+generated = false
+source_docs = [
+  "_meta/STATE.md",
+  "_meta/ROADMAP.md",
+  "README.md",
+]
+
+[state]
+summary = "Theatron has shipped v1.0.0 and v1.1.0; eight crates are stable/additive for fleet desktop consumers."
+current_phase = "v1.1.0 released; Phase 6 fleet rollout ongoing."
+updated = "2026-05-05"
+
+[[recent]]
+date = "2026-05-04"
+item = "v1.1.0 released as an additive minor after 31 PRs."
+
+[[recent]]
+date = "2026-05-02"
+item = "v1.0.0 first stable release cut with API frozen across eight crates."
+
+[[open_threads]]
+name = "Aletheia consumer pin"
+issue = 0
+status = "koilon, proskenion, and skene should re-pin from v1.0.0 to v1.1.0."
+
+[[open_threads]]
+name = "Fleet rollout"
+issue = 0
+status = "harmonia and akroasis consume theatron when their desktop surfaces start."

@@ -1,0 +1,25 @@
+# Theatron
+
+> Fleet desktop UI infrastructure for Dioxus, Blitz, TUI, OS services, HTTP/SSE, components, and design-token linting.
+
+Theatron is consumed by aletheia, kanon/chalkeion, harmonia, akroasis, and future fleet desktop surfaces. v1.0.0 froze the first stable API; v1.1.0 is additive.
+
+## Libraries
+
+The public surface is the eight Rust crates under `crates/`: `themelion`, `mekhane`, `bathron`, `keryx`, `skeue`, `gramma`, `parodos`, and `dokimasia`.
+
+## Architecture
+
+Structured LLM corpus:
+- [_llm/architecture.toml](_llm/architecture.toml): crate roles and UI layers
+- [_llm/current_state.toml](_llm/current_state.toml): releases and active rollout threads
+- [_llm/decisions.toml](_llm/decisions.toml): accepted UI-substrate decisions
+- [_llm/glossary.toml](_llm/glossary.toml): crate vocabulary
+
+## Agent Entry Points
+
+- [README.md](README.md): overview and crate table
+- [_meta/STATE.md](_meta/STATE.md): release and consumer status
+- [_meta/ROADMAP.md](_meta/ROADMAP.md): phase plan
+- [_meta/INTEGRATION.md](_meta/INTEGRATION.md): consumer integration guide
+- [examples/](examples/): minimal, tray smoke, and full app examples

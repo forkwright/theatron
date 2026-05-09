@@ -1,0 +1,69 @@
+[meta]
+name = "theatron"
+repo = "forkwright/theatron"
+generated = false
+source_docs = [
+  "README.md",
+  "_meta/STATE.md",
+  "_meta/ROADMAP.md",
+  "Cargo.toml",
+]
+
+[architecture]
+summary = "Fleet desktop UI infrastructure: Dioxus + Blitz primitives, theme provider, components, HTTP/SSE, OS integration, TUI utilities, and design-token linting."
+layers = [
+  "theme",
+  "windowing",
+  "components",
+  "markdown",
+  "network",
+  "platform",
+  "tui",
+  "lint",
+  "examples",
+]
+
+[[architecture.crates]]
+name = "themelion"
+path = "crates/themelion"
+role = "Theme provider, window lifecycle, routing scaffolding, error boundary, settings, and logging."
+
+[[architecture.crates]]
+name = "mekhane"
+path = "crates/mekhane"
+role = "Windowing, event loop, tray, global hotkeys, and native menus over Dioxus + Blitz."
+
+[[architecture.crates]]
+name = "bathron"
+path = "crates/bathron"
+role = "OS services: notifications, dialogs, settings, autoupdate, and logging."
+
+[[architecture.crates]]
+name = "keryx"
+path = "crates/keryx"
+role = "HTTP client base, SSE streaming, mDNS discovery, and ApiError helpers."
+
+[[architecture.crates]]
+name = "skeue"
+path = "crates/skeue"
+role = "Generic Dioxus components following DESIGN-TOKENS anatomy."
+
+[[architecture.crates]]
+name = "gramma"
+path = "crates/gramma"
+role = "Markdown, syntax highlighting, and diff state."
+
+[[architecture.crates]]
+name = "parodos"
+path = "crates/parodos"
+role = "Terminal UI substrate for Ratatui themes, sanitize, clipboard, highlight, hyperlink, and fuzzy matching."
+
+[[architecture.crates]]
+name = "dokimasia"
+path = "crates/dokimasia"
+role = "Design-token and standards linter."
+
+[[interfaces]]
+name = "theatron crates"
+kind = "rust-libraries"
+path = "crates"

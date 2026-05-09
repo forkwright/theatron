@@ -1,0 +1,51 @@
+[meta]
+name = "theatron"
+repo = "forkwright/theatron"
+generated = false
+source_docs = [
+  "README.md",
+  "_meta/STATE.md",
+]
+
+[glossary]
+description = "Domain vocabulary for theatron."
+
+[[terms]]
+term = "theatron"
+definition = "Place for viewing; fleet desktop UI infrastructure."
+canonical = true
+
+[[terms]]
+term = "themelion"
+definition = "Foundation; theme provider and UI foundation crate."
+canonical = true
+
+[[terms]]
+term = "mekhane"
+definition = "Stage machinery; windowing, event loop, tray, menu, and hotkey crate."
+canonical = true
+
+[[terms]]
+term = "skeue"
+definition = "Equipment or props; generic Dioxus component crate."
+canonical = true
+
+[[terms]]
+term = "gramma"
+definition = "Written character; markdown, syntax highlighting, and diff-state crate."
+canonical = true
+
+[[terms]]
+term = "keryx"
+definition = "Herald; HTTP/SSE/network client crate."
+canonical = true
+
+[[terms]]
+term = "parodos"
+definition = "Stage entrance; terminal UI substrate crate."
+canonical = true
+
+[[terms]]
+term = "dokimasia"
+definition = "Examination; design-token and standards linter crate."
+canonical = true
