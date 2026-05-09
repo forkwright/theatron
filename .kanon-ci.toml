@@ -1,3 +1,7 @@
+# archetype:
+# forge-only: true
+# spdx: Apache-2.0 OR MIT
+
 # Forge CI pipeline for forkwright/theatron.
 #
 # Mirrors the hardcoded default Rust gate (fmt -> check -> clippy -> nextest
