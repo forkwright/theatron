@@ -48,6 +48,51 @@ pub fn encode_path_segment(segment: &str) -> String {
     encoded
 }
 
+/// Join a base URL with a path, normalizing the slash boundary so the
+/// result has exactly one `/` between them.
+///
+/// Strips trailing `/` from `base_url` and leading `/` from `path`, then
+/// joins with a single separator. Either side may be empty; if `base_url`
+/// is empty the normalized path is returned, and vice versa.
+///
+/// This is the common case for endpoint construction: a configured base
+/// URL (operator-supplied, may or may not have a trailing slash) joined
+/// with a route segment (template-supplied, may or may not have a
+/// leading slash). Without a helper, every call site hand-rolls
+/// `format!("{}/{}", base.trim_end_matches('/'), path)` and gets it
+/// subtly wrong (double slash, missing slash, panic on empty input).
+///
+/// Note: this is a slash-normalizing string join, not a URL parser.
+/// For full URL construction (query strings, fragments, encoding), use
+/// the `url` or `reqwest::Url` crates.
+///
+/// # Examples
+///
+/// ```
+/// use keryx::url::join_base_path;
+///
+/// // canonical case: trailing slash + leading slash collapse to one
+/// assert_eq!(join_base_path("https://api/", "/v1/foo"), "https://api/v1/foo");
+/// // missing both slashes: helper inserts the boundary
+/// assert_eq!(join_base_path("https://api", "v1/foo"), "https://api/v1/foo");
+/// // already-correct boundary stays correct
+/// assert_eq!(join_base_path("https://api", "/v1/foo"), "https://api/v1/foo");
+/// // empty path returns base alone (trailing slash stripped)
+/// assert_eq!(join_base_path("https://api/", ""), "https://api");
+/// ```
+#[must_use]
+pub fn join_base_path(base_url: &str, path: &str) -> String {
+    let base = base_url.trim_end_matches('/');
+    let path = path.trim_start_matches('/');
+    if base.is_empty() {
+        return path.to_string();
+    }
+    if path.is_empty() {
+        return base.to_string();
+    }
+    format!("{base}/{path}")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -99,6 +144,81 @@ mod tests {
             encode_path_segment(" ")
                 .chars()
                 .all(|c| !c.is_ascii_lowercase())
+        );
+    }
+
+    #[test]
+    fn join_base_path_canonical_double_slash_collapses() {
+        // Trailing `/` on base + leading `/` on path → exactly one `/`.
+        assert_eq!(
+            join_base_path("https://api/", "/v1/foo"),
+            "https://api/v1/foo"
+        );
+    }
+
+    #[test]
+    fn join_base_path_inserts_missing_separator() {
+        // Neither side has the `/` — helper inserts one.
+        assert_eq!(
+            join_base_path("https://api", "v1/foo"),
+            "https://api/v1/foo"
+        );
+    }
+
+    #[test]
+    fn join_base_path_preserves_correct_boundary() {
+        // Base no trailing slash + path leading slash → already correct.
+        assert_eq!(
+            join_base_path("https://api", "/v1/foo"),
+            "https://api/v1/foo"
+        );
+        // Base trailing slash + path no leading slash → already correct.
+        assert_eq!(
+            join_base_path("https://api/", "v1/foo"),
+            "https://api/v1/foo"
+        );
+    }
+
+    #[test]
+    fn join_base_path_strips_multiple_trailing_slashes() {
+        assert_eq!(
+            join_base_path("https://api///", "v1/foo"),
+            "https://api/v1/foo"
+        );
+        assert_eq!(
+            join_base_path("https://api///", "///v1/foo"),
+            "https://api/v1/foo"
+        );
+    }
+
+    #[test]
+    fn join_base_path_empty_path_returns_base_without_trailing_slash() {
+        assert_eq!(join_base_path("https://api/", ""), "https://api");
+        assert_eq!(join_base_path("https://api", ""), "https://api");
+        assert_eq!(join_base_path("https://api////", ""), "https://api");
+    }
+
+    #[test]
+    fn join_base_path_empty_base_returns_path_without_leading_slash() {
+        assert_eq!(join_base_path("", "/v1/foo"), "v1/foo");
+        assert_eq!(join_base_path("", "v1/foo"), "v1/foo");
+        assert_eq!(join_base_path("", "////v1/foo"), "v1/foo");
+    }
+
+    #[test]
+    fn join_base_path_both_empty_returns_empty() {
+        assert_eq!(join_base_path("", ""), "");
+        assert_eq!(join_base_path("/", "/"), "");
+        assert_eq!(join_base_path("////", "////"), "");
+    }
+
+    #[test]
+    fn join_base_path_preserves_path_internal_slashes() {
+        // Only the boundary slashes are normalized; slashes inside the
+        // base or path stay as-is.
+        assert_eq!(
+            join_base_path("https://api/v1", "/sessions/abc/messages"),
+            "https://api/v1/sessions/abc/messages"
         );
     }
 }

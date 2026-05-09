@@ -9,8 +9,22 @@ entry per release covers all eight.
 
 ## [Unreleased]
 
-Empty for now — the next entry here flows into the next minor (v1.3)
-when demand pulls one.
+The next entry here flows into the next minor (v1.3) when demand
+pulls one.
+
+### Added
+
+- **`keryx::url::join_base_path(base_url, path) -> String`** —
+  slash-normalizing string join for endpoint construction. Strips
+  trailing `/` from `base_url` and leading `/` from `path`, then
+  joins with exactly one `/` between them. Either side may be
+  empty. Replaces 5+ hand-rolled `format!("{}/{}", base.trim_end_matches('/'), path)`
+  patterns at `aletheia/crates/theatron/skene/src/{api/client,api/sse,api/streaming,discovery}.rs`.
+  Surfaced as MODERATE candidate #1 in the 2026-05-09 consumer-pull
+  rescan (theatron forge issue #1). 8 new tests covering canonical
+  collapse, missing-separator insertion, both-correct boundaries,
+  multiple trailing slashes, empty base, empty path, both empty,
+  and internal-slash preservation.
 
 ---
 
