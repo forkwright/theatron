@@ -239,7 +239,7 @@ impl Settings {
     ///
     /// Cheaper than [`get`](Self::get) when the consumer only
     /// needs to know presence (e.g. "has the user set a value
-    /// yet?"). Skips the [`DeserializeOwned`] cost of [`get`];
+    /// yet?"). Skips the [`DeserializeOwned`] cost of [`get`](Self::get);
     /// reports presence regardless of the value's TOML type.
     ///
     /// # Errors
