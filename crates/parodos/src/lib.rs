@@ -28,6 +28,8 @@
 //!   detection, URL + file-path detection regexes.
 //! - [`layout`] -- shared ratatui layout helpers for common terminal
 //!   view geometry.
+//! - [`text`] -- Unicode-safe text truncation helpers for terminal
+//!   display.
 
 #![deny(missing_docs)]
 #![warn(clippy::all, clippy::pedantic)]
@@ -39,6 +41,7 @@ pub mod highlight;
 pub mod hyperlink;
 pub mod layout;
 pub mod sanitize;
+pub mod text;
 pub mod theme;
 
 pub use env::{Env, RealEnv};

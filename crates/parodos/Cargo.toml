@@ -36,6 +36,7 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 regex = { workspace = true }
 syntect = { workspace = true }
 tracing = { workspace = true }
+unicode-width = "0.2"
 
 [dev-dependencies]
 criterion = { workspace = true }
