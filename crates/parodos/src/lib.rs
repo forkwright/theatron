@@ -30,6 +30,7 @@
 //!   view geometry.
 //! - [`text`] -- Unicode-safe text truncation helpers for terminal
 //!   display.
+//! - [`widgets`] -- small string helpers for terminal widget assembly.
 
 #![deny(missing_docs)]
 #![warn(clippy::all, clippy::pedantic)]
@@ -43,6 +44,7 @@ pub mod layout;
 pub mod sanitize;
 pub mod text;
 pub mod theme;
+pub mod widgets;
 
 pub use env::{Env, RealEnv};
 pub use fuzzy::{MatchResult, fuzzy_match};
