@@ -26,6 +26,8 @@
 //!   OSC52 escape-sequence fallback for headless / SSH / tmux contexts.
 //! - [`hyperlink`] -- OSC 8 hyperlink emission, terminal capability
 //!   detection, URL + file-path detection regexes.
+//! - [`layout`] -- shared ratatui layout helpers for common terminal
+//!   view geometry.
 
 #![deny(missing_docs)]
 #![warn(clippy::all, clippy::pedantic)]
@@ -35,6 +37,7 @@ pub mod env;
 pub mod fuzzy;
 pub mod highlight;
 pub mod hyperlink;
+pub mod layout;
 pub mod sanitize;
 pub mod theme;
 

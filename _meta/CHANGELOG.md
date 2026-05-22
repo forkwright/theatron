@@ -9,11 +9,20 @@ entry per release covers all eight.
 
 ## [Unreleased]
 
-The next entry here flows into the next minor (v1.3) when demand
+The next entry here flows into the next minor (v1.4) when demand
 pulls one.
 
 ### Added
 
+- **`parodos::layout::{centered_rect_pct, centered_rect_size}`** —
+  ratatui `Rect` centering helpers for percentage-sized and fixed-size
+  overlays. Percent values above 100 clamp to the full source area,
+  requested fixed sizes clamp to the source area, and odd leftover
+  space stays on the trailing side. Surfaced as issue #7 candidate 2
+  from the 2026-05-09 consumer-pull rescan. 8 new tests cover normal
+  percentage sizing, over-100 clamping, zero-sized axes, exact-size
+  preservation, oversized fixed-size clamping, odd leftover centering,
+  nonzero origins, and large-rectangle overflow resistance.
 - **`keryx::url::join_base_path(base_url, path) -> String`** —
   slash-normalizing string join for endpoint construction. Strips
   trailing `/` from `base_url` and leading `/` from `path`, then
