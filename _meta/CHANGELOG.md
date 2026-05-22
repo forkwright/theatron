@@ -14,6 +14,11 @@ pulls one.
 
 ### Added
 
+- Root `ARCHITECTURE.md`, `GLOSSARY.md`, and `RUNBOOK.md` so the
+  human-facing standards docs match the existing `_llm` corpus and
+  operational handoff files.
+- `.config/nextest.toml` with the default local nextest profile used
+  by the workspace CI gate.
 - **`gramma::diff::parse_git_diff(raw) -> Vec<DiffFile>`** —
   multi-file git diff parser that splits file sections, derives paths
   from git/unified headers, and reuses the existing `DiffFile` model and
@@ -115,8 +120,8 @@ channel set to `nightly` (the pre-PR-#89 implicit default).
     - `ensure_success(response, operation) -> Result<Response>` — 2xx
       passthrough; 401/403 → `Auth`; 429 → `RateLimited` (with
       `Retry-After` parsed when delta-seconds); other non-2xx →
-      `Server` with `message` extracted from JSON `message`/`error`
-      fields, falling back to `"<status> <reason>"`.
+      `Server` with `message` read from JSON `message`/`error`
+      fields, or `"<status> <reason>"` when no field is present.
     - `decode_json::<T>(response, operation) -> Result<T>` — body
       read → `Http` on transport failure; `serde_json::from_str` →
       `BadResponse` on parse failure. Use after `ensure_success` for
@@ -729,7 +734,7 @@ Notable milestones reached on the 0.1.x line:
   thin theatron consumers.
 - W2: complete component library landed per DESIGN-TOKENS.md anatomy.
 - W3: `gramma` extraction (syntax highlight + diff parsing).
-- W4: `keryx` SSE primitives extracted from aletheia/skene.
+- W4: `keryx` SSE primitives moved out of aletheia/skene.
 
 Forward path to v1.0:
 - Complete the koilon → parodos extraction wave.
