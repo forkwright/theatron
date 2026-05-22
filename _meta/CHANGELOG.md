@@ -14,6 +14,15 @@ pulls one.
 
 ### Added
 
+- **`parodos::text::{truncate_chars_ellipsis, truncate_cols_ellipsis, truncate_spans_cols}`**
+  — Unicode-safe terminal truncation helpers with explicit character
+  and display-column contracts. Ellipses are included inside the
+  caller's budget, zero-width budgets return empty output, and styled
+  span truncation preserves retained styles. Surfaced as issue #7
+  candidate 1 from the 2026-05-09 consumer-pull rescan. 12 new tests
+  cover no-op boundaries, ellipsis budgeting, multibyte char
+  boundaries, wide display columns, styled spans, and zero/one-column
+  budgets.
 - **`parodos::layout::{centered_rect_pct, centered_rect_size}`** —
   ratatui `Rect` centering helpers for percentage-sized and fixed-size
   overlays. Percent values above 100 clamp to the full source area,
