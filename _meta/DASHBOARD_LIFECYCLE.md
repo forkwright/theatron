@@ -7,6 +7,14 @@ edit view code. Theatron is shared UI infrastructure, not an application
 dashboard repository. Local entries are examples or reusable view
 primitives; active product dashboards live in consumer repositories.
 
+## Reality Check
+
+Issue #3 cites `src/dashboards/LIFECYCLE.md:5` from the Ergon
+strip-mine source material. The current theatron repository has no
+local `src/dashboards/` tree; dashboard lifecycle state therefore lives
+in this `_meta/` registry until a real local dashboard surface or
+machine-readable registry exists.
+
 ## State Vocabulary
 
 | State | Meaning | Agent rule |
@@ -18,15 +26,15 @@ primitives; active product dashboards live in consumer repositories.
 
 ## Registry
 
-| ID | State | Kind | Path or repo | Migration state | Before editing |
-|---|---|---|---|---|---|
-| `aletheia-proskenion` | active | external consumer | `forkwright/aletheia`: `crates/theatron/proskenion` | Active Dioxus dashboard consumer of `themelion`, `skeue`, and `gramma`, pinned to theatron v1.1.0 as of aletheia PR #40. | Check current aletheia pin and proskenion state. Keep theatron-side component/API changes additive unless a coordinated migration exists. |
-| `kanon-chalkeion` | active | external consumer | `forkwright/kanon`: `crates/chalkeion` | Active fleet consumer target for operator dispatch views; mainline landing remains blocked on kanon-side branches. | Check kanon/chalkeion branch status before assuming the latest view shape. Avoid removing shared component affordances used by operator dispatch. |
-| `examples-full-app` | development | local example | `examples/full_app` | Reference app demonstrating bathron, mekhane, skeue, gramma, and keryx integration. It is a substrate exercise surface, not a production dashboard. | Check `examples/full_app/README.md` and `_meta/INTEGRATION.md`. Keep usage representative of stable public APIs. |
-| `examples-minimal` | development | local example | `examples/minimal` | Minimal Dioxus + Blitz launch example for smoke validation. | Check `examples/minimal/README.md`. Keep the surface intentionally small. |
-| `skeue-components` | component | local crate | `crates/skeue` | Reusable Dioxus components for fleet dashboard composition, including empty/error/loading/data display primitives and diff views. | Check `crates/skeue/src/lib.rs` and component rustdoc. Validate Rust changes with cargo check and clippy. |
-| `gramma-view-state` | component | local crate | `crates/gramma` | Pure markdown, syntax, and diff state used by rendered file and diff views; Dioxus rendering lives in consumers or `skeue`. | Check `crates/gramma/src/lib.rs` and diff/syntax module docs. Validate Rust changes with cargo check and clippy. |
-| `legacy-prefixed-crates` | legacy | retired layout | none local | The pre-v1 prefixed crate layout was renamed to the eight Greek-named crates in PR #21 and is no longer a live dashboard/view surface. | Do not recreate `theatron-{core,blitz,components,markdown,net,platform,tui,lint}`. Use current crate names from `README.md` and `_llm/architecture.toml`. |
+| ID | State | Kind | Owner | Path or repo | Migration state | Edit status | Validation before merge |
+|---|---|---|---|---|---|---|---|
+| `aletheia-proskenion` | active | external consumer | aletheia | `forkwright/aletheia`: `crates/theatron/proskenion` | Active Dioxus dashboard consumer of `themelion`, `skeue`, and `gramma`, pinned to theatron v1.1.0 as of aletheia PR #40. | Coordinate with the consumer; keep theatron-side component/API changes additive unless a migration PR exists. | Check the current aletheia pin and proskenion state, then validate the affected theatron crates plus the consumer branch when available. |
+| `kanon-chalkeion` | active | external consumer | kanon | `forkwright/kanon`: `crates/chalkeion` | Active fleet consumer target for operator dispatch views; mainline landing remains blocked on kanon-side branches. | Coordinate with chalkeion before changing shared component affordances used by operator dispatch. | Check kanon/chalkeion branch status before assuming the latest view shape; validate against the branch that owns the operator dispatch surface. |
+| `examples-full-app` | development | local example | theatron | `examples/full_app` | Reference app demonstrating bathron, mekhane, skeue, gramma, and keryx integration. It is a substrate exercise surface, not a production dashboard. | Safe for representative example edits that stay on stable public APIs. | Check `examples/full_app/README.md` and `_meta/INTEGRATION.md`; run the relevant example or cargo check when Rust changes. |
+| `examples-minimal` | development | local example | theatron | `examples/minimal` | Minimal Dioxus + Blitz launch example for smoke validation. | Safe for small launch-pattern edits; do not expand into a full product dashboard. | Check `examples/minimal/README.md`; run the example or cargo check when Rust changes. |
+| `skeue-components` | component | local crate | theatron | `crates/skeue` | Reusable Dioxus components for fleet dashboard composition, including empty/error/loading/data display primitives and diff views. | Prefer additive props and stable accessibility/design-token behavior for downstream dashboards. | Check `crates/skeue/src/lib.rs` and component rustdoc; validate Rust changes with cargo check and clippy. |
+| `gramma-view-state` | component | local crate | theatron | `crates/gramma` | Pure markdown, syntax, and diff state used by rendered file and diff views; Dioxus rendering lives in consumers or `skeue`. | Keep state types and parsing helpers backward-compatible unless a semver migration is documented. | Check `crates/gramma/src/lib.rs` and diff/syntax module docs; validate Rust changes with cargo check and clippy. |
+| `legacy-prefixed-crates` | legacy | retired layout | theatron | none local | The pre-v1 prefixed crate layout was renamed to the eight Greek-named crates in PR #21 and is no longer a live dashboard/view surface. | Do not extend or recreate the retired crate names; migrate references to the current crate names. | Use current crate names from `README.md` and `_llm/architecture.toml`; docs-only reference cleanup is sufficient unless code still imports retired names. |
 
 ## Edit Boundary
 
