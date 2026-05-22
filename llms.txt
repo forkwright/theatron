@@ -22,4 +22,5 @@ Structured LLM corpus:
 - [_meta/STATE.md](_meta/STATE.md): release and consumer status
 - [_meta/ROADMAP.md](_meta/ROADMAP.md): phase plan
 - [_meta/INTEGRATION.md](_meta/INTEGRATION.md): consumer integration guide
+- [_meta/DASHBOARD_LIFECYCLE.md](_meta/DASHBOARD_LIFECYCLE.md): dashboard/view lifecycle registry
 - [examples/](examples/): minimal, tray smoke, and full app examples
