@@ -22,6 +22,7 @@
 //!   `use_toast` hook + `NavAction` parser
 
 pub mod activity_row;
+pub mod badge;
 pub mod code_block;
 pub mod conn_indicator;
 pub mod diff_hunk;
@@ -38,6 +39,7 @@ pub mod toast;
 pub mod virtual_list;
 
 pub use activity_row::{ActivityRow, ActivityStatus, RowDensity};
+pub use badge::{BadgeColors, badge_style};
 pub use code_block::CodeBlock;
 pub use conn_indicator::{ConnectionIndicator, IndicatorTone};
 pub use diff_hunk::DiffHunkView;

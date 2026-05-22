@@ -30,6 +30,13 @@ pulls one.
   Surfaced as issue #7 candidate 3 from the 2026-05-09 consumer-pull
   rescan. 6 tests cover zero width, zero/full percentages, over-100
   clamping, partial-cell flooring, and custom glyphs.
+- **`skeue::badge::{BadgeColors, badge_style}`** — shared CSS shell
+  for compact text badges. The helper owns only the common spacing,
+  radius, type, foreground, and background style string; domain labels
+  and status mappings remain in consumers. Surfaced as issue #7
+  candidate 4 from the 2026-05-09 consumer-pull rescan. 5 tests cover
+  constructor/copy/equality semantics, shared shell tokens, supplied
+  colors, style delegation, and color variation.
 - **`parodos::layout::{centered_rect_pct, centered_rect_size}`** —
   ratatui `Rect` centering helpers for percentage-sized and fixed-size
   overlays. Percent values above 100 clamp to the full source area,
