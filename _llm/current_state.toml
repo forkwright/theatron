@@ -26,6 +26,10 @@ item = "Issue #7 post-tag consumer-pull wave shipped parodos layout/text/widget 
 date = "2026-05-22"
 item = "Security policy added and GitHub security discovery pointed at the root SECURITY.md."
 
+[[recent]]
+date = "2026-05-22"
+item = "PR #14 refreshed repo state and platform coverage; PR #15 added root operations docs and the local nextest profile after v1.3.0."
+
 [[open_threads]]
 name = "v1.4 consumer-pull rescan"
 issue = 0
