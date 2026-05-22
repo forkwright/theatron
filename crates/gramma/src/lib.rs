@@ -28,7 +28,7 @@ pub mod syntax;
 
 pub use diff::{
     ChangeType, DiffFile, DiffHunk, DiffLine, DiffViewMode, SideBySideRow, WordSpan,
-    align_side_by_side, parse_unified_diff,
+    align_side_by_side, parse_git_diff, parse_unified_diff,
 };
 pub use highlight::{HighlightedSpan, detect_language, highlight_code};
 
