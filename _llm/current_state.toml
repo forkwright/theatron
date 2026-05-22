@@ -5,28 +5,38 @@ generated = false
 source_docs = [
   "_meta/STATE.md",
   "_meta/ROADMAP.md",
+  "_meta/PLATFORM_COVERAGE.md",
   "README.md",
 ]
 
 [state]
-summary = "Theatron has shipped v1.0.0 and v1.1.0; eight crates are stable/additive for fleet desktop consumers."
-current_phase = "v1.1.0 released; Phase 6 fleet rollout ongoing."
-updated = "2026-05-05"
+summary = "Theatron has shipped v1.3.0; eight crates remain stable/additive for fleet desktop and TUI consumers."
+current_phase = "Post-v1.3.0 maintenance; v1.4 accumulator is consumer-pull driven."
+updated = "2026-05-22"
 
 [[recent]]
-date = "2026-05-04"
-item = "v1.1.0 released as an additive minor after 31 PRs."
+date = "2026-05-22"
+item = "v1.3.0 released with mekhane menus/global-hotkeys/default_icon, dashboard lifecycle metadata, and keryx URL/SSE helpers."
 
 [[recent]]
-date = "2026-05-02"
-item = "v1.0.0 first stable release cut with API frozen across eight crates."
+date = "2026-05-22"
+item = "Issue #7 post-tag consumer-pull wave shipped parodos layout/text/widget helpers, skeue badge style helper, and gramma git-diff parsing."
+
+[[recent]]
+date = "2026-05-22"
+item = "Security policy added and GitHub security discovery pointed at the root SECURITY.md."
 
 [[open_threads]]
-name = "Aletheia consumer pin"
+name = "v1.4 consumer-pull rescan"
 issue = 0
-status = "koilon, proskenion, and skene should re-pin from v1.0.0 to v1.1.0."
+status = "Run after aletheia/chalkeion absorb the v1.3 tag; scope v1.4 from observed duplication."
+
+[[open_threads]]
+name = "Platform parity"
+issue = 0
+status = "Linux remains validated; macOS and Windows need runtime smoke before parity claims. See _meta/PLATFORM_COVERAGE.md."
 
 [[open_threads]]
 name = "Fleet rollout"
 issue = 0
-status = "harmonia and akroasis consume theatron when their desktop surfaces start."
+status = "Chalkeion, harmonia, and akroasis adoption timing belongs to their owning repositories."

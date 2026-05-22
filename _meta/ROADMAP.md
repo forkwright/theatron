@@ -24,7 +24,7 @@ on or before the v1.0.0 cut.
 7. **`gramma` markdown** ✅  -  pulldown-cmark + syntect wrapper,
    diff-state types
 8. **`parodos` TUI** ✅  -  theme, sanitize, clipboard, highlight,
-   hyperlink, fuzzy, env (extracted from aletheia/koilon)
+   hyperlink, fuzzy, env shared with aletheia/koilon
 9. **`dokimasia` linter** ✅  -  design-token + standards rules,
    namespace frozen at v1.0
 10. **proskenion refactor** ✅  -  consuming theatron in production
@@ -64,6 +64,21 @@ the v1.0 API contract.
 - chalkeion already at parity through Phase 4 Tier 5
 - Future fleet surfaces consume theatron by default
 
+## v1.4 candidates
+
+The next minor release should stay consumer-pull driven. Current
+candidate areas:
+
+- **skeue component-library expansion** from proskenion/chalkeion
+  demand.
+- **mekhane platform parity** once macOS or Windows runtime smoke is
+  actually performed. Track status in
+  [`PLATFORM_COVERAGE.md`](./PLATFORM_COVERAGE.md).
+- **bathron platform parity** for notifications and dialogs after
+  target-OS manual verification.
+- **keryx helper surface** from the next post-v1.3 consumer-pull
+  rescan.
+
 ## SemVer policy
 
 See [`_meta/SEMVER.md`](./SEMVER.md) for the full rules. Summary:
@@ -75,5 +90,6 @@ See [`_meta/SEMVER.md`](./SEMVER.md) for the full rules. Summary:
 
 ## Blockers
 
-None at v1.0. Gate 2 (tray support) closed via composition layer in
-`mekhane` over unmodified upstream Dioxus + Blitz.
+No repo-local blocker is active. Cross-repo consumer timing remains in
+the owning repositories. Gate 2 (tray support) closed via composition
+layer in `mekhane` over unmodified upstream Dioxus + Blitz.
