@@ -11,21 +11,21 @@
 //! - [`launch`] / [`launch_cfg`] / [`launch_cfg_with_props`] — start
 //!   a desktop app. Internally configures the tray-event broadcast
 //!   channels, then delegates to [`dioxus_native::launch_cfg_with_props`].
-//! - `launch_cfg_with_props_and_menu` — same as
-//!   [`launch_cfg_with_props`] but with an optional `muda::Menu` for
+//! - [`launch_cfg_with_props_and_menu`] — same as
+//!   [`launch_cfg_with_props`] but with an optional [`muda::Menu`] for
 //!   app-menu event plumbing (available when the `menus` feature is
 //!   enabled).
 //! - [`tray`] — re-exports of the upstream `tray_icon` crate plus tiny
 //!   helpers ([`tray::init_tray_icon`], [`tray::default_tray_icon`]).
-//! - `hotkey` — re-exports of the upstream `global_hotkey` crate
+//! - [`hotkey`] — re-exports of the upstream `global_hotkey` crate
 //!   (available when the `global-hotkeys` feature is enabled).
 //! - Tray hooks ([`use_tray_icon_event_handler`],
 //!   [`use_tray_menu_event_handler`]) — subscribe to tray events
 //!   delivered through tokio broadcast channels installed by [`launch`].
-//! - App-menu hook (`use_app_menu_event_handler`) — subscribe to
+//! - App-menu hook ([`use_app_menu_event_handler`]) — subscribe to
 //!   top-of-window menu events (available when the `menus` feature is
 //!   enabled).
-//! - Global-hotkey hook (`use_global_hotkey_event_handler`) —
+//! - Global-hotkey hook ([`use_global_hotkey_event_handler`]) —
 //!   subscribe to process-global hotkey events (available when the
 //!   `global-hotkeys` feature is enabled).
 //!
@@ -49,7 +49,7 @@
 //! slot (because `tray_icon::menu` is a re-export of `muda`). Mekhane
 //! installs **one** shared handler that fans out to both the tray-menu
 //! broadcast and the app-menu broadcast. Consumers subscribe to whichever
-//! channel they care about; the same underlying `muda::MenuEvent` is
+//! channel they care about; the same underlying [`muda::MenuEvent`] is
 //! delivered to both.
 
 #![deny(missing_docs, clippy::all, clippy::pedantic)]
@@ -144,6 +144,7 @@ pub fn launch_cfg_with_props_and_menu<P: Clone + 'static, M: 'static>(
     launch_inner(app, props, contexts, configs, menu);
 }
 
+#[allow(clippy::too_many_lines)]
 fn launch_inner<P: Clone + 'static, M: 'static>(
     app: impl ComponentFunction<P, M>,
     props: P,
