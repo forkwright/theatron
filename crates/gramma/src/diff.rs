@@ -2,6 +2,11 @@
 
 use std::fmt;
 
+#[path = "diff_git.rs"]
+mod diff_git;
+
+pub use diff_git::parse_git_diff;
+
 /// Maximum tokens per line pair before falling back to whole-line highlighting.
 const WORD_DIFF_TOKEN_LIMIT: usize = 500;
 
@@ -138,6 +143,26 @@ pub struct DiffLine {
     pub word_spans: Vec<WordSpan>,
 }
 
+impl DiffLine {
+    /// Creates a diff line with explicit old/new line numbers and word spans.
+    #[must_use]
+    pub fn new(
+        change_type: ChangeType,
+        old_line_no: Option<u32>,
+        new_line_no: Option<u32>,
+        content: impl Into<String>,
+        word_spans: Vec<WordSpan>,
+    ) -> Self {
+        Self {
+            change_type,
+            old_line_no,
+            new_line_no,
+            content: content.into(),
+            word_spans,
+        }
+    }
+}
+
 /// A span within a diff line, marking whether it changed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WordSpan {
@@ -145,6 +170,17 @@ pub struct WordSpan {
     pub text: String,
     /// True if this token differs between old and new lines.
     pub changed: bool,
+}
+
+impl WordSpan {
+    /// Creates a word-diff span.
+    #[must_use]
+    pub fn new(text: impl Into<String>, changed: bool) -> Self {
+        Self {
+            text: text.into(),
+            changed,
+        }
+    }
 }
 
 /// A single hunk in a diff file.
@@ -162,6 +198,28 @@ pub struct DiffHunk {
     pub context_label: String,
     /// Lines belonging to this hunk, in display order.
     pub lines: Vec<DiffLine>,
+}
+
+impl DiffHunk {
+    /// Creates a diff hunk from parsed range metadata and lines.
+    #[must_use]
+    pub fn new(
+        old_start: u32,
+        old_count: u32,
+        new_start: u32,
+        new_count: u32,
+        context_label: impl Into<String>,
+        lines: Vec<DiffLine>,
+    ) -> Self {
+        Self {
+            old_start,
+            old_count,
+            new_start,
+            new_count,
+            context_label: context_label.into(),
+            lines,
+        }
+    }
 }
 
 /// Parsed diff for a single file.
@@ -207,6 +265,14 @@ pub struct SideBySideRow {
     pub left: Option<DiffLine>,
     /// New-side line, or None when the row is a pure deletion.
     pub right: Option<DiffLine>,
+}
+
+impl SideBySideRow {
+    /// Creates a side-by-side row from optional old/new lines.
+    #[must_use]
+    pub fn new(left: Option<DiffLine>, right: Option<DiffLine>) -> Self {
+        Self { left, right }
+    }
 }
 
 /// Aggregate stats summed across one or more [`DiffFile`]s.
@@ -270,7 +336,7 @@ impl DiffStats {
     /// hundreds of lines).
     #[must_use]
     pub const fn net_change(self) -> i64 {
-        self.additions as i64 - self.deletions as i64
+        self.additions as i64 - self.deletions as i64 // kanon:ignore RUST/as-cast -- widening u32 to i64 is lossless and const-stable.
     }
 
     /// Whether every line change in the aggregate is an addition
@@ -586,15 +652,21 @@ fn tokenize(s: &str) -> Vec<&str> {
     for (i, &b) in bytes.iter().enumerate() {
         let is_boundary = b == b' ' || b == b'\t' || b.is_ascii_punctuation();
         if is_boundary {
-            if start < i {
-                tokens.push(&s[start..i]);
+            if start < i
+                && let Some(token) = s.get(start..i)
+            {
+                tokens.push(token);
             }
-            tokens.push(&s[i..=i]);
+            if let Some(token) = s.get(i..=i) {
+                tokens.push(token);
+            }
             start = i + 1;
         }
     }
-    if start < s.len() {
-        tokens.push(&s[start..]);
+    if start < s.len()
+        && let Some(token) = s.get(start..)
+    {
+        tokens.push(token);
     }
     tokens
 }

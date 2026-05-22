@@ -14,6 +14,13 @@ pulls one.
 
 ### Added
 
+- **`gramma::diff::parse_git_diff(raw) -> Vec<DiffFile>`** —
+  multi-file git diff parser that splits file sections, derives paths
+  from git/unified headers, and reuses the existing `DiffFile` model and
+  `parse_unified_diff` hunk logic. Surfaced as issue #7 candidate 5
+  from the 2026-05-09 consumer-pull rescan. 5 tests cover multi-file
+  diffs, deleted-file `/dev/null` paths, single-file unified input,
+  binary/metadata-only sections, and malformed input.
 - **`parodos::text::{truncate_chars_ellipsis, truncate_cols_ellipsis, truncate_spans_cols}`**
   — Unicode-safe terminal truncation helpers with explicit character
   and display-column contracts. Ellipses are included inside the
