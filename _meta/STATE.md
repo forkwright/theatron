@@ -16,8 +16,8 @@ dashboard lifecycle registry plus keryx URL/SSE helpers.
 
 **Post-v1.3.0 maintenance wave active.** The next release accumulator
 is v1.4.0 under `_meta/CHANGELOG.md` `## [Unreleased]`. Current
-post-tag additions are consumer-pull helpers from issue #7 and remain
-fully additive:
+post-tag additions remain fully additive and include the completed
+issue #7 consumer-pull helper wave:
 
 - `parodos::layout::{centered_rect_pct, centered_rect_size}`.
 - `parodos::text::{truncate_chars_ellipsis, truncate_cols_ellipsis, truncate_spans_cols}`.
@@ -26,7 +26,9 @@ fully additive:
 - `gramma::diff::parse_git_diff`.
 
 No open GitHub issues or pull requests remain as of 2026-05-22 after
-issue #7 was closed by PRs #8-#12 and SECURITY.md landed in PR #13.
+issue #7 was closed by PRs #8-#12, SECURITY.md landed in PR #13,
+platform metadata landed in PR #14, and operations standards docs
+landed in PR #15.
 
 Updated: 2026-05-22.
 
@@ -62,6 +64,9 @@ Updated: 2026-05-22.
 - **PR #11** - `skeue::badge` style shell helper.
 - **PR #12** - `gramma::diff::parse_git_diff`.
 - **PR #13** - root `SECURITY.md` plus GitHub security-policy pointer.
+- **PR #14** - repo state refresh plus `_meta/PLATFORM_COVERAGE.md`.
+- **PR #15** - root architecture, glossary, runbook, and local
+  nextest profile.
 
 ## Active Consumers
 
@@ -108,7 +113,7 @@ Updated: 2026-05-22.
 - **Kimi MCP dispatch path.** As of the 2026-05-22 middle-manager
   wave, `mcp__kanon__dispatch_kimi` remained impaired for reviewer
   dispatches. Manual `kimi-ops` reviewer fallback was used for PRs
-  #8-#13 and recorded in the middle-manager wrapper log.
+  #8-#15 and recorded in the middle-manager wrapper log.
 - **Cross-repo consumer timing.** Chalkeion and aletheia pin bumps and
   rollout validation belong to their owning repositories; theatron
   should not perform cross-repo work directly.
