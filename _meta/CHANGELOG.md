@@ -23,6 +23,13 @@ pulls one.
   cover no-op boundaries, ellipsis budgeting, multibyte char
   boundaries, wide display columns, styled spans, and zero/one-column
   budgets.
+- **`parodos::widgets::meter_string(pct, width, filled, empty) -> String`**
+  — fixed-width terminal meter helper for repeated filled/empty glyph
+  gauges. Percent values above 100 clamp to a full meter, partial
+  cells use integer flooring, and zero width returns an empty string.
+  Surfaced as issue #7 candidate 3 from the 2026-05-09 consumer-pull
+  rescan. 6 tests cover zero width, zero/full percentages, over-100
+  clamping, partial-cell flooring, and custom glyphs.
 - **`parodos::layout::{centered_rect_pct, centered_rect_size}`** —
   ratatui `Rect` centering helpers for percentage-sized and fixed-size
   overlays. Percent values above 100 clamp to the full source area,
