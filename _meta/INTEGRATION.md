@@ -1,8 +1,8 @@
 # Integration  -  consuming theatron from a fleet repo
 
 How a fleet desktop or TUI surface consumes theatron's eight crates.
-Patterns are extracted from real consumers (chalkeion, koilon,
-proskenion); no consumer needs anything beyond what's documented here.
+The canonical consumer patterns cover chalkeion, koilon, and
+proskenion; no consumer needs anything beyond what's documented here.
 
 ## Pin pattern
 
@@ -143,8 +143,10 @@ bathron = { workspace = true, features = ["notifications", "settings"] }
 | `settings` | `bathron::settings` | TOML KV store with cascade (system → user → app) |
 | `logging` | `bathron::logging` | tracing-subscriber adapter with file + console writers |
 
-Each module's docs cover the per-platform behaviour (Linux primary,
-macOS / Windows acknowledged but out of scope through Phase 5).
+Each module's docs cover the per-platform behaviour. Linux is the
+validated target; macOS / Windows status is tracked in
+[`PLATFORM_COVERAGE.md`](./PLATFORM_COVERAGE.md) until v1.4 parity
+work proves more.
 
 ## Desktop consumer  -  HTTP + SSE (keryx)
 
@@ -311,4 +313,5 @@ line.
 - [`CHANGELOG.md`](./CHANGELOG.md)  -  per-version release notes
 - [`STATE.md`](./STATE.md)  -  current development state
 - [`ROADMAP.md`](./ROADMAP.md)  -  forward plan
+- [`PLATFORM_COVERAGE.md`](./PLATFORM_COVERAGE.md)  -  OS-hook coverage matrix
 - [`README.md`](../README.md)  -  crate inventory + consumer matrix
