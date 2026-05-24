@@ -27,8 +27,8 @@ Add to your consumer `Cargo.toml`:
 
 ```toml
 [dependencies]
-themelion = { git = "http://forge.forkwright.com/forkwright/theatron.git", tag = "v1.0.0" }
-mekhane  = { git = "http://forge.forkwright.com/forkwright/theatron.git", tag = "v1.0.0" }
+themelion = { git = "http://forge.forkwright.com/forkwright/theatron.git", tag = "v1.3.0" }
+mekhane  = { git = "http://forge.forkwright.com/forkwright/theatron.git", tag = "v1.3.0" }
 dioxus   = "=0.7.6"
 dioxus-native = "=0.7.6"
 ```
