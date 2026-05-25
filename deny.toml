@@ -10,6 +10,57 @@ all-features = false
 
 [advisories]
 
+# WHY: keep in sync with .cargo/audit.toml's [advisories.ignore] array.
+# cargo-audit does not read deny.toml, so any ignore lives in both files.
+
+[[advisories.ignore]]
+id = "RUSTSEC-2026-0009"
+reason = "time 0.3.45 RFC 2822 stack-exhaustion DoS. Transitive via tracing-appender 0.2.5 → bathron, ratatui-widgets 0.3.0 → ratatui/parodos, and mac-notification-sys 0.6.12 → notify-rust → bathron. None of these paths feed untrusted RFC 2822 input to time::format_description, so the DoS vector is unreachable in theatron. Fixed upstream in time 0.3.47; pending transitive bumps."
+
+[[advisories.ignore]]
+id = "RUSTSEC-2024-0413"
+reason = "atk (gtk-rs GTK3 bindings) unmaintained. Transitive via gtk 0.18.2 → muda/tray-icon (notify-rust). GTK3 ecosystem migration to gtk4 is upstream-blocked on notify-rust/tray-icon."
+
+[[advisories.ignore]]
+id = "RUSTSEC-2024-0416"
+reason = "atk-sys (gtk-rs GTK3 bindings) unmaintained. Same GTK3 chain as RUSTSEC-2024-0413."
+
+[[advisories.ignore]]
+id = "RUSTSEC-2024-0412"
+reason = "gdk (gtk-rs GTK3 bindings) unmaintained. Same GTK3 chain as RUSTSEC-2024-0413."
+
+[[advisories.ignore]]
+id = "RUSTSEC-2024-0418"
+reason = "gdk-sys (gtk-rs GTK3 bindings) unmaintained. Same GTK3 chain as RUSTSEC-2024-0413."
+
+[[advisories.ignore]]
+id = "RUSTSEC-2024-0415"
+reason = "gtk (gtk-rs GTK3 bindings) unmaintained. Same GTK3 chain as RUSTSEC-2024-0413."
+
+[[advisories.ignore]]
+id = "RUSTSEC-2024-0420"
+reason = "gtk-sys (gtk-rs GTK3 bindings) unmaintained. Same GTK3 chain as RUSTSEC-2024-0413."
+
+[[advisories.ignore]]
+id = "RUSTSEC-2024-0419"
+reason = "gtk3-macros (gtk-rs GTK3 bindings) unmaintained. Same GTK3 chain as RUSTSEC-2024-0413."
+
+[[advisories.ignore]]
+id = "RUSTSEC-2024-0436"
+reason = "paste unmaintained — transitive via ratatui/dioxus crate chains; no drop-in replacement adopted upstream."
+
+[[advisories.ignore]]
+id = "RUSTSEC-2024-0370"
+reason = "proc-macro-error unmaintained — transitive via gtk3-macros (GTK3 chain). Resolves with GTK4 migration."
+
+[[advisories.ignore]]
+id = "RUSTSEC-2024-0429"
+reason = "glib VariantStrIter unsoundness. Transitive via GTK3 chain (gtk 0.18.2 → muda/tray-icon → notify-rust). theatron does not call glib::VariantStrIter from any of its crates; vulnerability surface is unreachable. Resolves with GTK4 migration."
+
+[[advisories.ignore]]
+id = "RUSTSEC-2025-0141"
+reason = "bincode 1.x unmaintained — transitive via dioxus/blitz storage paths; bincode 2.x is a breaking-change rewrite and direct deps have not migrated."
+
 [licenses]
 allow = [
     "MIT",
@@ -23,6 +74,7 @@ allow = [
     "Zlib",
     "MPL-2.0",
     "CC0-1.0",
+    "CDLA-Permissive-2.0",
     "OpenSSL",
     "BSL-1.0",
 ]
