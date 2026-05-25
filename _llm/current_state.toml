@@ -3,9 +3,9 @@ name = "theatron"
 repo = "forkwright/theatron"
 generated = false
 source_docs = [
-  "_meta/STATE.md",
-  "_meta/ROADMAP.md",
-  "_meta/PLATFORM_COVERAGE.md",
+  "kanon/projects/theatron/STATE.md",
+  "kanon/projects/theatron/ROADMAP.md",
+  "kanon/projects/theatron/PLATFORM_COVERAGE.md",
   "README.md",
 ]
 
@@ -38,7 +38,7 @@ status = "Run after aletheia/chalkeion absorb the v1.3 tag; scope v1.4 from obse
 [[open_threads]]
 name = "Platform parity"
 issue = 0
-status = "Linux remains validated; macOS and Windows need runtime smoke before parity claims. See _meta/PLATFORM_COVERAGE.md."
+status = "Linux remains validated; macOS and Windows need runtime smoke before parity claims. See kanon/projects/theatron/PLATFORM_COVERAGE.md."
 
 [[open_threads]]
 name = "Fleet rollout"

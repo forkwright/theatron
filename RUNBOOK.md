@@ -30,8 +30,9 @@ RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
 
 1. Keep all eight crates on one workspace version.
 2. Update `CHANGELOG.md` for user-visible changes.
-3. Keep `_meta/STATE.md`, `_meta/ROADMAP.md`, and `_llm/current_state.toml`
-   aligned after a release or planning-state change.
+3. Keep `kanon/projects/theatron/STATE.md`, `kanon/projects/theatron/ROADMAP.md`,
+   and `_llm/current_state.toml` aligned after a release or planning-state
+   change.
 4. Cut tags only from `main` after the release checklist in
    `_meta/RELEASE.md` passes.
 

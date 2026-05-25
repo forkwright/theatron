@@ -15,9 +15,9 @@ DESIGN-TOKENS.md), HTTP/SSE, OS integration. Consumed by:
 ## Status
 
 **v1.0.0 released 2026-05-02.** Public API frozen across all eight
-crates per [`_meta/SEMVER.md`](./_meta/SEMVER.md). Consumers pin a
-single git tag and inherit additive minors / non-breaking patches
-until v2.0.
+crates per the [theatron SemVer policy](http://forge.forkwright.com/forkwright/kanon/tree/main/projects/theatron/SEMVER.md)
+(`kanon/projects/theatron/SEMVER.md`). Consumers pin a single git tag
+and inherit additive minors / non-breaking patches until v2.0.
 
 Full plan: [`kanon/projects/chalkeion/`](http://forge.forkwright.com/forkwright/kanon/tree/main/projects/chalkeion).
 
