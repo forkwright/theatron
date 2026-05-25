@@ -1,0 +1,10 @@
+# cargo-audit configuration.
+#
+# WHY: cargo-audit does not read deny.toml. This file mirrors the advisory
+# ignore list in deny.toml so both tools stay in sync. When adding or
+# removing an ignore here, update deny.toml's [[advisories.ignore]]
+# entries to match (and vice versa). See standards/CI.md § Vulnerability
+# scanning for policy.
+
+[advisories]
+ignore = []
