@@ -66,7 +66,7 @@ Deprecating a public item:
 
 1. Add `#[deprecated(since = "x.y.0", note = "use Y instead")]` on
    the deprecated item in a minor release.
-2. Document the migration path in the release notes (`_meta/CHANGELOG.md`).
+2. Document the migration path in the release notes (`CHANGELOG.md`).
 3. Keep the deprecated item compiling for at least one full minor
    cycle (e.g. deprecated in 1.3 stays through 1.4, removable in 1.5).
 4. Removal is a major bump.
@@ -106,7 +106,7 @@ unreleased revs should expect drift on every theatron change.
 
 ## Cross-references
 
-- [`_meta/CHANGELOG.md`](./CHANGELOG.md)  -  per-version release notes.
+- [`CHANGELOG.md`](../CHANGELOG.md)  -  per-version release notes.
 - [`_meta/STATE.md`](./STATE.md)  -  current development state.
 - [`_meta/ROADMAP.md`](./ROADMAP.md)  -  forward plan.
 - [`README.md`](../README.md)  -  crate inventory + consumer matrix.
