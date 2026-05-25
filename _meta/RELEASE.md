@@ -19,7 +19,7 @@ Run before cutting any release tag:
    --workspace --all-features` all pass on the release commit.
 4. **Lint clean.** `kanon lint .` adds zero new violations vs the
    prior release tag.
-5. **Changelog updated.** `_meta/CHANGELOG.md` has a section for the
+5. **Changelog updated.** `CHANGELOG.md` has a section for the
    version being cut, with the date set to today and migration
    notes for any breaking changes.
 6. **STATE.md updated.** `_meta/STATE.md` reflects the new release
@@ -36,7 +36,7 @@ git tag -a vX.Y.Z -m "theatron vX.Y.Z
 
 <one-paragraph summary mirroring the changelog headline>
 
-Full notes: _meta/CHANGELOG.md
+Full notes: CHANGELOG.md
 "
 git push origin vX.Y.Z
 ```
@@ -58,7 +58,7 @@ git push origin vX.Y.{Z+1}
 
 Backport rules:
 - Only patch-eligible commits per the SemVer policy.
-- Each backport gets a `_meta/CHANGELOG.md` entry under the
+- Each backport gets a `CHANGELOG.md` entry under the
   `vX.Y.Z+1` heading.
 - Re-run the pre-release checklist against the cherry-picked tip
   before tagging.

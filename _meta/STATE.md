@@ -15,7 +15,7 @@ desktop surface onto `main` and included the already-shipped
 dashboard lifecycle registry plus keryx URL/SSE helpers.
 
 **Post-v1.3.0 maintenance wave active.** The next release accumulator
-is v1.4.0 under `_meta/CHANGELOG.md` `## [Unreleased]`. Current
+is v1.4.0 under `CHANGELOG.md` `## [Unreleased]`. Current
 post-tag additions remain fully additive and include the completed
 issue #7 consumer-pull helper wave:
 
@@ -132,7 +132,7 @@ Updated: 2026-05-22.
 
 ## Reference
 
-- `_meta/CHANGELOG.md` - release notes archive and v1.4 accumulator.
+- `CHANGELOG.md` - release notes archive and v1.4 accumulator.
 - `_meta/ROADMAP.md` - forward plan.
 - `_meta/SEMVER.md` - versioning policy.
 - `_meta/RELEASE.md` - tag-cut process.
