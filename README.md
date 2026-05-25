@@ -55,6 +55,19 @@ Consumer integration patterns (Cargo features, theme provider, OS
 services, mekhane launch variants): see
 [`_meta/INTEGRATION.md`](./_meta/INTEGRATION.md).
 
+## Prerequisites
+
+Linux (Debian/Ubuntu): `mekhane`'s tray + native-menu surface pulls `tray-icon` -> GTK3 (`glib-sys`, `gobject-sys`, `gio-sys`, `gdk-sys`, `cairo-sys-rs`, `pango-sys`, `atk-sys`, `gdk-pixbuf-sys`), which needs system dev headers at build time. Install before the first `cargo check --workspace`:
+
+```bash
+sudo apt-get install --no-install-recommends \
+  libgtk-3-dev libglib2.0-dev libcairo2-dev libpango1.0-dev \
+  libatk1.0-dev libgdk-pixbuf-2.0-dev libayatana-appindicator3-dev \
+  pkg-config
+```
+
+macOS and Windows build out of the box.
+
 ## Crates
 
 Standalone Greek names per the fleet naming convention (no `theatron-`
