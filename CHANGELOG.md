@@ -8,6 +8,29 @@ formatting and theatron's [SemVer policy](http://forge.forkwright.com/forkwright
 The eight crates ship together at a single workspace version; one
 entry per release covers all eight.
 
+## [1.4.0](https://github.com/forkwright/theatron/compare/v1.3.0...v1.4.0) (2026-05-25)
+
+
+### Features
+
+* **gramma:** parse multi-file git diffs ([#12](https://github.com/forkwright/theatron/issues/12)) ([02fe29d](https://github.com/forkwright/theatron/commit/02fe29d8443a7a6b78b25c863e418d4c1703c6d6))
+* **parodos:** add centered rect helpers ([#8](https://github.com/forkwright/theatron/issues/8)) ([8ab71dc](https://github.com/forkwright/theatron/commit/8ab71dc9a49fa2d4cabdf120c30ec18953f28bfe)), closes [#7](https://github.com/forkwright/theatron/issues/7)
+* **parodos:** add meter string helper ([10307b0](https://github.com/forkwright/theatron/commit/10307b06c3b4ca377857a115b9e09d2f04ccd143))
+* **parodos:** add text truncation helpers ([7e532a6](https://github.com/forkwright/theatron/commit/7e532a6d5183f5032f8e3fb9618e08c6f744d689))
+* **skeue:** add badge style helper ([fa829f2](https://github.com/forkwright/theatron/commit/fa829f2af419b4b669dce6544840a477cdc37057))
+
+
+### Documentation
+
+* add operations standards docs ([998e086](https://github.com/forkwright/theatron/commit/998e08678bb645e5cbc6a62bf53f821c76fcef85))
+* add security policy ([#13](https://github.com/forkwright/theatron/issues/13)) ([eabab37](https://github.com/forkwright/theatron/commit/eabab373d2c4f38c9f13e3d10eb22d35a3cc2e14))
+* **CHANGELOG:** consolidate to root, retire _meta/CHANGELOG ([#23](https://github.com/forkwright/theatron/issues/23)) ([aef30f5](https://github.com/forkwright/theatron/commit/aef30f52d33c8fb18d2469e8a15f98d5a91bbfa2))
+* **planning:** trim _meta/ planning content (now in kanon[#558](https://github.com/forkwright/theatron/issues/558)) ([#25](https://github.com/forkwright/theatron/issues/25)) ([f6fd933](https://github.com/forkwright/theatron/commit/f6fd9331cc069c3f5f0a0fbd981e9498439b4b8a))
+* **README:** bump Quickstart pin v1.0.0 -&gt; v1.3.0 ([#21](https://github.com/forkwright/theatron/issues/21)) ([15f5c7c](https://github.com/forkwright/theatron/commit/15f5c7c11a033d1ef7d29d478a0db9cd2bf53043)), closes [#17](https://github.com/forkwright/theatron/issues/17)
+* **README:** note Linux GTK3 prerequisites for tray-icon builds ([#29](https://github.com/forkwright/theatron/issues/29)) ([56ce55d](https://github.com/forkwright/theatron/commit/56ce55d3fa545e2a333ab952bc40da8cfaee7eaa))
+* refresh state and platform coverage ([05d9176](https://github.com/forkwright/theatron/commit/05d9176722e07aae2a7c011d488eb14c9edc392d))
+* sync post-v1.3 state metadata ([#16](https://github.com/forkwright/theatron/issues/16)) ([98de06e](https://github.com/forkwright/theatron/commit/98de06eb67f1f9bd5c38fbfeaef9fe6e89a09ebc))
+
 ## [Unreleased]
 
 The next entry here flows into the next minor (v1.4) when demand
