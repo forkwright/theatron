@@ -19,8 +19,8 @@ Structured LLM corpus:
 ## Agent Entry Points
 
 - [README.md](README.md): overview and crate table
-- [_meta/STATE.md](_meta/STATE.md): release and consumer status
-- [_meta/ROADMAP.md](_meta/ROADMAP.md): phase plan
+- [kanon/projects/theatron/STATE.md](http://forge.forkwright.com/forkwright/kanon/tree/main/projects/theatron/STATE.md): release and consumer status
+- [kanon/projects/theatron/ROADMAP.md](http://forge.forkwright.com/forkwright/kanon/tree/main/projects/theatron/ROADMAP.md): phase plan
 - [_meta/INTEGRATION.md](_meta/INTEGRATION.md): consumer integration guide
-- [_meta/DASHBOARD_LIFECYCLE.md](_meta/DASHBOARD_LIFECYCLE.md): dashboard/view lifecycle registry
+- [kanon/projects/theatron/DASHBOARD_LIFECYCLE.md](http://forge.forkwright.com/forkwright/kanon/tree/main/projects/theatron/DASHBOARD_LIFECYCLE.md): dashboard/view lifecycle registry
 - [examples/](examples/): minimal, tray smoke, and full app examples

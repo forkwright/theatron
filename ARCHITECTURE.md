@@ -39,7 +39,7 @@ Terminal UI helpers live in `parodos`.
 
 The public API is every `pub` item reachable from a crate root and
 every Cargo feature exposed by the workspace crates. The SemVer rules
-are documented in [`_meta/SEMVER.md`](./_meta/SEMVER.md).
+are documented in [`kanon/projects/theatron/SEMVER.md`](http://forge.forkwright.com/forkwright/kanon/tree/main/projects/theatron/SEMVER.md).
 
 The eight crates move in lockstep. Adding public API requires a minor
 release. Removing or breaking public API requires a major release.
@@ -53,4 +53,4 @@ repositories.
 
 Consumers should start from [`_meta/INTEGRATION.md`](./_meta/INTEGRATION.md).
 Platform support evidence lives in
-[`_meta/PLATFORM_COVERAGE.md`](./_meta/PLATFORM_COVERAGE.md).
+[`kanon/projects/theatron/PLATFORM_COVERAGE.md`](http://forge.forkwright.com/forkwright/kanon/tree/main/projects/theatron/PLATFORM_COVERAGE.md).

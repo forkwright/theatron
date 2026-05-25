@@ -4,7 +4,7 @@ repo = "forkwright/theatron"
 generated = false
 source_docs = [
   "README.md",
-  "_meta/STATE.md",
+  "kanon/projects/theatron/STATE.md",
 ]
 
 [glossary]

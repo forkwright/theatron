@@ -22,8 +22,8 @@ Run before cutting any release tag:
 5. **Changelog updated.** `CHANGELOG.md` has a section for the
    version being cut, with the date set to today and migration
    notes for any breaking changes.
-6. **STATE.md updated.** `_meta/STATE.md` reflects the new release
-   under "Released".
+6. **STATE.md updated.** `kanon/projects/theatron/STATE.md` reflects
+   the new release under "Released".
 7. **Consumer-side smoke test.** At least one fleet consumer
    (chalkeion is canonical) builds + runs against the release
    commit. Document the smoke in the changelog entry.
@@ -72,7 +72,8 @@ If a tagged release ships with a critical bug:
 2. Cut a fix tag (`vX.Y.{Z+1}`) and announce in the changelog that
    `vX.Y.Z` is yanked with a one-line reason and the upgrade target.
 3. If the fix is fundamental and the release is a few hours old at
-   most, document the yank in `_meta/STATE.md` so the next operator
+   most, document the yank in `kanon/projects/theatron/STATE.md` so
+   the next operator
    doesn't re-introduce the bug.
 
 ## Pre-release versions

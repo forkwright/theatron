@@ -4,9 +4,9 @@ repo = "forkwright/theatron"
 generated = false
 source_docs = [
   "README.md",
-  "_meta/STATE.md",
-  "_meta/ROADMAP.md",
-  "_meta/SEMVER.md",
+  "kanon/projects/theatron/STATE.md",
+  "kanon/projects/theatron/ROADMAP.md",
+  "kanon/projects/theatron/SEMVER.md",
 ]
 
 [decisions]
