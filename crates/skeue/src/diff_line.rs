@@ -178,9 +178,10 @@ fn italic_css(italic: bool) -> &'static str {
 
 #[cfg(test)]
 mod ssr_tests {
-    use super::*;
     use dioxus_ssr::render_element;
     use gramma::diff::{ChangeType, DiffLine};
+
+    use super::*;
 
     #[test]
     fn renders_aria_hidden_on_gutter() {
