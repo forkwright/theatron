@@ -36,6 +36,7 @@ impl Severity {
 /// editor and `rustc`-style diagnostic conventions. `byte_offset` and
 /// `byte_len` allow renderers (e.g. codespan-reporting) to highlight the
 /// exact span without recomputing it from line/column.
+// kanon:ignore RUST/no-debug-derive-on-public-types -- lint diagnostic fields (file path, message, severity) are the public API contract; no PII or secret material.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Diagnostic {
     /// Source file the finding came from.

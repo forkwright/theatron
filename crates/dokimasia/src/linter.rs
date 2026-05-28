@@ -95,6 +95,7 @@ impl Linter {
     /// Walker errors (permission denied, dangling symlink, etc.) emit
     /// `Severity::Warning` diagnostics and the walk continues.
     #[must_use]
+    // kanon:ignore RUST/doc-promised-observability -- doc "warnings" are dokimasia Severity::Warning diagnostics returned in the Vec, not tracing-level events.
     pub fn lint_path(&self, path: &Path) -> Vec<Diagnostic> {
         if path.is_file() {
             return self.lint_file(path);

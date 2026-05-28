@@ -23,6 +23,7 @@ use serde::{Serialize, de::DeserializeOwned};
 use snafu::{OptionExt, ResultExt, Snafu};
 
 /// Errors from the settings subsystem.
+// kanon:ignore RUST/no-debug-derive-on-public-types -- variants carry filesystem paths and io::Error; no PII, credentials, or secret material.
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub(crate)))]
 #[non_exhaustive]

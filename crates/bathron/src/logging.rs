@@ -187,6 +187,7 @@ impl LogConfig {
 /// - [`LoggingError::SetGlobalDefault`] (a subscriber is already
 ///   installed).
 #[cfg(not(test))]
+// kanon:ignore RUST/doc-promised-observability -- this function installs the tracing subscriber; emitting tracing events here would be lost (no subscriber yet).
 pub fn init(
     config: LogConfig,
 ) -> Result<tracing_appender::non_blocking::WorkerGuard, LoggingError> {
@@ -220,6 +221,7 @@ pub fn init(
 /// - [`LoggingError::SetGlobalDefault`] (a subscriber is already
 ///   installed).
 #[cfg(not(test))]
+// kanon:ignore RUST/doc-promised-observability -- this function installs the tracing subscriber; emitting tracing events here would be lost (no subscriber yet).
 pub fn init_with_stderr(
     config: LogConfig,
     also_to_stderr: bool,
