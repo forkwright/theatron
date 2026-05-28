@@ -205,6 +205,7 @@ impl ApiError {
     /// }
     /// ```
     #[must_use]
+    // kanon:ignore RUST/doc-promised-observability -- doc shows caller-side `tracing::error!` usage; this method is a pure getter, side-effect free.
     pub fn operation(&self) -> Option<&'static str> {
         match self {
             Self::Http { operation, .. }
