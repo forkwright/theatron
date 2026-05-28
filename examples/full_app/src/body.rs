@@ -28,8 +28,10 @@ pub(crate) fn Body() -> Element {
                 h1 { "theatron " span { class: "version", {themelion::version()} } }
                 ThemeToggle {
                     on_change: move |mode: ThemeMode| {
-                        if let Some(ref s) = settings_for_toggle {
-                            let _ = s.set("theme", &mode.label());
+                        if let Some(ref s) = settings_for_toggle
+                            && let Err(e) = s.set("theme", &mode.label())
+                        {
+                            tracing::warn!("theme persistence failed: {e}");
                         }
                     }
                 }
