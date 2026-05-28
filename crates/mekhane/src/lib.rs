@@ -144,7 +144,6 @@ pub fn launch_cfg_with_props_and_menu<P: Clone + 'static, M: 'static>(
     launch_inner(app, props, contexts, configs, menu);
 }
 
-#[allow(clippy::too_many_lines)]
 fn launch_inner<P: Clone + 'static, M: 'static>(
     app: impl ComponentFunction<P, M>,
     props: P,
@@ -170,6 +169,7 @@ fn launch_inner<P: Clone + 'static, M: 'static>(
 
         let tx = tray_tx.clone();
         tray_icon::TrayIconEvent::set_event_handler(Some(move |t| {
+            // kanon:ignore RUST/no-silent-result-swallow -- broadcast send errors only when no receivers; expected when no app components subscribe
             let _ = tx.send(t);
         }));
 
@@ -177,6 +177,7 @@ fn launch_inner<P: Clone + 'static, M: 'static>(
         {
             let tx = menu_tx.clone();
             tray_icon::menu::MenuEvent::set_event_handler(Some(move |t| {
+                // kanon:ignore RUST/no-silent-result-swallow -- broadcast send errors only when no receivers; expected when no app components subscribe
                 let _ = tx.send(t);
             }));
         }
@@ -186,7 +187,9 @@ fn launch_inner<P: Clone + 'static, M: 'static>(
             let app_tx = app_menu_tx.clone();
             tray_icon::menu::MenuEvent::set_event_handler(Some(
                 move |t: tray_icon::menu::MenuEvent| {
+                    // kanon:ignore RUST/no-silent-result-swallow -- broadcast send errors only when no receivers; expected when no app components subscribe
                     let _ = tx.send(t.clone());
+                    // kanon:ignore RUST/no-silent-result-swallow -- broadcast send errors only when no receivers; expected when no app components subscribe
                     let _ = app_tx.send(t);
                 },
             ));
@@ -214,6 +217,7 @@ fn launch_inner<P: Clone + 'static, M: 'static>(
 
             let tx = hotkey_tx.clone();
             global_hotkey::GlobalHotKeyEvent::set_event_handler(Some(move |e| {
+                // kanon:ignore RUST/no-silent-result-swallow -- broadcast send errors only when no receivers; expected when no app components subscribe
                 let _ = tx.send(e);
             }));
 
@@ -226,7 +230,10 @@ fn launch_inner<P: Clone + 'static, M: 'static>(
 
     #[cfg(feature = "menus")]
     if let Some(menu) = menu {
-        let _ = Box::leak(Box::new(menu));
+        // Leak the menu so it lives for the duration of the process; the
+        // returned `&'static mut Menu` is discarded — we only need the
+        // side effect (the OS holds the registration).
+        Box::leak(Box::new(menu));
     }
 
     dioxus_native::launch_cfg_with_props(app, props, contexts, configs);
