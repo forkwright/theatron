@@ -50,7 +50,7 @@ pub(crate) fn lint_manifest(
             .get(line_idx + 1)
             .copied()
             .unwrap_or(source.len());
-        let line_str = &source[*line_start..line_end];
+        let line_str = &source[*line_start..line_end]; // kanon:ignore RUST/indexing-slicing -- line_start/line_end come from build_line_index(source), always in-bounds and at char boundaries (line_starts hold byte positions immediately after `\n`)
         if line_str.trim() == "[patch.crates-io]" {
             found_line = u32::try_from(line_idx).unwrap_or(0) + 1;
             // Find byte offset of the `[` character on this line.
