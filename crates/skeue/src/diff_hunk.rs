@@ -183,9 +183,10 @@ fn render_sbs_word_spans(spans: &[gramma::diff::WordSpan], change_type: ChangeTy
 
 #[cfg(test)]
 mod ssr_tests {
-    use super::*;
     use dioxus_ssr::render_element;
     use gramma::diff::{DiffHunk, DiffLine, DiffViewMode};
+
+    use super::*;
 
     #[test]
     fn renders_region_and_aria_label() {

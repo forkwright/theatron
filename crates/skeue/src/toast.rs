@@ -221,9 +221,10 @@ pub fn ToastItem(
 
 #[cfg(test)]
 mod ssr_tests {
-    use super::*;
     use dioxus_core::VirtualDom;
     use dioxus_ssr::render;
+
+    use super::*;
 
     #[test]
     fn info_toast_renders_status_polite() {

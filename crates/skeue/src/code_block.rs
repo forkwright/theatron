@@ -158,8 +158,9 @@ fn render_span(key: usize, span: &HighlightedSpan) -> Element {
 
 #[cfg(test)]
 mod ssr_tests {
-    use super::*;
     use dioxus_ssr::render_element;
+
+    use super::*;
 
     #[test]
     fn renders_region_and_copy_aria_label() {
