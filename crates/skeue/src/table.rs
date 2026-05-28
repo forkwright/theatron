@@ -121,6 +121,7 @@ pub fn MdTable(
 }
 
 fn alignment_css(align: Option<TableAlignment>) -> &'static str {
+    // kanon:ignore RUST/no-result-unwrap-or-default -- `align` is Option<TableAlignment>; None -> TableAlignment::default() (Start) is intentional.
     align.unwrap_or_default().css()
 }
 

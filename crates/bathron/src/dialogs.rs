@@ -57,6 +57,7 @@ pub fn open_file(filter: &[FileFilter]) -> Option<std::path::PathBuf> {
 #[cfg(not(test))]
 #[must_use]
 pub fn open_files(filter: &[FileFilter]) -> Vec<std::path::PathBuf> {
+    // kanon:ignore RUST/no-result-unwrap-or-default -- `pick_files` returns Option<Vec<PathBuf>> (None == user canceled); collapse to empty Vec is the documented behavior.
     build_dialog(filter).pick_files().unwrap_or_default()
 }
 

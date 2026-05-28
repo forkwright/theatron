@@ -74,6 +74,7 @@ pub fn ConnectionIndicator(
     tooltip: Option<String>,
 ) -> Element {
     let color = tone.color_token();
+    // kanon:ignore RUST/no-result-unwrap-or-default -- `tooltip` is Option<String>; None -> empty title attribute is intentional.
     let title = tooltip.unwrap_or_default();
     rsx! {
         div {
