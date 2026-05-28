@@ -63,11 +63,11 @@ struct AppProps {
 
 fn app(props: AppProps) -> Element {
     // Tray init runs once per process via use_hook. The returned TrayIcon
-    // is leaked intentionally — the OS keeps it alive until the process exits.
+    // is ref-counted (tray_icon crate removes the OS icon when the last
+    // instance drops), so we bind it into the use_hook slot to keep the
+    // OS icon alive for the component lifetime.
     #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
-    use_hook(|| {
-        let _ = init_tray_icon(default_tray_icon(), None);
-    });
+    use_hook(|| init_tray_icon(default_tray_icon(), None));
 
     // Subscribe to tray-icon clicks. Real consumers route these to
     // focus / show / hide window actions.
@@ -123,6 +123,7 @@ fn app(props: AppProps) -> Element {
 /// the server is unreachable.
 async fn stub_sse_watch() -> Result<(), ApiError> {
     let client = reqwest::Client::new();
+    // kanon:ignore SECURITY/hardcoded-loopback-url -- example targets a deliberately-dead local port to exercise the ApiError::Http path without a real server
     let resp = client
         .get("http://localhost:9999/events")
         .send()
