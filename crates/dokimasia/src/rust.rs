@@ -340,7 +340,7 @@ mod tests {
         let src = r#"
 #[cfg(all(test, feature = "extra"))]
 mod combined {
-    const BOGUS: &str = "color: var(--definitely-bad);";
+    const BOGUS: &str = "color: var(--bogus-all);";
 }
 "#;
         let diags = lint_rust(&registry(), src, Path::new("a.rs"));
@@ -355,7 +355,7 @@ mod combined {
         let src = r#"
 #[cfg(any(test, debug_assertions))]
 mod also_tests {
-    const BOGUS: &str = "color: var(--definitely-bad);";
+    const BOGUS: &str = "color: var(--bogus-any);";
 }
 "#;
         let diags = lint_rust(&registry(), src, Path::new("a.rs"));
@@ -385,7 +385,7 @@ fn helper() {
         // production code. Must be linted. (Caught by QA wave 2 #13 R-01.)
         let src = r#"
 #[cfg(not(test))]
-const PROD: &str = "color: var(--definitely-bad);";
+const PROD: &str = "color: var(--bogus-prod);";
 "#;
         let diags = lint_rust(&registry(), src, Path::new("a.rs"));
         assert_eq!(
@@ -393,14 +393,14 @@ const PROD: &str = "color: var(--definitely-bad);";
             1,
             "cfg(not(test)) is PRODUCTION code, must lint, got: {diags:?}"
         );
-        assert_eq!(diags[0].token.as_deref(), Some("--definitely-bad"));
+        assert_eq!(diags[0].token.as_deref(), Some("--bogus-prod"));
     }
 
     #[test]
     fn cfg_test_on_const_is_skipped() {
         let src = r#"
 #[cfg(test)]
-const BOGUS: &str = "color: var(--definitely-bad);";
+const BOGUS: &str = "color: var(--bogus-const);";
 "#;
         let diags = lint_rust(&registry(), src, Path::new("a.rs"));
         assert!(diags.is_empty());
