@@ -69,11 +69,17 @@ where
 
 /// Read a source file using `from_utf8_lossy` so the renderer agrees
 /// with the linter's view of files containing invalid UTF-8.
+///
+/// On read failure (file removed between lint and render, permissions
+/// changed, etc.) returns a single-line sentinel describing the error
+/// so the diagnostic output makes the failure visible instead of
+/// silently emitting an empty source frame.
 #[must_use]
 pub fn lossy_loader(path: &PathBuf) -> String {
-    std::fs::read(path)
-        .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
-        .unwrap_or_default()
+    match std::fs::read(path) {
+        Ok(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
+        Err(e) => format!("<dokimasia: failed to read {}: {e}>", path.display()),
+    }
 }
 
 /// Render a slice of diagnostics as a pretty-printed JSON array.
