@@ -52,7 +52,7 @@ pub use sparkline::{Sparkline, SparklineShape, SparklineTone, bar_positions, pol
 pub use spinner::{Spinner, SpinnerSize};
 pub use status_pill::{StatusPill, StatusPillKind, StatusPillShape};
 pub use table::{MdTable, TableAlignment};
-pub use toast::{Toast, ToastAction, ToastId, ToastItem, ToastSeverity};
+pub use toast::{Toast, ToastAction, ToastActionId, ToastId, ToastItem, ToastSeverity};
 pub use virtual_list::{DEFAULT_OVERSCAN, VirtualScrollContainer, spacer_heights, visible_range};
 
 #[cfg(test)]

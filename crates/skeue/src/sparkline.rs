@@ -96,6 +96,7 @@ pub fn polyline_points(values: &[f64], width: f64, height: f64) -> String {
             out.push(' ');
         }
         // Two decimal places — sparkline geometry doesn't need more.
+        // kanon:ignore RUST/no-silent-result-swallow -- write_fmt into String cannot fail (String's fmt::Write impl is infallible)
         let _ = std::fmt::Write::write_fmt(&mut out, format_args!("{x:.2},{y:.2}"));
     }
     out

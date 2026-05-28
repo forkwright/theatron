@@ -58,13 +58,18 @@ impl ToastSeverity {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ToastId(pub u64);
 
+/// Opaque caller-defined action identifier. Wrapper newtype so consumers
+/// can't conflate with arbitrary strings; theatron does not interpret it.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ToastActionId(pub String);
+
 /// An action attached to a toast (e.g. "Open file", "Undo").
 #[derive(Clone, Debug, PartialEq)]
 pub struct ToastAction {
     /// Display label rendered on the action button.
     pub label: String,
     /// Caller-defined action identifier. theatron does not interpret it.
-    pub action_id: String,
+    pub action_id: ToastActionId,
 }
 
 /// A toast notification.
