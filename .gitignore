@@ -5,3 +5,8 @@ Cargo.lock.bak
 *.swp
 target/
 *.bak
+
+# kanon substrate database — created by `kanon gate` / `kanon lint` runs
+# (fjall on-disk KV cache). Should never be committed; the journal alone
+# is 33 MB and per-machine state has no value in version control.
+.kanon/
