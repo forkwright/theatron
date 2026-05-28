@@ -67,7 +67,12 @@ fn warm_theme() -> &'static Theme {
 }
 
 fn theme_item(scope: &str, r: u8, g: u8, b: u8) -> ThemeItem {
-    let scope_selector = ScopeSelectors::from_str(scope).unwrap_or_default();
+    // scope is always a hardcoded literal from warm_theme() above. A
+    // parse failure is a programmer bug surfaced at first call, not a
+    // runtime error.
+    // kanon:ignore RUST/expect -- caller-controlled hardcoded input; failure means a typo in warm_theme()
+    let scope_selector =
+        ScopeSelectors::from_str(scope).expect("warm_theme scopes are hardcoded valid selectors");
     ThemeItem {
         scope: scope_selector,
         style: StyleModifier {
@@ -115,17 +120,25 @@ pub fn highlight_code(code: &str, language: &str) -> Vec<Vec<HighlightedSpan>> {
     let mut result = Vec::new();
 
     for line in syntect::util::LinesWithEndings::from(code) {
-        let ranges = highlighter.highlight_line(line, ss).unwrap_or_default();
-
-        let spans: Vec<HighlightedSpan> = ranges
-            .into_iter()
-            .map(|(style, text)| HighlightedSpan {
-                text: text.to_string(),
-                color: syn_color_to_css(style.foreground),
-                bold: style.font_style.contains(FontStyle::BOLD),
-                italic: style.font_style.contains(FontStyle::ITALIC),
-            })
-            .collect();
+        let spans: Vec<HighlightedSpan> = match highlighter.highlight_line(line, ss) {
+            Ok(ranges) => ranges
+                .into_iter()
+                .map(|(style, text)| HighlightedSpan {
+                    text: text.to_string(),
+                    color: syn_color_to_css(style.foreground),
+                    bold: style.font_style.contains(FontStyle::BOLD),
+                    italic: style.font_style.contains(FontStyle::ITALIC),
+                })
+                .collect(),
+            // On syntect failure, preserve the line text as a single
+            // unstyled span rather than dropping it silently.
+            Err(_) => vec![HighlightedSpan {
+                text: line.to_string(),
+                color: syn_color_to_css(SynColor::WHITE),
+                bold: false,
+                italic: false,
+            }],
+        };
 
         result.push(spans);
     }
