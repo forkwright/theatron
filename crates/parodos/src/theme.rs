@@ -5,13 +5,12 @@
 //! reads `COLORTERM`, `TERM`, and `COLORFGBG` via the [`Env`] trait so
 //! tests can supply deterministic environment values.
 //!
-//! WHY missing-docs is allowed: palette field names ([`Colors::bg`],
-//! [`TextColors::fg_muted`], [`Borders::focused`], etc.) are
-//! self-documenting and enumerating them in prose adds noise without
-//! signal. The [`Theme`] anchor type carries the doc comment that
-//! orients consumers.
-
-#![allow(missing_docs)]
+//! Palette field names ([`Colors::bg`], [`TextColors::fg_muted`],
+//! [`Borders::focused`], etc.) are self-documenting; enumerating them
+//! in prose adds noise without signal. Each palette struct carries a
+//! single `#[expect(missing_docs, …)]` attribute scoped to its fields
+//! so the project-level `deny(missing_docs)` still catches new
+//! undocumented items elsewhere.
 
 use ratatui::style::{Color, Modifier, Style};
 
@@ -66,6 +65,10 @@ impl ColorDepth {
 /// Background brightness: drives palette selection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
+#[expect(
+    missing_docs,
+    reason = "Dark/Light variant names are self-documenting; from_label and is_* methods carry the prose"
+)]
 pub enum ThemeMode {
     Dark,
     Light,
@@ -125,6 +128,7 @@ impl ThemeMode {
 
 /// Background and accent colors.
 #[derive(Debug, Clone)]
+#[expect(missing_docs, reason = "palette field names are self-documenting")]
 pub struct Colors {
     pub bg: Color,
     pub surface: Color,
@@ -136,6 +140,7 @@ pub struct Colors {
 
 /// Foreground text and role-speaker colors.
 #[derive(Debug, Clone)]
+#[expect(missing_docs, reason = "palette field names are self-documenting")]
 pub struct TextColors {
     pub fg: Color,
     pub fg_muted: Color,
@@ -147,6 +152,7 @@ pub struct TextColors {
 
 /// Structural border and selection colors.
 #[derive(Debug, Clone)]
+#[expect(missing_docs, reason = "palette field names are self-documenting")]
 pub struct Borders {
     pub normal: Color,
     pub focused: Color,
@@ -156,6 +162,7 @@ pub struct Borders {
 
 /// Semantic feedback and animation-state colors.
 #[derive(Debug, Clone)]
+#[expect(missing_docs, reason = "palette field names are self-documenting")]
 pub struct StatusColors {
     pub success: Color,
     pub warning: Color,
@@ -169,6 +176,7 @@ pub struct StatusColors {
 
 /// Code-block colors.
 #[derive(Debug, Clone)]
+#[expect(missing_docs, reason = "palette field names are self-documenting")]
 pub struct CodeColors {
     pub fg: Color,
     pub bg: Color,
@@ -177,6 +185,7 @@ pub struct CodeColors {
 
 /// Thinking-block colors.
 #[derive(Debug, Clone)]
+#[expect(missing_docs, reason = "palette field names are self-documenting")]
 pub struct ThinkingColors {
     pub fg: Color,
     pub border: Color,
@@ -188,6 +197,10 @@ pub struct ThinkingColors {
 /// Structured as nested groups so the active theme can be swapped as a single
 /// value without touching individual call sites.
 #[derive(Debug, Clone)]
+#[expect(
+    missing_docs,
+    reason = "grouped palette fields named for the type they hold"
+)]
 pub struct Theme {
     pub colors: Colors,
     pub text: TextColors,
@@ -533,26 +546,31 @@ impl Theme {
         }
     }
 
+    /// Default foreground text style.
     #[must_use]
     pub fn style_fg(&self) -> Style {
         Style::default().fg(self.text.fg)
     }
 
+    /// Muted text style (lower contrast than `style_fg`).
     #[must_use]
     pub fn style_muted(&self) -> Style {
         Style::default().fg(self.text.fg_muted)
     }
 
+    /// Dim text style (lowest contrast tier).
     #[must_use]
     pub fn style_dim(&self) -> Style {
         Style::default().fg(self.text.fg_dim)
     }
 
+    /// Accent foreground style.
     #[must_use]
     pub fn style_accent(&self) -> Style {
         Style::default().fg(self.colors.accent)
     }
 
+    /// Accent foreground with bold modifier.
     #[must_use]
     pub fn style_accent_bold(&self) -> Style {
         Style::default()
@@ -560,21 +578,25 @@ impl Theme {
             .add_modifier(Modifier::BOLD)
     }
 
+    /// Success-feedback foreground style.
     #[must_use]
     pub fn style_success(&self) -> Style {
         Style::default().fg(self.status.success)
     }
 
+    /// Warning-feedback foreground style.
     #[must_use]
     pub fn style_warning(&self) -> Style {
         Style::default().fg(self.status.warning)
     }
 
+    /// Error-feedback foreground style.
     #[must_use]
     pub fn style_error(&self) -> Style {
         Style::default().fg(self.status.error)
     }
 
+    /// Success-feedback foreground with bold modifier.
     #[must_use]
     pub fn style_success_bold(&self) -> Style {
         Style::default()
@@ -582,6 +604,7 @@ impl Theme {
             .add_modifier(Modifier::BOLD)
     }
 
+    /// Error-feedback foreground with bold modifier.
     #[must_use]
     pub fn style_error_bold(&self) -> Style {
         Style::default()
@@ -589,6 +612,7 @@ impl Theme {
             .add_modifier(Modifier::BOLD)
     }
 
+    /// User role-speaker style (bold).
     #[must_use]
     pub fn style_user(&self) -> Style {
         Style::default()
@@ -596,6 +620,7 @@ impl Theme {
             .add_modifier(Modifier::BOLD)
     }
 
+    /// Assistant role-speaker style (bold).
     #[must_use]
     pub fn style_assistant(&self) -> Style {
         Style::default()
@@ -603,26 +628,31 @@ impl Theme {
             .add_modifier(Modifier::BOLD)
     }
 
+    /// Code-block foreground+background style.
     #[must_use]
     pub fn style_code(&self) -> Style {
         Style::default().fg(self.code.fg).bg(self.code.bg)
     }
 
+    /// Inline-code style (warning fg over code bg).
     #[must_use]
     pub fn style_inline_code(&self) -> Style {
         Style::default().fg(self.status.warning).bg(self.code.bg)
     }
 
+    /// Surface background style.
     #[must_use]
     pub fn style_surface(&self) -> Style {
         Style::default().bg(self.colors.surface)
     }
 
+    /// Normal-border foreground style.
     #[must_use]
     pub fn style_border(&self) -> Style {
         Style::default().fg(self.borders.normal)
     }
 
+    /// Focused-border foreground style.
     #[must_use]
     pub fn style_border_focused(&self) -> Style {
         Style::default().fg(self.borders.focused)

@@ -3,11 +3,6 @@
 //! Tries [`arboard`] (native) first; falls back to OSC52 escape sequences for
 //! headless / SSH / tmux contexts. PNG-encoding helpers convert raw RGBA
 //! image bytes for image-bearing clipboard content.
-//!
-//! WHY missing-docs is allowed: the [`ClipboardContent`] enum's variants
-//! and image-payload fields are self-evident from naming.
-
-#![allow(missing_docs)]
 
 use crate::env::{Env, RealEnv};
 
@@ -37,6 +32,10 @@ pub fn copy_to_clipboard(text: &str) -> Result<(), String> {
 
 /// Content read from the system clipboard.
 #[non_exhaustive]
+#[expect(
+    missing_docs,
+    reason = "ClipboardContent variants and image-payload fields are self-evident from naming"
+)]
 pub enum ClipboardContent {
     Text(String),
     Image {
