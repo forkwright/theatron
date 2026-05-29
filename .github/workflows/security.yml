@@ -97,3 +97,44 @@ jobs:
         # .cargo/audit.toml, which mirrors deny.toml's [[advisories.ignore]]
         # entries — no silent --ignore flags here.
         run: cargo audit --deny unmaintained --deny unsound --deny yanked
+
+  osv-scanner:
+    name: osv-scanner
+    runs-on: self-hosted
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - name: Ensure osv-scanner 2.3.8 is installed
+        # WHY: Runner provisioning should install osv-scanner, but if absent the
+        # job would exit 127 and train reviewers to ignore red osv checks.
+        # Self-install here so the infra gap doesn't silently disable scanning.
+        run: |
+          if command -v osv-scanner >/dev/null 2>&1 && \
+             osv-scanner --version 2>&1 | grep -q '^osv-scanner version: 2\.3\.8$'; then
+            echo "osv-scanner 2.3.8 already on PATH"
+          else
+            echo "osv-scanner 2.3.8 not on PATH — downloading from GitHub releases"
+            ARCH="$(uname -m)"
+            case "$ARCH" in
+              x86_64)  GOARCH="amd64" ;;
+              aarch64) GOARCH="arm64" ;;
+              *) echo "ERROR: unsupported architecture: $ARCH" >&2; exit 1 ;;
+            esac
+            curl -fsSL --retry 3 \
+              "https://github.com/google/osv-scanner/releases/download/v2.3.8/osv-scanner_linux_${GOARCH}" \
+              -o /tmp/osv-scanner-2.3.8
+            chmod +x /tmp/osv-scanner-2.3.8
+            /tmp/osv-scanner-2.3.8 --version 2>&1 | grep -q '^osv-scanner version: 2\.3\.8$' || {
+              echo "ERROR: downloaded binary version mismatch — aborting" >&2; exit 1
+            }
+            ln -sf /tmp/osv-scanner-2.3.8 /tmp/osv-scanner
+            echo "/tmp" >> "$GITHUB_PATH"
+          fi
+      - name: Verify OSV-Scanner version
+        run: |
+          osv-scanner --version
+          osv-scanner --version | grep -q '^osv-scanner version: 2\.3\.8$'
+      - name: osv scanner
+        run: osv-scanner scan source --config=osv-scanner.toml --lockfile=Cargo.lock
