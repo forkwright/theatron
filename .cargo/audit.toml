@@ -1,55 +1,45 @@
 # cargo-audit configuration.
 #
-# WHY: cargo-audit does not read deny.toml. This file mirrors the advisory
-# ignore list in deny.toml so both tools stay in sync. When adding or
-# removing an ignore here, update deny.toml's [[advisories.ignore]]
-# entries to match (and vice versa). See standards/CI.md § Vulnerability
-# scanning for policy.
+# WHY: This file is DERIVED from deny.toml [[advisories.ignore]].
+# Do not edit the ignore list here; edit deny.toml and run
+# `kanon audit derive-ignores --apply`. See standards/SUPPLY-CHAIN.md.
 
 [advisories]
 ignore = [
-    # time 0.3.45 RFC 2822 stack-exhaustion DoS. Transitive via
-    # tracing-appender 0.2.5 → bathron, ratatui-widgets 0.3.0 →
-    # ratatui/parodos, and mac-notification-sys 0.6.12 → notify-rust →
-    # bathron. None of these paths feed untrusted RFC 2822 input to
-    # time::format_description, so the DoS vector is unreachable in
-    # theatron. Fixed upstream in time 0.3.47; pending transitive bumps.
+    # time 0.3.45 RFC 2822 stack-exhaustion DoS. Transitive via tracing-appender 0.2.5 → bathron, ratatui-widgets 0.3.0 → ratatui/parodos, and mac-notification-sys 0.6.12 → notify-rust → bathron. None of these paths feed untrusted RFC 2822 input to time::format_description, so the DoS vector is unreachable in theatron. Fixed upstream in time 0.3.47; pending transitive bumps.
     "RUSTSEC-2026-0009",
-    # atk (gtk-rs GTK3 bindings) unmaintained. Transitive via gtk 0.18.2
-    # → muda/tray-icon (notify-rust). GTK3 ecosystem migration to gtk4
-    # is upstream-blocked on notify-rust/tray-icon.
+    # atk (gtk-rs GTK3 bindings) unmaintained. Transitive via gtk 0.18.2 → muda/tray-icon (notify-rust). GTK3 ecosystem migration to gtk4 is upstream-blocked on notify-rust/tray-icon.
     "RUSTSEC-2024-0413",
-    # atk-sys (gtk-rs GTK3 bindings) unmaintained. Same GTK3 chain as
-    # RUSTSEC-2024-0413.
+    # atk-sys (gtk-rs GTK3 bindings) unmaintained. Same GTK3 chain as RUSTSEC-2024-0413.
     "RUSTSEC-2024-0416",
-    # gdk (gtk-rs GTK3 bindings) unmaintained. Same GTK3 chain as
-    # RUSTSEC-2024-0413.
+    # gdk (gtk-rs GTK3 bindings) unmaintained. Same GTK3 chain as RUSTSEC-2024-0413.
     "RUSTSEC-2024-0412",
-    # gdk-sys (gtk-rs GTK3 bindings) unmaintained. Same GTK3 chain as
-    # RUSTSEC-2024-0413.
+    # gdk-sys (gtk-rs GTK3 bindings) unmaintained. Same GTK3 chain as RUSTSEC-2024-0413.
     "RUSTSEC-2024-0418",
-    # gtk (gtk-rs GTK3 bindings) unmaintained. Same GTK3 chain as
-    # RUSTSEC-2024-0413.
+    # gtk (gtk-rs GTK3 bindings) unmaintained. Same GTK3 chain as RUSTSEC-2024-0413.
     "RUSTSEC-2024-0415",
-    # gtk-sys (gtk-rs GTK3 bindings) unmaintained. Same GTK3 chain as
-    # RUSTSEC-2024-0413.
+    # gtk-sys (gtk-rs GTK3 bindings) unmaintained. Same GTK3 chain as RUSTSEC-2024-0413.
     "RUSTSEC-2024-0420",
-    # gtk3-macros (gtk-rs GTK3 bindings) unmaintained. Same GTK3 chain
-    # as RUSTSEC-2024-0413.
+    # gtk3-macros (gtk-rs GTK3 bindings) unmaintained. Same GTK3 chain as RUSTSEC-2024-0413.
     "RUSTSEC-2024-0419",
-    # paste unmaintained — transitive via ratatui/dioxus crate chains;
-    # no drop-in replacement adopted upstream.
+    # paste unmaintained — transitive via ratatui/dioxus crate chains; no drop-in replacement adopted upstream.
     "RUSTSEC-2024-0436",
-    # proc-macro-error unmaintained — transitive via gtk3-macros (GTK3
-    # chain). Resolves with GTK4 migration.
+    # proc-macro-error unmaintained — transitive via gtk3-macros (GTK3 chain). Resolves with GTK4 migration.
     "RUSTSEC-2024-0370",
-    # glib VariantStrIter unsoundness. Transitive via GTK3 chain (gtk
-    # 0.18.2 → muda/tray-icon → notify-rust). theatron does not call
-    # glib::VariantStrIter from any of its crates; vulnerability surface
-    # is unreachable. Resolves with GTK4 migration.
+    # glib VariantStrIter unsoundness. Transitive via GTK3 chain (gtk 0.18.2 → muda/tray-icon → notify-rust). theatron does not call glib::VariantStrIter from any of its crates; vulnerability surface is unreachable. Resolves with GTK4 migration.
     "RUSTSEC-2024-0429",
-    # bincode 1.x unmaintained — transitive via dioxus/blitz storage
-    # paths; bincode 2.x is a breaking-change rewrite and direct deps
-    # have not migrated.
+    # bincode 1.x unmaintained — transitive via dioxus/blitz storage paths; bincode 2.x is a breaking-change rewrite and direct deps have not migrated.
     "RUSTSEC-2025-0141",
+    # openssl 0.10.78 UB in X509Ref::ocsp_responders for non-UTF-8 OCSP URLs (CVE-2026-42327). Transitive via native-tls -> reqwest -> blitz-net -> dioxus-native -> mekhane. theatron does not call X509Ref::ocsp_responders; the vector requires parsing attacker-controlled X509 certificates with non-UTF-8 OCSP URLs. Fixed upstream in openssl 0.10.79; pending blitz-net/reqwest pin bump.
+    "GHSA-xp3w-r5p5-63rr",
+    # openssl 0.10.78 potential OOB write in CipherCtxRef::cipher_update_inplace for AES-KW-PAD ciphers (CVE-2026-45784). Transitive via native-tls -> reqwest -> blitz-net -> dioxus-native -> mekhane. theatron does not use AES key-wrap-with-padding ciphers. Fixed upstream in openssl 0.10.80; pending blitz-net/reqwest pin bump.
+    "GHSA-phqj-4mhp-q6mq",
+    # openssl 0.10.78 heap buffer overflow when encrypting with AES key-wrap-with-padding (CVE-2026-44662). Transitive via native-tls -> reqwest -> blitz-net -> dioxus-native -> mekhane. Same AES-KW-PAD chain as GHSA-phqj-4mhp-q6mq; theatron does not use these cipher modes. Fixed upstream in openssl 0.10.79; pending blitz-net/reqwest pin bump.
+    "GHSA-xv59-967r-8726",
+    # smallbitvec 2.6.0 integer overflow in safe API leading to heap buffer overflow (CVE-2026-44983). Transitive via stylo -> blitz-dom -> dioxus-native -> mekhane. theatron does not directly construct SmallBitVec values; the vector requires large attacker-controlled inputs to the CSS layout engine. No fixed version available; pending upstream stylo/blitz-dom migration.
+    "GHSA-97wc-2hqc-cjgr",
+    # quinn-proto 0.11.14 remote memory exhaustion from unbounded out-of-order stream reassembly (GHSA-4w2j-m93h-cj5j). Transitive via reqwest 0.13.3 -> blitz-net -> dioxus-native -> mekhane. theatron does not directly control QUIC stream reassembly; the vector requires an adversarial server sending pathological out-of-order stream data. Fixed upstream in quinn-proto 0.11.15; pending reqwest/blitz-net pin bump.
+    "RUSTSEC-2026-0185",
+    # memmap2 0.9.10 unchecked pointer offset unsoundness. Transitive via fontdb -> usvg -> anyrender_svg/blitz-dom -> dioxus-native -> mekhane. theatron does not directly construct memory maps; the vector requires theatron code to call memmap2 APIs with attacker-controlled offsets, which it does not. Fixed upstream in memmap2 0.9.11; pending fontdb/usvg transitive bump.
+    "RUSTSEC-2026-0186",
 ]
