@@ -35,10 +35,10 @@ jobs:
     # finding fails the job — suppressions require a deny.toml entry with
     # a WHY comment, not silent --ignore flags.
     name: cargo deny
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false # PROJECT: security hardening — never expose token to steps
       - name: Configure git credentials for private fleet deps
@@ -52,7 +52,7 @@ jobs:
           git config --global credential.helper store
           printf 'https://forkwright:%s@github.com\n' "${FLEET_REPO_TOKEN}" > ~/.git-credentials
           chmod 0600 ~/.git-credentials
-      - uses: EmbarkStudios/cargo-deny-action@6c8f9facfa5047ec02d8485b6bf52b587b7777d1 # v2.0.18
+      - uses: EmbarkStudios/cargo-deny-action@bb137d7af7e4fb67e5f82a49c4fce4fad40782fe # v2.0.20
         with:
           # WHY: run every check explicitly so a schema regression in one
           # section can't silently disable the others. cargo-deny expects
@@ -68,10 +68,10 @@ jobs:
     # path; running cargo-audit independently protects against bugs or
     # config drift disabling one of the two. See standards/CI.md.
     name: cargo audit
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
       - name: Configure git credentials for private fleet deps
@@ -85,12 +85,18 @@ jobs:
           git config --global credential.helper store
           printf 'https://forkwright:%s@github.com\n' "${FLEET_REPO_TOKEN}" > ~/.git-credentials
           chmod 0600 ~/.git-credentials
-      - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1.16.1
+      - uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
+        with:
+          # WHY: nightly required — theatron's dioxus-native/vello chain has
+          # lint regressions on stable 1.86; rust-toolchain.toml pins nightly.
+          toolchain: nightly
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with:
           key: cargo-audit
       - name: Install cargo-audit
-        run: cargo install cargo-audit --locked --version ^0.22
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
       - name: cargo audit
         # WHY: -D unmaintained,unsound,yanked escalates those categories
         # to errors (default is warning only). Suppressions go through
@@ -99,42 +105,11 @@ jobs:
         run: cargo audit --deny unmaintained --deny unsound --deny yanked
 
   osv-scanner:
-    name: osv-scanner
-    runs-on: self-hosted
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
-      - name: Ensure osv-scanner 2.3.8 is installed
-        # WHY: Runner provisioning should install osv-scanner, but if absent the
-        # job would exit 127 and train reviewers to ignore red osv checks.
-        # Self-install here so the infra gap doesn't silently disable scanning.
-        run: |
-          if command -v osv-scanner >/dev/null 2>&1 && \
-             osv-scanner --version 2>&1 | grep -q '^osv-scanner version: 2\.3\.8$'; then
-            echo "osv-scanner 2.3.8 already on PATH"
-          else
-            echo "osv-scanner 2.3.8 not on PATH — downloading from GitHub releases"
-            ARCH="$(uname -m)"
-            case "$ARCH" in
-              x86_64)  GOARCH="amd64" ;;
-              aarch64) GOARCH="arm64" ;;
-              *) echo "ERROR: unsupported architecture: $ARCH" >&2; exit 1 ;;
-            esac
-            curl -fsSL --retry 3 \
-              "https://github.com/google/osv-scanner/releases/download/v2.3.8/osv-scanner_linux_${GOARCH}" \
-              -o /tmp/osv-scanner-2.3.8
-            chmod +x /tmp/osv-scanner-2.3.8
-            /tmp/osv-scanner-2.3.8 --version 2>&1 | grep -q '^osv-scanner version: 2\.3\.8$' || {
-              echo "ERROR: downloaded binary version mismatch — aborting" >&2; exit 1
-            }
-            ln -sf /tmp/osv-scanner-2.3.8 /tmp/osv-scanner
-            echo "/tmp" >> "$GITHUB_PATH"
-          fi
-      - name: Verify OSV-Scanner version
-        run: |
-          osv-scanner --version
-          osv-scanner --version | grep -q '^osv-scanner version: 2\.3\.8$'
-      - name: osv scanner
-        run: osv-scanner scan source --config=osv-scanner.toml --lockfile=Cargo.lock
+    name: osv scanner
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@9a498708959aeaef5ef730655706c5a1df1edbc2
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    with:
+      scan-args: '--config=osv-scanner.toml --lockfile=Cargo.lock'
