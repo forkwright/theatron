@@ -34,6 +34,7 @@ pub struct SseStream<S> {
     current_id: Option<String>,
     current_retry: Option<u64>,
     has_data: bool,
+    skip_lf_after_cr: bool,
 }
 
 impl<S, E> SseStream<S>
@@ -52,7 +53,48 @@ where
             current_id: None,
             current_retry: None,
             has_data: false,
+            skip_lf_after_cr: false,
         }
+    }
+
+    fn next_line(&mut self) -> Option<String> {
+        if self.skip_lf_after_cr {
+            match self.buf.as_bytes().first().copied() {
+                Some(b'\n') => {
+                    self.buf.drain(..1);
+                    self.skip_lf_after_cr = false;
+                }
+                Some(_) => {
+                    self.skip_lf_after_cr = false;
+                }
+                None => return None,
+            }
+        }
+
+        let (pos, terminator, next) = {
+            let bytes = self.buf.as_bytes();
+            let pos = bytes
+                .iter()
+                .position(|&byte| matches!(byte, b'\r' | b'\n'))?;
+            let terminator = bytes.get(pos).copied()?;
+            let next = bytes.get(pos + 1).copied();
+            (pos, terminator, next)
+        };
+
+        let terminator_len = if terminator == b'\r' && next == Some(b'\n') {
+            2
+        } else {
+            if terminator == b'\r' && next.is_none() {
+                self.skip_lf_after_cr = true;
+            }
+            1
+        };
+
+        let mut remainder = self.buf.split_off(pos);
+        let line = std::mem::take(&mut self.buf);
+        remainder.drain(..terminator_len);
+        self.buf = remainder;
+        Some(line)
     }
 
     /// Process a single SSE line. Returns `Some(SseEvent)` on blank-line
@@ -170,16 +212,7 @@ where
 
         loop {
             // Process any complete lines already in the buffer.
-            while let Some(pos) = this.buf.find('\n') {
-                // SAFETY: `pos` from `find('\n')` is always a valid UTF-8 boundary,
-                // and '\r' is a single-byte ASCII char, so `pos - 1` is also safe when checked.
-                let line = if pos > 0 && this.buf.as_bytes().get(pos - 1).copied() == Some(b'\r') {
-                    this.buf.get(..pos - 1).unwrap_or_default().to_string()
-                } else {
-                    this.buf.get(..pos).unwrap_or_default().to_string()
-                };
-                this.buf.drain(..=pos);
-
+            while let Some(line) = this.next_line() {
                 if let Some(event) = this.process_line(&line) {
                     return Poll::Ready(Some(event));
                 }
@@ -376,6 +409,13 @@ mod tests {
     #[test]
     fn crlf_line_endings() {
         let events = collect_events(vec!["data: hello\r\n\r\n"]);
+        assert_eq!(events.len(), 1, "expected exactly one event");
+        assert_eq!(events[0].data, "hello");
+    }
+
+    #[test]
+    fn cr_line_endings() {
+        let events = collect_events(vec!["data: hello\r\r"]);
         assert_eq!(events.len(), 1, "expected exactly one event");
         assert_eq!(events[0].data, "hello");
     }
