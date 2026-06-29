@@ -82,9 +82,8 @@ pub struct LogConfig {
     /// via [`LogConfig::resolve_log_dir`].
     pub log_dir: Option<PathBuf>,
     /// Whether the file appender layer emits ANSI escape sequences.
-    /// Defaults to `true` (preserves the original [`init`] behaviour);
-    /// set to `false` for consumers that tail-grep the file or pipe
-    /// it into a journal that mis-renders SGR codes.
+    /// Defaults to `false` so rotated log files stay free of SGR
+    /// codes for tail/grep/journal pipelines.
     pub ansi_on_file: bool,
     /// Optional [`tracing_subscriber::EnvFilter`]-compatible directive
     /// string used as the env-filter fallback when `RUST_LOG` is
@@ -98,14 +97,14 @@ pub struct LogConfig {
 impl LogConfig {
     /// Construct a config for `app_name` at the given default level.
     /// `log_dir` is left as `None` (auto-resolved at init time);
-    /// `ansi_on_file` defaults to `true`; `filter_directive` to `None`.
+    /// `ansi_on_file` defaults to `false`; `filter_directive` to `None`.
     #[must_use]
     pub fn new(app_name: impl Into<String>, level: tracing::Level) -> Self {
         Self {
             app_name: app_name.into(),
             level,
             log_dir: None,
-            ansi_on_file: true,
+            ansi_on_file: false,
             filter_directive: None,
         }
     }
@@ -119,8 +118,8 @@ impl LogConfig {
 
     /// Set whether the file appender layer emits ANSI escape sequences.
     ///
-    /// Defaults to `true`. Set `false` to keep the rotated log files
-    /// free of SGR codes — useful when the log is consumed by
+    /// Defaults to `false` to keep the rotated log files free of SGR
+    /// codes — useful when the log is consumed by
     /// `tail -f`, `grep`, journal pipelines, or anything that
     /// mis-renders ANSI. The optional stderr layer is always
     /// rendered with the `tracing_subscriber::fmt::layer` defaults
@@ -352,9 +351,9 @@ mod tests {
     }
 
     #[test]
-    fn ansi_on_file_defaults_to_true() {
+    fn ansi_on_file_defaults_to_false() {
         let cfg = LogConfig::new("x", tracing::Level::INFO);
-        assert!(cfg.ansi_on_file);
+        assert!(!cfg.ansi_on_file);
     }
 
     #[test]
