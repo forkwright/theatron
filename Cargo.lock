@@ -7296,9 +7296,6 @@ name = "themelion"
 version = "1.3.0"
 dependencies = [
  "dioxus",
- "serde",
- "serde_json",
- "snafu",
 ]
 
 [[package]]
