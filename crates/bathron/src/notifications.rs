@@ -42,10 +42,9 @@ pub struct NotificationRequest<'a> {
     pub title: String,
     /// Notification body (the secondary text).
     pub body: String,
-    /// Optional icon. Bytes are interpreted as a path-or-name string by
-    /// `notify-rust`; for true raw image bytes the platform support
-    /// varies, so we treat this as an opaque blob the caller manages.
-    pub icon: Option<&'a [u8]>, // kanon:ignore RUST/indexing-slicing -- type annotation, not runtime indexing
+    /// Optional freedesktop icon name or UTF-8 path accepted by
+    /// `notify-rust`.
+    pub icon: Option<&'a str>,
 }
 
 impl<'a> NotificationRequest<'a> {
@@ -67,11 +66,9 @@ impl<'a> NotificationRequest<'a> {
         self
     }
 
-    /// Set the icon bytes (interpreted by the platform — typically a
-    /// path or a freedesktop icon name on Linux).
+    /// Set the icon name or path interpreted by the platform.
     #[must_use]
-    pub fn with_icon(mut self, icon: &'a [u8]) -> Self {
-        // kanon:ignore RUST/indexing-slicing -- type annotation, not runtime indexing
+    pub fn with_icon(mut self, icon: &'a str) -> Self {
         self.icon = Some(icon);
         self
     }
@@ -109,6 +106,12 @@ impl std::fmt::Debug for NotificationHandle {
 /// permissions denial, malformed payload).
 #[cfg(not(test))]
 pub fn send(req: NotificationRequest<'_>) -> Result<NotificationHandle, NotificationError> {
+    let n = build_notification(req);
+    let inner = n.show().context(SendSnafu)?;
+    Ok(NotificationHandle { inner })
+}
+
+fn build_notification(req: NotificationRequest<'_>) -> notify_rust::Notification {
     let NotificationRequest { title, body, icon } = req;
 
     let mut n = notify_rust::Notification::new();
@@ -116,17 +119,10 @@ pub fn send(req: NotificationRequest<'_>) -> Result<NotificationHandle, Notifica
     if !body.is_empty() {
         n.body(&body);
     }
-    if let Some(icon_bytes) = icon {
-        // notify-rust takes &str; if the caller passed UTF-8 bytes
-        // representing a path or freedesktop name, honor it. Otherwise
-        // skip silently — raw image bytes aren't part of the desktop
-        // notification protocol on most platforms.
-        if let Ok(icon_str) = std::str::from_utf8(icon_bytes) {
-            n.icon(icon_str);
-        }
+    if let Some(icon) = icon {
+        n.icon(icon);
     }
-    let inner = n.show().context(SendSnafu)?;
-    Ok(NotificationHandle { inner })
+    n
 }
 
 #[cfg(test)]
@@ -149,19 +145,26 @@ mod tests {
 
     #[test]
     fn request_builder_with_icon() {
-        let icon: &[u8] = b"firefox";
+        let icon = "firefox";
         let req = NotificationRequest::new("hi").with_icon(icon);
         assert_eq!(req.icon, Some(icon));
     }
 
     #[test]
     fn request_builder_chains() {
-        let icon: &[u8] = b"dialog-information";
+        let icon = "dialog-information";
         let req = NotificationRequest::new("title")
             .with_body("body")
             .with_icon(icon);
         assert_eq!(req.title, "title");
         assert_eq!(req.body, "body");
         assert_eq!(req.icon, Some(icon));
+    }
+
+    #[test]
+    fn send_builds_notification_with_icon_name() {
+        let req = NotificationRequest::new("title").with_icon("dialog-information");
+        let notification = build_notification(req);
+        assert_eq!(notification.icon, "dialog-information");
     }
 }
