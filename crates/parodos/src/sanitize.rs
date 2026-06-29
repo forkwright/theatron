@@ -7,11 +7,8 @@ use std::borrow::Cow;
 /// Strips all terminal escape sequences (CSI, OSC, DCS, APC, SOS, PM)
 /// and replaces dangerous C0/C1 control characters with safe alternatives.
 /// Returns `Cow::Borrowed` when the input requires no modification.
+// kanon:ignore RUST/pub-visibility -- public sanitizer API for terminal UI consumers.
 #[must_use]
-#[expect(
-    clippy::indexing_slicing,
-    reason = "all byte accesses are guarded by `i < len` or `i + 1 < len` checks in the enclosing while/if conditions"
-)]
 pub fn sanitize_for_display(s: &str) -> Cow<'_, str> {
     if !needs_sanitization(s) {
         return Cow::Borrowed(s);
@@ -27,11 +24,14 @@ pub fn sanitize_for_display(s: &str) -> Cow<'_, str> {
             s.is_char_boundary(i),
             "loop invariant: i must point at a UTF-8 char boundary"
         );
-        let b = bytes[i];
+        let Some(&b) = bytes.get(i) else {
+            break;
+        };
 
         // NOTE: 7-bit ESC introducer: 0x1B
-        if b == 0x1B && i + 1 < len {
-            let next = bytes[i + 1];
+        if b == 0x1B
+            && let Some(&next) = bytes.get(i + 1)
+        {
             match next {
                 // NOTE: CSI: ESC [
                 b'[' => {
@@ -523,8 +523,7 @@ mod tests {
     #[test]
     fn bare_esc_at_end() {
         let result = sanitize_for_display("text\x1b");
-        // The bare ESC at end without a follow-up byte is just skipped
-        assert!(!result.contains('\x1b'));
+        assert_eq!(result, "text\u{241B}");
     }
 
     #[test]

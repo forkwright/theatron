@@ -16,6 +16,10 @@ use ratatui::style::{Color, Modifier, Style};
 
 use crate::env::{Env, RealEnv};
 
+mod palette;
+
+pub use palette::{Borders, CodeColors, Colors, StatusColors, TextColors, ThinkingColors};
+
 /// Terminal color depth, detected at startup.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
@@ -63,12 +67,13 @@ impl ColorDepth {
 }
 
 /// Background brightness: drives palette selection.
+// kanon:ignore RUST/pub-visibility -- re-exported terminal theme mode API for fleet TUI config interop.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[non_exhaustive]
 #[expect(
     missing_docs,
     reason = "Dark/Light variant names are self-documenting; from_label and is_* methods carry the prose"
 )]
+#[non_exhaustive]
 pub enum ThemeMode {
     Dark,
     Light,
@@ -124,71 +129,6 @@ impl ThemeMode {
     pub const fn all() -> [Self; 2] {
         [Self::Dark, Self::Light]
     }
-}
-
-/// Background and accent colors.
-#[derive(Debug, Clone)]
-#[expect(missing_docs, reason = "palette field names are self-documenting")]
-pub struct Colors {
-    pub bg: Color,
-    pub surface: Color,
-    pub surface_bright: Color,
-    pub surface_dim: Color,
-    pub accent: Color,
-    pub accent_dim: Color,
-}
-
-/// Foreground text and role-speaker colors.
-#[derive(Debug, Clone)]
-#[expect(missing_docs, reason = "palette field names are self-documenting")]
-pub struct TextColors {
-    pub fg: Color,
-    pub fg_muted: Color,
-    pub fg_dim: Color,
-    pub user: Color,
-    pub assistant: Color,
-    pub system: Color,
-}
-
-/// Structural border and selection colors.
-#[derive(Debug, Clone)]
-#[expect(missing_docs, reason = "palette field names are self-documenting")]
-pub struct Borders {
-    pub normal: Color,
-    pub focused: Color,
-    pub separator: Color,
-    pub selected: Color,
-}
-
-/// Semantic feedback and animation-state colors.
-#[derive(Debug, Clone)]
-#[expect(missing_docs, reason = "palette field names are self-documenting")]
-pub struct StatusColors {
-    pub success: Color,
-    pub warning: Color,
-    pub error: Color,
-    pub info: Color,
-    pub spinner: Color,
-    pub idle: Color,
-    pub streaming: Color,
-    pub compacting: Color,
-}
-
-/// Code-block colors.
-#[derive(Debug, Clone)]
-#[expect(missing_docs, reason = "palette field names are self-documenting")]
-pub struct CodeColors {
-    pub fg: Color,
-    pub bg: Color,
-    pub lang: Color,
-}
-
-/// Thinking-block colors.
-#[derive(Debug, Clone)]
-#[expect(missing_docs, reason = "palette field names are self-documenting")]
-pub struct ThinkingColors {
-    pub fg: Color,
-    pub border: Color,
 }
 
 /// Semantic color palette for the entire TUI.

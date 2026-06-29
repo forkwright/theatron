@@ -216,7 +216,11 @@ fn spinner_frame_all_braille() {
 #[test]
 fn detect_returns_valid_depth() {
     let theme = Theme::detect();
-    let _ = theme.depth;
+    assert!(matches!(
+        theme.depth,
+        ColorDepth::TrueColor | ColorDepth::Color256 | ColorDepth::Basic
+    ));
+    assert!(ThemeMode::all().contains(&theme.mode));
 }
 
 #[test]
@@ -242,23 +246,28 @@ fn light_palettes_have_dark_text() {
             r < 100 && g < 100 && b < 100,
             "light theme fg should be dark: ({r}, {g}, {b})"
         );
+    } else {
+        panic!("truecolor light foreground should use RGB");
     }
 }
 
 #[test]
 fn theme_static_is_accessible() {
-    let _ = THEME.depth;
+    assert!(matches!(
+        THEME.depth,
+        ColorDepth::TrueColor | ColorDepth::Color256 | ColorDepth::Basic
+    ));
 }
 
 #[test]
 fn struct_of_structs_groups_are_populated() {
     let theme = Theme::truecolor();
-    let _ = theme.colors.accent;
-    let _ = theme.text.fg;
-    let _ = theme.borders.normal;
-    let _ = theme.status.success;
-    let _ = theme.code.fg;
-    let _ = theme.thinking.fg;
+    assert_eq!(theme.colors.accent, Color::Rgb(120, 180, 255));
+    assert_eq!(theme.text.fg, Color::Rgb(220, 220, 230));
+    assert_eq!(theme.borders.normal, Color::Rgb(60, 60, 75));
+    assert_eq!(theme.status.success, Color::Rgb(120, 220, 150));
+    assert_eq!(theme.code.fg, Color::Rgb(200, 200, 215));
+    assert_eq!(theme.thinking.fg, Color::Rgb(100, 100, 120));
 }
 
 #[test]
