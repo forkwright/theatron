@@ -158,9 +158,9 @@ where
     /// - `Ok(Some(Err(error)))` — the underlying byte stream failed.
     /// - `Ok(None)` — the underlying stream terminated cleanly.
     /// - `Err(`[`tokio::time::error::Elapsed`]`)` — the deadline fired
-    ///   before the next event arrived. The stream is unchanged and may
-    ///   be polled again (e.g. with a longer timeout, or as a normal
-    ///   `StreamExt::next` call).
+    ///   before the next event arrived. The stream's internal parse
+    ///   state remains consistent and may be polled again, but bytes
+    ///   may already have been consumed into the internal buffer.
     ///
     /// Useful for keep-alive / liveness detection on SSE feeds where a
     /// stalled stream is a real condition (server crashed mid-stream,
@@ -177,7 +177,10 @@ where
     /// Returns [`tokio::time::error::Elapsed`] if `deadline` expires
     /// before the underlying byte stream yields enough bytes to
     /// produce the next [`SseEvent`] (or to terminate). The error
-    /// carries no data; the stream is left in its prior state.
+    /// carries no data; the stream's internal parse state is
+    /// consistent and further polling is safe, but bytes may have
+    /// been consumed from the underlying source into the internal
+    /// buffer.
     pub async fn next_with_timeout(
         &mut self,
         deadline: std::time::Duration,
