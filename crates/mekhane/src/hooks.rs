@@ -59,6 +59,13 @@ type GlobalHotKeySender = tokio::sync::broadcast::Sender<global_hotkey::GlobalHo
 /// enter / leave event is dispatched. The handler closure is owned by
 /// the calling component; on unmount the underlying task is cancelled.
 ///
+/// # Handler lifetime
+///
+/// The handler closure is installed at component mount and is not
+/// updated on subsequent re-renders. Capture a `Signal<T>`
+/// (interior-mutable) rather than a computed local value to observe
+/// reactive state changes inside the handler.
+///
 /// # Panics
 ///
 /// Panics if [`crate::launch`] (or one of its variants) was not used
@@ -92,6 +99,13 @@ pub fn use_tray_icon_event_handler(mut handler: impl FnMut(&tray_icon::TrayIconE
 /// selected. The handler closure is owned by the calling component;
 /// on unmount the underlying task is cancelled.
 ///
+/// # Handler lifetime
+///
+/// The handler closure is installed at component mount and is not
+/// updated on subsequent re-renders. Capture a `Signal<T>`
+/// (interior-mutable) rather than a computed local value to observe
+/// reactive state changes inside the handler.
+///
 /// # Panics
 ///
 /// Panics if [`crate::launch`] (or one of its variants) was not used
@@ -122,6 +136,13 @@ pub fn use_tray_menu_event_handler(mut handler: impl FnMut(&tray_icon::menu::Men
 /// Register a handler that runs every time a top-of-window application
 /// menu item is selected. The handler closure is owned by the calling
 /// component; on unmount the underlying task is cancelled.
+///
+/// # Handler lifetime
+///
+/// The handler closure is installed at component mount and is not
+/// updated on subsequent re-renders. Capture a `Signal<T>`
+/// (interior-mutable) rather than a computed local value to observe
+/// reactive state changes inside the handler.
 ///
 /// # Panics
 ///
@@ -160,6 +181,13 @@ pub fn use_app_menu_event_handler(mut handler: impl FnMut(&muda::MenuEvent) + 's
 /// Consumers must first register hotkeys via
 /// [`global_hotkey::GlobalHotKeyManager::register`]; this hook only
 /// delivers the events.
+///
+/// # Handler lifetime
+///
+/// The handler closure is installed at component mount and is not
+/// updated on subsequent re-renders. Capture a `Signal<T>`
+/// (interior-mutable) rather than a computed local value to observe
+/// reactive state changes inside the handler.
 ///
 /// # Panics
 ///
