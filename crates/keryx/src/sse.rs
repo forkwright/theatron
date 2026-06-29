@@ -148,7 +148,9 @@ where
                 self.current_event = Some(value.to_string());
             }
             "id" => {
-                self.current_id = Some(value.to_string());
+                if !value.contains('\0') {
+                    self.current_id = Some(value.to_string());
+                }
             }
             "retry" => {
                 if let Ok(ms) = value.parse::<u64>() {
@@ -370,6 +372,13 @@ mod tests {
         let events = collect_events(vec!["id: 42\ndata: test\n\n"]);
         assert_eq!(events.len(), 1, "expected exactly one event");
         assert_eq!(events[0].id.as_deref(), Some("42"));
+    }
+
+    #[test]
+    fn id_field_containing_nul_ignored() {
+        let events = collect_events(vec!["id: abc\0def\ndata: test\n\n"]);
+        assert_eq!(events.len(), 1, "expected exactly one event");
+        assert!(events[0].id.is_none());
     }
 
     #[test]
