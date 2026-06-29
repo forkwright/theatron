@@ -32,9 +32,49 @@ pub use sse::{SseError, SseEvent, SseStream};
 
 #[cfg(test)]
 mod smoke_tests {
-    /// Smoke test: crate compiles and the test module runs.
-    #[test]
-    fn crate_smoke() {
-        assert_eq!(2 + 2, 4);
+    use std::net::SocketAddr;
+
+    use bytes::Bytes;
+    use futures_util::StreamExt;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
+
+    async fn one_shot(response_bytes: &'static [u8]) -> SocketAddr {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("local_addr");
+        tokio::spawn(async move {
+            let (mut stream, _peer) = listener.accept().await.expect("accept");
+            let mut buf = [0_u8; 1024];
+            let _ = stream.read(&mut buf).await;
+            let _ = stream.write_all(response_bytes).await;
+            let _ = stream.shutdown().await;
+        });
+        addr
+    }
+
+    #[tokio::test]
+    async fn public_modules_smoke() {
+        assert_eq!(crate::url::encode_path_segment("a/b"), "a%2Fb");
+        assert_eq!(
+            crate::url::join_base_path("http://example.test", "v1"),
+            "http://example.test/v1"
+        );
+
+        assert!(!crate::error::ApiError::Auth.is_retryable());
+
+        let stream = futures_util::stream::empty::<std::result::Result<Bytes, std::io::Error>>();
+        let mut sse = crate::sse::SseStream::new(stream);
+        assert!(sse.next().await.is_none());
+
+        let addr = one_shot(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n").await;
+        let response = reqwest::Client::new()
+            .get(format!("http://{addr}/"))
+            .send()
+            .await
+            .expect("send");
+        let response = crate::response::ensure_success(response, "smoke")
+            .await
+            .expect("204 succeeds");
+        assert_eq!(response.status(), reqwest::StatusCode::NO_CONTENT);
     }
 }
