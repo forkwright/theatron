@@ -19,6 +19,23 @@ pub struct SseEvent {
     pub retry: Option<u64>,
 }
 
+impl SseEvent {
+    /// Create an SSE event value from parsed protocol fields.
+    pub fn new(
+        event: impl Into<String>,
+        data: impl Into<String>,
+        id: Option<String>,
+        retry: Option<u64>,
+    ) -> Self {
+        Self {
+            event: event.into(),
+            data: data.into(),
+            id,
+            retry,
+        }
+    }
+}
+
 /// Errors produced while parsing an SSE stream.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
@@ -71,6 +88,7 @@ where
     E: std::fmt::Display,
 {
     /// Create a new SSE stream parser wrapping the given byte stream.
+    // kanon:ignore RUST/pub-visibility -- SseStream is the crate's re-exported cross-crate SSE parser entry point.
     pub fn new(stream: S) -> Self {
         Self {
             stream,
@@ -99,15 +117,14 @@ where
                 self.current_data.pop();
             }
 
-            let event = SseEvent {
-                event: self
-                    .current_event
+            let event = SseEvent::new(
+                self.current_event
                     .take()
                     .unwrap_or_else(|| "message".to_string()),
-                data: std::mem::take(&mut self.current_data),
-                id: self.current_id.take(),
-                retry: self.current_retry.take(),
-            };
+                std::mem::take(&mut self.current_data),
+                self.current_id.take(),
+                self.current_retry.take(),
+            );
             self.has_data = false;
             return Some(event);
         }
@@ -224,15 +241,14 @@ where
                     if this.current_data.ends_with('\n') {
                         this.current_data.pop();
                     }
-                    let event = SseEvent {
-                        event: this
-                            .current_event
+                    let event = SseEvent::new(
+                        this.current_event
                             .take()
                             .unwrap_or_else(|| "message".to_string()),
-                        data: std::mem::take(&mut this.current_data),
-                        id: this.current_id.take(),
-                        retry: this.current_retry.take(),
-                    };
+                        std::mem::take(&mut this.current_data),
+                        this.current_id.take(),
+                        this.current_retry.take(),
+                    );
                     this.has_data = false;
                     return Poll::Ready(Some(Ok(event)));
                 }

@@ -18,3 +18,8 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 snafu = { workspace = true }
 tokio = { workspace = true }
+
+[package.metadata.kanon]
+maturity = "production"
+since = "2026-05-02"
+exit-criteria = "maintain SemVer-stable public API and consumer gate coverage"
