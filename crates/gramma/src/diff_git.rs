@@ -9,6 +9,7 @@ use super::{DiffFile, parse_unified_diff};
 /// derived from `+++` / `---` headers when present, with the `diff --git`
 /// header used as a fallback for binary or metadata-only sections.
 #[must_use]
+// kanon:ignore RUST/pub-visibility -- documented public parser API.
 pub fn parse_git_diff(raw: &str) -> Vec<DiffFile> {
     git_diff_sections(raw)
         .into_iter()
@@ -111,16 +112,56 @@ fn normalize_diff_path(path: &str) -> Option<String> {
         return None;
     }
 
-    let path = path
+    let path = if let Some(quoted) = path
         .strip_prefix('"')
         .and_then(|path| path.strip_suffix('"'))
-        .unwrap_or(path);
+    {
+        decode_git_quoted(quoted)
+    } else {
+        path.to_string()
+    };
     let path = path
         .strip_prefix("a/")
         .or_else(|| path.strip_prefix("b/"))
-        .unwrap_or(path);
+        .unwrap_or(&path);
 
     Some(path.to_string())
+}
+
+fn decode_git_quoted(path: &str) -> String {
+    let mut out = Vec::with_capacity(path.len());
+    let mut bytes = path.as_bytes().iter().copied();
+
+    while let Some(byte) = bytes.next() {
+        if byte == b'\\' {
+            let mut lookahead = bytes.clone();
+            if let (Some(a), Some(b), Some(c)) =
+                (lookahead.next(), lookahead.next(), lookahead.next())
+                && let Some(value) = octal_escape_value(a, b, c)
+            {
+                out.push(value);
+                bytes = lookahead;
+                continue;
+            }
+        }
+
+        out.push(byte);
+    }
+
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+fn octal_escape_value(a: u8, b: u8, c: u8) -> Option<u8> {
+    if !(is_octal_digit(a) && is_octal_digit(b) && is_octal_digit(c)) {
+        return None;
+    }
+
+    let value = u16::from(a - b'0') * 64 + u16::from(b - b'0') * 8 + u16::from(c - b'0');
+    u8::try_from(value).ok()
+}
+
+const fn is_octal_digit(byte: u8) -> bool {
+    matches!(byte, b'0'..=b'7')
 }
 
 #[cfg(test)]
@@ -187,6 +228,29 @@ mod tests {
 
         assert_eq!(files.len(), 1);
         assert_eq!(files[0].path, "assets/site logo.png");
+        assert!(files[0].hunks.is_empty());
+    }
+
+    #[test]
+    fn parse_git_diff_decodes_octal_quoted_path_from_file_header() {
+        let raw = "diff --git \"a/src/caf\\303\\251.rs\" \"b/src/caf\\303\\251.rs\"\n--- \"a/src/caf\\303\\251.rs\"\n+++ \"b/src/caf\\303\\251.rs\"\n@@ -1 +1 @@\n-old\n+new\n";
+
+        let files = parse_git_diff(raw);
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "src/caf\u{e9}.rs");
+        assert_eq!(files[0].additions, 1);
+        assert_eq!(files[0].deletions, 1);
+    }
+
+    #[test]
+    fn parse_git_diff_decodes_octal_quoted_path_from_git_header() {
+        let raw = "diff --git \"a/src/caf\\303\\251.rs\" \"b/src/caf\\303\\251.rs\"\nindex 1111111..2222222 100644\nBinary files \"a/src/caf\\303\\251.rs\" and \"b/src/caf\\303\\251.rs\" differ\n";
+
+        let files = parse_git_diff(raw);
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "src/caf\u{e9}.rs");
         assert!(files[0].hunks.is_empty());
     }
 

@@ -364,6 +364,7 @@ impl DiffStats {
 
 /// Parse a unified diff string into a `DiffFile`.
 #[must_use]
+// kanon:ignore RUST/pub-visibility -- documented public parser API.
 pub fn parse_unified_diff(path: &str, raw: &str) -> DiffFile {
     let mut hunks = Vec::new();
     let mut additions: u32 = 0;
