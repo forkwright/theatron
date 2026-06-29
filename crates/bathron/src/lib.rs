@@ -37,8 +37,7 @@ pub mod settings;
 #[cfg(feature = "logging")]
 pub mod logging;
 
-/// Returns the bathron crate version. Filled in iteratively as the
-/// platform-services extraction progresses.
+/// Returns the crate version string from Cargo metadata.
 #[must_use]
 pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
