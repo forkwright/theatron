@@ -1,15 +1,13 @@
-//! θεμέλιον (themelion, foundation) — theme provider, window lifecycle,
-//! routing scaffolding, error boundary, settings persistence, logging
-//! setup for any Dioxus + Blitz fleet desktop app.
+//! θεμέλιον (themelion, foundation) — theme provider and OS preference detection for Dioxus + Blitz fleet desktop apps.
 //!
-//! Seed crate for the theatron repo. Consumers (chalkeion, proskenion,
-//! harmonia-desktop, akroasis-desktop) take dependencies on themelion
-//! for the application shell.
+//! Consumers (chalkeion, proskenion, harmonia-desktop, akroasis-desktop)
+//! take dependencies on themelion for shared theme state and desktop
+//! environment preference detection.
 //!
 //! See `~/dev/kanon/projects/chalkeion/{vision,STATE,ROADMAP}.md` for
 //! the broader plan.
 //!
-//! ## Modules seeded
+//! ## Modules
 //!
 //! - [`theme`] — `ThemeMode` enum (Dark/Light/System), `ThemeProvider`
 //!   component with `data-theme` attribute binding, OS preference
