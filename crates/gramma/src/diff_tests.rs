@@ -284,12 +284,19 @@ fn parse_unified_diff_returns_empty_diff_file_for_gibberish_input() {
 }
 
 #[test]
-fn parse_unified_diff_skips_interleaved_file_headers_inside_hunk_body() {
-    let raw = "@@ -1,3 +1,3 @@\n a\n--- a/old.rs\n b\n-c\n+d\n";
+fn parse_unified_diff_keeps_content_lines_that_start_like_file_headers() {
+    let raw =
+        "--- a/query.sql\n+++ b/query.sql\n@@ -1,2 +1,2 @@\n--- old comment\n+++ new concat\n";
     let diff = parse_unified_diff("file.rs", raw);
+    assert_eq!(diff.additions, 1);
+    assert_eq!(diff.deletions, 1);
+
     let lines = &diff.hunks[0].lines;
-    assert_eq!(lines.len(), 4);
-    assert!(!lines.iter().any(|l| l.content.contains("--- a/old.rs")));
+    assert_eq!(lines.len(), 2);
+    assert_eq!(lines[0].change_type, ChangeType::Remove);
+    assert_eq!(lines[0].content, "-- old comment");
+    assert_eq!(lines[1].change_type, ChangeType::Add);
+    assert_eq!(lines[1].content, "++ new concat");
 }
 
 #[test]

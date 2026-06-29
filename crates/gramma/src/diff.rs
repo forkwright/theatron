@@ -380,11 +380,12 @@ pub fn parse_unified_diff(path: &str, raw: &str) -> DiffFile {
             continue;
         }
 
-        // NOTE: Skip file-level headers (---, +++, diff, index).
-        if line.starts_with("---")
-            || line.starts_with("+++")
-            || line.starts_with("diff ")
-            || line.starts_with("index ")
+        // NOTE: Skip file-level headers before hunk content starts.
+        if current_hunk.is_none()
+            && (line.starts_with("--- ")
+                || line.starts_with("+++ ")
+                || line.starts_with("diff ")
+                || line.starts_with("index "))
         {
             continue;
         }
