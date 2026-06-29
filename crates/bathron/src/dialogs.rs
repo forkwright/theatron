@@ -16,6 +16,7 @@
 /// File-type filter for the native dialog (e.g.
 /// `FileFilter::new("Images", &["png", "jpg"])`).
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct FileFilter {
     /// Human-readable name shown in the dialog filter dropdown.
     pub name: String,

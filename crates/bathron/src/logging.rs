@@ -71,6 +71,7 @@ impl LoggingError {
 /// [`dirs::data_local_dir`] on macOS / Windows. Override by setting
 /// [`LogConfig::log_dir`].
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct LogConfig {
     /// App name — segments the log directory and prefixes log files.
     pub app_name: String,
