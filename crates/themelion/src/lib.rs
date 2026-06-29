@@ -29,9 +29,11 @@ pub fn version() -> &'static str {
 
 #[cfg(test)]
 mod smoke_tests {
-    /// Smoke test: crate compiles and the test module runs.
+    /// Smoke test: public version export is wired to package metadata.
     #[test]
-    fn crate_smoke() {
-        assert_eq!(2 + 2, 4);
+    fn version_is_semver_like() {
+        let v = super::version();
+        assert!(!v.is_empty());
+        assert!(v.contains('.'), "version {v:?} should be semver-like");
     }
 }
