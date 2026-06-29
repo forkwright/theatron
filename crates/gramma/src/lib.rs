@@ -1,15 +1,15 @@
-//! γράμμα (gramma, written character) — markdown + syntax highlighting + diff.
+//! γράμμα (gramma, written character) — syntax highlighting spans and structured diff parsing.
 //!
-//! pulldown-cmark + syntect for native rendering, plus structured
-//! unified-diff parsing. Sandbox-safe HTML output.
+//! Syntect-backed source highlighting plus unified-diff parsing. The crate
+//! returns Rust data structures for UI renderers.
 //!
 //! ## Modules
 //!
-//! - [`highlight`] — source-code syntax highlighting via syntect.
+//! - [`highlight`] — syntect-backed source-code highlighting.
 //!   Returns line-by-line styled spans (no Dioxus dependency). The
 //!   Dioxus component that renders these spans lives in
 //!   `skeue::CodeBlock`.
-//! - [`diff`] — unified-diff parsing and structured representation
+//! - [`diff`] — unified-diff parsing and structured diff state
 //!   ([`DiffFile`], [`DiffHunk`], [`DiffLine`], [`ChangeType`],
 //!   [`WordSpan`], [`DiffViewMode`], plus side-by-side alignment +
 //!   word-level diffing). Pure logic; the Dioxus components that render

@@ -1,6 +1,6 @@
 [package]
 name = "gramma"
-description = "γράμμα (written character) — markdown + syntax highlighting + diff state. pulldown-cmark + syntect; sandbox-safe HTML output."
+description = "γράμμα (written character) — syntect-backed syntax spans and structured diff parsing for UI renderers."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
