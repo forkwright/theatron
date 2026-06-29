@@ -647,7 +647,6 @@ dependencies = [
  "notify-rust",
  "rfd",
  "serde",
- "serde_json",
  "snafu",
  "tempfile",
  "toml 0.8.2",

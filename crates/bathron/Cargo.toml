@@ -23,7 +23,6 @@ logging = [
 
 [dependencies]
 serde = { workspace = true }
-serde_json = { workspace = true }
 snafu = { workspace = true }
 
 # Optional, gated behind cargo features.
