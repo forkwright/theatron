@@ -27,7 +27,7 @@ pub mod sse;
 pub mod url;
 
 pub use error::{ApiError, Result};
-pub use sse::{SseEvent, SseStream};
+pub use sse::{SseError, SseEvent, SseStream};
 
 #[cfg(test)]
 mod smoke_tests {

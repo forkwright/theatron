@@ -19,6 +19,35 @@ pub struct SseEvent {
     pub retry: Option<u64>,
 }
 
+/// Errors produced while parsing an SSE stream.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum SseError {
+    /// The underlying byte stream returned a transport error.
+    Transport {
+        /// Human-readable transport error message.
+        message: String,
+    },
+}
+
+impl SseError {
+    fn transport(error: impl std::fmt::Display) -> Self {
+        Self::Transport {
+            message: error.to_string(),
+        }
+    }
+}
+
+impl std::fmt::Display for SseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Transport { message } => write!(f, "SSE transport error: {message}"),
+        }
+    }
+}
+
+impl std::error::Error for SseError {}
+
 /// Transforms a byte stream into a stream of parsed SSE events.
 ///
 /// Handles the full SSE wire protocol: `data:`, `event:`, `id:`, `retry:`,
@@ -125,7 +154,8 @@ where
     ///
     /// Returns:
     ///
-    /// - `Ok(Some(event))` — got an event before the deadline.
+    /// - `Ok(Some(Ok(event)))` — got an event before the deadline.
+    /// - `Ok(Some(Err(error)))` — the underlying byte stream failed.
     /// - `Ok(None)` — the underlying stream terminated cleanly.
     /// - `Err(`[`tokio::time::error::Elapsed`]`)` — the deadline fired
     ///   before the next event arrived. The stream is unchanged and may
@@ -151,7 +181,7 @@ where
     pub async fn next_with_timeout(
         &mut self,
         deadline: std::time::Duration,
-    ) -> Result<Option<SseEvent>, tokio::time::error::Elapsed> {
+    ) -> Result<Option<Result<SseEvent, SseError>>, tokio::time::error::Elapsed> {
         use futures_util::StreamExt;
 
         tokio::time::timeout(deadline, self.next()).await
@@ -163,7 +193,7 @@ where
     S: Stream<Item = Result<Bytes, E>> + Unpin,
     E: std::fmt::Display,
 {
-    type Item = SseEvent;
+    type Item = Result<SseEvent, SseError>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.get_mut();
@@ -181,7 +211,7 @@ where
                 this.buf.drain(..=pos);
 
                 if let Some(event) = this.process_line(&line) {
-                    return Poll::Ready(Some(event));
+                    return Poll::Ready(Some(Ok(event)));
                 }
             }
 
@@ -201,7 +231,7 @@ where
                         retry: this.current_retry.take(),
                     };
                     this.has_data = false;
-                    return Poll::Ready(Some(event));
+                    return Poll::Ready(Some(Ok(event)));
                 }
                 return Poll::Ready(None);
             }
@@ -212,7 +242,17 @@ where
                     // replaced rather than causing a hard failure.
                     this.buf.push_str(&String::from_utf8_lossy(&bytes));
                 }
-                Poll::Ready(Some(Err(_)) | None) => {
+                Poll::Ready(Some(Err(error))) => {
+                    this.done = true;
+                    this.buf.clear();
+                    this.current_event = None;
+                    this.current_data.clear();
+                    this.current_id = None;
+                    this.current_retry = None;
+                    this.has_data = false;
+                    return Poll::Ready(Some(Err(SseError::transport(error))));
+                }
+                Poll::Ready(None) => {
                     this.done = true;
                 }
                 Poll::Pending => return Poll::Pending,
@@ -266,6 +306,42 @@ mod tests {
         }
     }
 
+    #[derive(Clone, Copy)]
+    enum FallibleStep {
+        Chunk(&'static str),
+        Error(&'static str),
+    }
+
+    struct FallibleChunkStream {
+        steps: Vec<FallibleStep>,
+        index: usize,
+    }
+
+    impl FallibleChunkStream {
+        fn new(steps: Vec<FallibleStep>) -> Self {
+            Self { steps, index: 0 }
+        }
+    }
+
+    impl Stream for FallibleChunkStream {
+        type Item = Result<Bytes, std::io::Error>;
+
+        fn poll_next(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+            let this = self.get_mut();
+            let Some(step) = this.steps.get(this.index).copied() else {
+                return Poll::Ready(None);
+            };
+            this.index += 1;
+
+            match step {
+                FallibleStep::Chunk(chunk) => Poll::Ready(Some(Ok(Bytes::from(chunk)))),
+                FallibleStep::Error(message) => {
+                    Poll::Ready(Some(Err(std::io::Error::other(message))))
+                }
+            }
+        }
+    }
+
     /// Collect all events from a chunk stream synchronously (all chunks are
     /// immediately available so no actual async scheduling is needed).
     fn collect_events(chunks: Vec<&str>) -> Vec<SseEvent> {
@@ -277,7 +353,10 @@ mod tests {
 
         loop {
             match Pin::new(&mut sse).poll_next(&mut cx) {
-                Poll::Ready(Some(event)) => events.push(event),
+                Poll::Ready(Some(Ok(event))) => events.push(event),
+                Poll::Ready(Some(Err(error))) => {
+                    panic!("unexpected transport error while collecting events: {error}");
+                }
                 Poll::Ready(None) => break,
                 Poll::Pending => panic!("unexpected Pending from synchronous stream"),
             }
@@ -409,6 +488,35 @@ mod tests {
         assert_eq!(events[0].data, "partial");
     }
 
+    #[test]
+    fn transport_error_yields_error_instead_of_clean_eof() {
+        let stream = FallibleChunkStream::new(vec![
+            FallibleStep::Chunk("data: delivered\n\n"),
+            FallibleStep::Chunk("data: partial\n"),
+            FallibleStep::Error("connection reset"),
+        ]);
+        let mut sse = SseStream::new(stream);
+        let waker = std::task::Waker::noop();
+        let mut cx = Context::from_waker(waker);
+
+        match Pin::new(&mut sse).poll_next(&mut cx) {
+            Poll::Ready(Some(Ok(event))) => assert_eq!(event.data, "delivered"),
+            other => panic!("expected first event before transport error, got {other:?}"),
+        }
+
+        match Pin::new(&mut sse).poll_next(&mut cx) {
+            Poll::Ready(Some(Err(SseError::Transport { message }))) => {
+                assert!(message.contains("connection reset"));
+            }
+            other => panic!("expected observed transport error, got {other:?}"),
+        }
+
+        assert!(
+            matches!(Pin::new(&mut sse).poll_next(&mut cx), Poll::Ready(None)),
+            "partial event must not flush after a transport error"
+        );
+    }
+
     /// Helper: byte stream that never emits (returns Pending forever).
     /// Used to verify `next_with_timeout` fires Elapsed when nothing
     /// arrives.
@@ -429,7 +537,10 @@ mod tests {
         let result = sse
             .next_with_timeout(std::time::Duration::from_millis(50))
             .await;
-        let event = result.expect("Ok within deadline").expect("Some event");
+        let event = result
+            .expect("Ok within deadline")
+            .expect("Some event")
+            .expect("parsed event");
         assert_eq!(event.data, "hello");
     }
 

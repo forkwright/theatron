@@ -134,8 +134,14 @@ async fn stub_sse_watch() -> Result<(), ApiError> {
         })?;
     let mut sse = SseStream::new(resp.bytes_stream());
     use futures_util::StreamExt;
-    while let Some(event) = sse.next().await {
-        tracing::info!("sse event: {} = {}", event.event, event.data);
+    while let Some(item) = sse.next().await {
+        match item {
+            Ok(event) => tracing::info!("sse event: {} = {}", event.event, event.data),
+            Err(error) => {
+                tracing::info!("sse stream failed: {error}");
+                break;
+            }
+        }
     }
     Ok(())
 }
