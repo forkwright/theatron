@@ -1,5 +1,28 @@
 use super::*;
 
+struct TestEnv {
+    vars: Vec<(&'static str, &'static str)>,
+}
+
+impl TestEnv {
+    fn new(vars: &[(&'static str, &'static str)]) -> Self {
+        Self {
+            vars: vars.to_vec(),
+        }
+    }
+}
+
+impl Env for TestEnv {
+    fn var(&self, name: &str) -> Option<String> {
+        for (key, value) in &self.vars {
+            if *key == name {
+                return Some((*value).to_owned());
+            }
+        }
+        None
+    }
+}
+
 #[test]
 fn truecolor_palette_has_correct_depth() {
     let theme = Theme::truecolor();
@@ -52,6 +75,75 @@ fn for_mode_dark_returns_dark() {
 fn for_mode_light_returns_light() {
     let theme = Theme::for_mode(Some(ThemeMode::Light));
     assert_eq!(theme.mode, ThemeMode::Light);
+}
+
+#[test]
+fn for_mode_with_env_auto_detects_mode_and_depth() {
+    let env = TestEnv::new(&[("COLORFGBG", "0;15"), ("COLORTERM", "truecolor")]);
+    let theme = Theme::for_mode_with_env(None, &env);
+
+    assert_eq!(theme.mode, ThemeMode::Light);
+    assert_eq!(theme.depth, ColorDepth::TrueColor);
+}
+
+#[test]
+fn for_mode_with_env_respects_explicit_mode() {
+    let env = TestEnv::new(&[("COLORFGBG", "0;15"), ("TERM", "xterm-256color")]);
+    let theme = Theme::for_mode_with_env(Some(ThemeMode::Dark), &env);
+
+    assert_eq!(theme.mode, ThemeMode::Dark);
+    assert_eq!(theme.depth, ColorDepth::Color256);
+}
+
+#[test]
+fn detect_background_uses_last_colorfgbg_component() {
+    let light = TestEnv::new(&[("COLORFGBG", "15;0;8")]);
+    let dark = TestEnv::new(&[("COLORFGBG", "15;8;0")]);
+
+    assert_eq!(detect_background(&light), ThemeMode::Light);
+    assert_eq!(detect_background(&dark), ThemeMode::Dark);
+}
+
+#[test]
+fn detect_background_defaults_dark_when_missing_or_invalid() {
+    let missing = TestEnv::new(&[]);
+    let invalid = TestEnv::new(&[("COLORFGBG", "15;not-a-color")]);
+
+    assert_eq!(detect_background(&missing), ThemeMode::Dark);
+    assert_eq!(detect_background(&invalid), ThemeMode::Dark);
+}
+
+#[test]
+fn detect_color_depth_detects_truecolor_env_vars() {
+    let truecolor = TestEnv::new(&[("COLORTERM", "truecolor")]);
+    let bit24 = TestEnv::new(&[("COLORTERM", "24bit")]);
+    let term_program = TestEnv::new(&[("TERM_PROGRAM", "WezTerm")]);
+
+    assert_eq!(detect_color_depth(&truecolor), ColorDepth::TrueColor);
+    assert_eq!(detect_color_depth(&bit24), ColorDepth::TrueColor);
+    assert_eq!(detect_color_depth(&term_program), ColorDepth::TrueColor);
+}
+
+#[test]
+fn detect_color_depth_requires_supported_vte_version() {
+    let supported = TestEnv::new(&[("VTE_VERSION", "3600")]);
+    let newer = TestEnv::new(&[("VTE_VERSION", "7000")]);
+    let old = TestEnv::new(&[("VTE_VERSION", "0001")]);
+    let invalid = TestEnv::new(&[("VTE_VERSION", "vte-3600")]);
+
+    assert_eq!(detect_color_depth(&supported), ColorDepth::TrueColor);
+    assert_eq!(detect_color_depth(&newer), ColorDepth::TrueColor);
+    assert_eq!(detect_color_depth(&old), ColorDepth::Basic);
+    assert_eq!(detect_color_depth(&invalid), ColorDepth::Basic);
+}
+
+#[test]
+fn detect_color_depth_detects_256_color_fallbacks() {
+    let term = TestEnv::new(&[("TERM", "xterm-256color")]);
+    let tmux = TestEnv::new(&[("TMUX", "/tmp/tmux-1000/default,123,0")]);
+
+    assert_eq!(detect_color_depth(&term), ColorDepth::Color256);
+    assert_eq!(detect_color_depth(&tmux), ColorDepth::Color256);
 }
 
 #[test]

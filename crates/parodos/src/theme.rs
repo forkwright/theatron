@@ -2,8 +2,8 @@
 //!
 //! Provides the [`Theme`] semantic palette plus per-depth ([`ColorDepth`])
 //! and per-mode ([`ThemeMode`]) palette constructors. The detection layer
-//! reads `COLORTERM`, `TERM`, and `COLORFGBG` via the [`Env`] trait so
-//! tests can supply deterministic environment values.
+//! reads terminal environment variables via the [`Env`] trait so tests
+//! can supply deterministic environment values.
 //!
 //! Palette field names ([`Colors::bg`], [`TextColors::fg_muted`],
 //! [`Borders::focused`], etc.) are self-documenting; enumerating them
@@ -233,9 +233,18 @@ impl Theme {
     }
 
     /// Create theme for a specific mode. `None` means auto-detect from the terminal.
+    #[must_use]
     pub fn for_mode(mode: Option<ThemeMode>) -> Self {
-        let resolved = mode.unwrap_or_else(detect_background);
-        let depth = detect_color_depth();
+        Self::for_mode_with_env(mode, &RealEnv)
+    }
+
+    /// Create theme for a specific mode using an injectable environment.
+    ///
+    /// `None` means auto-detect from the supplied terminal environment.
+    #[must_use]
+    pub fn for_mode_with_env(mode: Option<ThemeMode>, env: &impl Env) -> Self {
+        let resolved = mode.unwrap_or_else(|| detect_background(env));
+        let depth = detect_color_depth(env);
         match (resolved, depth) {
             (ThemeMode::Light, ColorDepth::TrueColor) => Self::truecolor_light(),
             (ThemeMode::Light, ColorDepth::Color256) => Self::color256_light(),
@@ -663,8 +672,8 @@ impl Theme {
 ///
 /// Format: `fg;bg` or `fg;X;bg` where values are ANSI color indices.
 /// Indices 0-6 are dark colors, 7+ are light. Defaults to dark when unset.
-fn detect_background() -> ThemeMode {
-    if let Some(val) = RealEnv.var("COLORFGBG") {
+fn detect_background(env: &impl Env) -> ThemeMode {
+    if let Some(val) = env.var("COLORFGBG") {
         // WHY: Some terminals emit three values (e.g., "15;0;0"). The background
         // is always the last component.
         if let Some(bg_str) = val.rsplit(';').next()
@@ -681,9 +690,7 @@ fn detect_background() -> ThemeMode {
 }
 
 /// Detect terminal color capability from environment variables.
-fn detect_color_depth() -> ColorDepth {
-    let env = RealEnv;
-
+fn detect_color_depth(env: &impl Env) -> ColorDepth {
     // WHY: COLORTERM is the most reliable indicator: check it before TERM.
     if let Some(ct) = env.var("COLORTERM") {
         match ct.as_str() {
@@ -701,8 +708,12 @@ fn detect_color_depth() -> ColorDepth {
         }
     }
 
-    // NOTE: GNOME Terminal sets COLORTERM=truecolor, but VTE_VERSION is a reliable backup.
-    if env.var("VTE_VERSION").is_some() {
+    // NOTE: VTE encodes 0.36.0 as 3600; older versions are not truecolor-capable.
+    if let Some(version) = env
+        .var("VTE_VERSION")
+        .and_then(|version| version.parse::<u32>().ok())
+        && version >= 3600
+    {
         return ColorDepth::TrueColor;
     }
 
