@@ -64,6 +64,9 @@ pub mod tray;
 #[cfg(feature = "global-hotkeys")]
 pub mod hotkey;
 
+#[cfg(feature = "menus")]
+pub mod menus;
+
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 pub use hooks::{use_tray_icon_event_handler, use_tray_menu_event_handler};
 

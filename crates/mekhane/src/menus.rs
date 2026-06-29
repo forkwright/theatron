@@ -3,8 +3,8 @@
 //! Re-exports the upstream [`muda`] crate so consumers don't need to
 //! pull it in separately, and provides the (consumer-side) install
 //! sites for `muda::Menu::init_for_*`. Mekhane itself does NOT install
-//! the menu onto the dioxus_native window — reaching the underlying
-//! `winit` window handle without forking dioxus_native is not
+//! the menu onto the `dioxus_native` window — reaching the underlying
+//! `winit` window handle without forking `dioxus_native` is not
 //! currently possible. Composition over fork.
 //!
 //! ## Wiring
