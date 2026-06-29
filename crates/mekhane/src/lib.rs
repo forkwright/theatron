@@ -80,7 +80,7 @@ pub use hooks::use_app_menu_event_handler;
     feature = "global-hotkeys",
     any(target_os = "windows", target_os = "linux", target_os = "macos")
 ))]
-pub use hooks::use_global_hotkey_event_handler;
+pub use hooks::{use_global_hotkey_event_handler, use_global_hotkey_manager};
 
 /// Launch a desktop app with the default config.
 ///

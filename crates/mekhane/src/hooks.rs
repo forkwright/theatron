@@ -77,6 +77,23 @@ async fn run_event_handler<T>(
     }
 }
 
+/// Return the global hotkey manager installed by [`crate::launch`].
+///
+/// Use this hook to register [`global_hotkey::hotkey::HotKey`] values
+/// before subscribing with [`crate::use_global_hotkey_event_handler`].
+///
+/// # Panics
+///
+/// Panics if [`crate::launch`] (or one of its variants) was not used
+/// to start the app — the manager will be missing from dioxus context.
+#[cfg(all(
+    feature = "global-hotkeys",
+    any(target_os = "windows", target_os = "linux", target_os = "macos")
+))]
+pub fn use_global_hotkey_manager() -> std::sync::Arc<global_hotkey::GlobalHotKeyManager> {
+    use_hook(consume_context::<std::sync::Arc<global_hotkey::GlobalHotKeyManager>>)
+}
+
 /// Register a handler that runs every time a tray-icon click / move /
 /// enter / leave event is dispatched. The handler closure is owned by
 /// the calling component; on unmount the underlying task is cancelled.
