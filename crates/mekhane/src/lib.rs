@@ -268,14 +268,16 @@ mod tests {
     /// update the docs in `hooks.rs` (Lagged-handling section) and the
     /// reasoning paragraph that mentions 64 events.
     #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
-    #[test]
-    fn broadcast_channel_capacity_is_64() {
-        let (tx, _rx) = tokio::sync::broadcast::channel::<tray_icon::TrayIconEvent>(64);
-        // capacity() returns the channel's buffered slots.
-        assert_eq!(tx.len(), 0, "fresh channel should be empty");
-        // The exact capacity isn't observable from Sender alone, but
-        // we can verify the channel was created without panic. The
-        // capacity number is the contract enumerated in launch().
+    #[tokio::test]
+    async fn broadcast_channel_capacity_is_64() {
+        assert_broadcast_capacity_is_64(tray_icon::TrayIconEvent::Click {
+            id: tray_icon::TrayIconId::new("test-tray"),
+            position: tray_icon::dpi::PhysicalPosition::new(0.0, 0.0),
+            rect: tray_icon::Rect::default(),
+            button: tray_icon::MouseButton::Left,
+            button_state: tray_icon::MouseButtonState::Up,
+        })
+        .await;
     }
 
     /// Verifies the app-menu broadcast channel has the same 64-event
@@ -284,10 +286,12 @@ mod tests {
         feature = "menus",
         any(target_os = "windows", target_os = "linux", target_os = "macos")
     ))]
-    #[test]
-    fn app_menu_broadcast_channel_capacity_is_64() {
-        let (tx, _rx) = tokio::sync::broadcast::channel::<muda::MenuEvent>(64);
-        assert_eq!(tx.len(), 0, "fresh channel should be empty");
+    #[tokio::test]
+    async fn app_menu_broadcast_channel_capacity_is_64() {
+        assert_broadcast_capacity_is_64(muda::MenuEvent {
+            id: muda::MenuId::new("test-menu"),
+        })
+        .await;
     }
 
     /// Verifies the global-hotkey broadcast channel has the same 64-event
@@ -296,9 +300,31 @@ mod tests {
         feature = "global-hotkeys",
         any(target_os = "windows", target_os = "linux", target_os = "macos")
     ))]
-    #[test]
-    fn global_hotkey_broadcast_channel_capacity_is_64() {
-        let (tx, _rx) = tokio::sync::broadcast::channel::<global_hotkey::GlobalHotKeyEvent>(64);
-        assert_eq!(tx.len(), 0, "fresh channel should be empty");
+    #[tokio::test]
+    async fn global_hotkey_broadcast_channel_capacity_is_64() {
+        assert_broadcast_capacity_is_64(global_hotkey::GlobalHotKeyEvent {
+            id: 1,
+            state: global_hotkey::HotKeyState::Pressed,
+        })
+        .await;
+    }
+
+    async fn assert_broadcast_capacity_is_64<T>(message: T)
+    where
+        T: Clone + std::fmt::Debug,
+    {
+        let (tx, mut rx) = tokio::sync::broadcast::channel(64);
+
+        for _ in 0..65 {
+            assert!(
+                tx.send(message.clone()).is_ok(),
+                "send should succeed while the test receiver is subscribed"
+            );
+        }
+
+        match rx.recv().await {
+            Err(tokio::sync::broadcast::error::RecvError::Lagged(1)) => {}
+            received => panic!("expected receiver to lag by one message, got {received:?}"),
+        }
     }
 }
