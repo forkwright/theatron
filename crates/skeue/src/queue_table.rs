@@ -17,10 +17,8 @@ use crate::activity_row::{ActivityRow, ActivityStatus, RowDensity};
 
 /// One column header definition for [`QueueTable`].
 ///
-/// Width is a CSS length (`"1fr"`, `"120px"`, `"min-content"`, etc.) —
-/// passed verbatim to a CSS grid template column. The component does
-/// not enforce a fixed column model so consumers can mix flexible and
-/// fixed-width columns.
+/// `QueueTable` renders headers in a flex row; each column supplies only the
+/// visible label text for one header cell.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QueueColumn {
     /// Column label. Empty string renders no text (icon-only column).
