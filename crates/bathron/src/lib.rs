@@ -18,8 +18,8 @@
 //!
 //! [`version`] is unconditional.
 //!
-//! See `~/dev/kanon/projects/chalkeion/{vision,STATE,ROADMAP}.md` for
-//! the broader plan.
+//! See the [theatron repository](https://forge.forkwright.com/forkwright/theatron)
+//! for the broader roadmap.
 //!
 //! [`mekhane`]: https://forge.forkwright.com/forkwright/theatron/src/branch/main/crates/mekhane
 
