@@ -23,6 +23,10 @@ pub fn sanitize_for_display(s: &str) -> Cow<'_, str> {
     let mut i = 0;
 
     while i < len {
+        debug_assert!(
+            s.is_char_boundary(i),
+            "loop invariant: i must point at a UTF-8 char boundary"
+        );
         let b = bytes[i];
 
         // NOTE: 7-bit ESC introducer: 0x1B
@@ -60,12 +64,6 @@ pub fn sanitize_for_display(s: &str) -> Cow<'_, str> {
                     continue;
                 }
             }
-        }
-
-        // NOTE: 8-bit C1 control characters (0x80--0x9F)
-        if (0x80..=0x9F).contains(&b) {
-            i += 1;
-            continue;
         }
 
         // NOTE: C0 control characters (0x00--0x1F)
