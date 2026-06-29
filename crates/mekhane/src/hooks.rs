@@ -90,6 +90,7 @@ async fn run_event_handler<T>(
     feature = "global-hotkeys",
     any(target_os = "windows", target_os = "linux", target_os = "macos")
 ))]
+// kanon:ignore RUST/pub-visibility -- re-exported crate API for desktop consumers.
 pub fn use_global_hotkey_manager() -> std::sync::Arc<global_hotkey::GlobalHotKeyManager> {
     use_hook(consume_context::<std::sync::Arc<global_hotkey::GlobalHotKeyManager>>)
 }

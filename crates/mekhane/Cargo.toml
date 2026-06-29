@@ -40,3 +40,8 @@ tray-icon = { workspace = true }
 muda = { workspace = true, optional = true }
 global-hotkey = { workspace = true, optional = true }
 image = { workspace = true, optional = true }
+
+[package.metadata.kanon]
+maturity = "production"
+since = "2026-05-02"
+exit-criteria = "major-version: v2.0 or explicit deprecation plan"
