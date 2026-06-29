@@ -17,9 +17,6 @@ path = "src/lib.rs"
 name = "dokimasia"
 path = "src/main.rs"
 
-[features]
-extra = []
-
 [dependencies]
 clap = { workspace = true }
 codespan-reporting = { workspace = true }
