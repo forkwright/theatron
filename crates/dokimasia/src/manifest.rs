@@ -11,6 +11,8 @@ use crate::css::build_line_index;
 use crate::diagnostic::Diagnostic;
 use crate::tokens::TokenRegistry;
 
+const PATCH_CRATES_IO_HEADER: &str = "[patch.crates-io]";
+
 /// Lint a Cargo manifest source string, returning a diagnostic if a
 /// `[patch.crates-io]` table is present.
 ///
@@ -51,15 +53,13 @@ pub(crate) fn lint_manifest(
             .copied()
             .unwrap_or(source.len());
         let line_str = &source[*line_start..line_end]; // kanon:ignore RUST/indexing-slicing -- line_start/line_end come from build_line_index(source), always in-bounds and at char boundaries (line_starts hold byte positions immediately after `\n`)
-        if line_str.trim() == "[patch.crates-io]" {
+        if is_patch_crates_io_header(line_str.trim()) {
             found_line = u32::try_from(line_idx).unwrap_or(0) + 1;
             // Find byte offset of the `[` character on this line.
             let bracket_rel = line_str.find('[').unwrap_or(0);
             found_offset = line_start + bracket_rel;
             found_col = u32::try_from(bracket_rel).unwrap_or(0) + 1;
-            found_len = line_str
-                .get(bracket_rel..)
-                .map_or(0, |header| header.trim_end().len());
+            found_len = PATCH_CRATES_IO_HEADER.len();
             break;
         }
     }
@@ -71,6 +71,13 @@ pub(crate) fn lint_manifest(
         found_offset,
         found_len,
     )]
+}
+
+fn is_patch_crates_io_header(trimmed_line: &str) -> bool {
+    trimmed_line == PATCH_CRATES_IO_HEADER
+        || trimmed_line
+            .strip_prefix(PATCH_CRATES_IO_HEADER)
+            .is_some_and(|rest| rest.trim_start().starts_with('#'))
 }
 
 #[cfg(test)]
@@ -138,6 +145,24 @@ version = "0.1.0"
 
         let mut writer = codespan_reporting::term::termcolor::NoColor::new(Vec::new());
         crate::render::render_human(&diags, &mut writer, |_| src.to_string()).expect("render");
+    }
+
+    #[test]
+    fn commented_patch_header_reports_header_position() {
+        let src = r#"[package]
+name = "foo"
+version = "0.1.0"
+
+  [patch.crates-io] # local experiment
+"#;
+        let diags = lint_manifest(&registry(), src, Path::new("Cargo.toml"));
+        assert_eq!(diags.len(), 1);
+
+        let header_offset = src.find(PATCH_CRATES_IO_HEADER).expect("header exists");
+        assert_eq!(diags[0].line, 5);
+        assert_eq!(diags[0].column, 3);
+        assert_eq!(diags[0].byte_offset, header_offset);
+        assert_eq!(diags[0].byte_len, PATCH_CRATES_IO_HEADER.len());
     }
 
     #[test]
