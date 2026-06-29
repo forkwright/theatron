@@ -95,7 +95,8 @@ struct Args {
     #[arg(long)]
     no_gitignore: bool,
 
-    /// Suppress the summary line at the end of output.
+    /// Suppress the summary line printed to stderr after human-readable
+    /// output (no effect with --format json).
     #[arg(long, short)]
     quiet: bool,
 }
