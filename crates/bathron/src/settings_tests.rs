@@ -119,6 +119,16 @@ fn get_returns_none_when_file_is_missing() {
 }
 
 #[test]
+fn get_returns_none_when_existing_file_is_deleted_before_read() {
+    let tmp = tempfile::tempdir().unwrap();
+    let s = Settings::open_at(tmp.path()).unwrap();
+    s.set("any_key", &"value").unwrap();
+    std::fs::remove_file(s.file()).unwrap();
+    let got: Option<String> = s.get("any_key").unwrap();
+    assert_eq!(got, None);
+}
+
+#[test]
 fn get_returns_none_when_file_is_empty() {
     let tmp = tempfile::tempdir().unwrap();
     let s = Settings::open_at(tmp.path()).unwrap();

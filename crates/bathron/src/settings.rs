@@ -186,12 +186,17 @@ impl Settings {
     }
 
     fn read_doc(&self) -> Result<toml::Table, SettingsError> {
-        if !self.file.exists() {
-            return Ok(toml::Table::new());
-        }
-        let text = std::fs::read_to_string(&self.file).context(ReadFileSnafu {
-            path: self.file.clone(),
-        })?;
+        let text = match std::fs::read_to_string(&self.file) {
+            Ok(text) => text,
+            Err(source) if source.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(toml::Table::new());
+            }
+            Err(source) => {
+                return Err(source).context(ReadFileSnafu {
+                    path: self.file.clone(),
+                });
+            }
+        };
         if text.trim().is_empty() {
             return Ok(toml::Table::new());
         }
