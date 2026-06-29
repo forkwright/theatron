@@ -106,6 +106,7 @@ pub fn DiffLineView(line: DiffLine, language: String) -> Element {
             }
             span {
                 style: "{INDICATOR_STYLE} color: {ind_color};",
+                aria_hidden: "true",
                 "{ind}"
             }
             div {
@@ -203,5 +204,27 @@ mod ssr_tests {
             "expected aria-hidden on gutter in {html}"
         );
         assert!(html.contains("main"), "expected content text in {html}");
+    }
+
+    #[test]
+    fn renders_aria_hidden_on_change_indicator() {
+        let line = DiffLine {
+            content: "fn main() {}".to_string(),
+            change_type: ChangeType::Add,
+            old_line_no: None,
+            new_line_no: Some(1),
+            word_spans: vec![],
+        };
+        let html = render_element(rsx! {
+            DiffLineView {
+                line,
+                language: "rust".to_string(),
+            }
+        });
+        let hidden_count = html.matches("aria-hidden=\"true\"").count();
+        assert_eq!(
+            hidden_count, 2,
+            "expected gutter and indicator to be aria-hidden in {html}"
+        );
     }
 }
