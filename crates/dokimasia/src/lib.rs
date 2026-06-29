@@ -15,6 +15,9 @@
 //!   string literal (including those nested inside `rsx!` and other macro
 //!   invocations), and extracts `var(--*)` patterns from each literal's
 //!   contents.
+//! - The manifest scanner checks every `Cargo.toml` for a `[patch.crates-io]`
+//!   table and reports it as an error per fleet doctrine (patches must live
+//!   in forkwright forks, not workspace overrides).
 //! - [`Diagnostic`] carries file/line/column/severity/code/message and can
 //!   be rendered as human-readable diagnostics (codespan-reporting) or JSON.
 
