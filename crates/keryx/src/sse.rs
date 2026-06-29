@@ -19,6 +19,22 @@ pub struct SseEvent {
     pub retry: Option<u64>,
 }
 
+impl SseEvent {
+    fn from_wire_fields(
+        event: Option<String>,
+        data: String,
+        id: Option<String>,
+        retry: Option<u64>,
+    ) -> Self {
+        Self {
+            event: event.unwrap_or_else(|| "message".to_string()),
+            data,
+            id,
+            retry,
+        }
+    }
+}
+
 /// Transforms a byte stream into a stream of parsed SSE events.
 ///
 /// Handles the full SSE wire protocol: `data:`, `event:`, `id:`, `retry:`,
@@ -43,6 +59,7 @@ where
     E: std::fmt::Display,
 {
     /// Create a new SSE stream parser wrapping the given byte stream.
+    // kanon:ignore RUST/pub-visibility -- public parser constructor consumed by downstream fleet clients
     pub fn new(stream: S) -> Self {
         Self {
             stream,
@@ -112,15 +129,12 @@ where
                 self.current_data.pop();
             }
 
-            let event = SseEvent {
-                event: self
-                    .current_event
-                    .take()
-                    .unwrap_or_else(|| "message".to_string()),
-                data: std::mem::take(&mut self.current_data),
-                id: self.current_id.take(),
-                retry: self.current_retry.take(),
-            };
+            let event = SseEvent::from_wire_fields(
+                self.current_event.take(),
+                std::mem::take(&mut self.current_data),
+                self.current_id.take(),
+                self.current_retry.take(),
+            );
             self.has_data = false;
             return Some(event);
         }
@@ -226,15 +240,12 @@ where
                     if this.current_data.ends_with('\n') {
                         this.current_data.pop();
                     }
-                    let event = SseEvent {
-                        event: this
-                            .current_event
-                            .take()
-                            .unwrap_or_else(|| "message".to_string()),
-                        data: std::mem::take(&mut this.current_data),
-                        id: this.current_id.take(),
-                        retry: this.current_retry.take(),
-                    };
+                    let event = SseEvent::from_wire_fields(
+                        this.current_event.take(),
+                        std::mem::take(&mut this.current_data),
+                        this.current_id.take(),
+                        this.current_retry.take(),
+                    );
                     this.has_data = false;
                     return Poll::Ready(Some(event));
                 }
