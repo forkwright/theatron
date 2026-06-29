@@ -77,6 +77,25 @@ fn diff_line_numbers_tracked_correctly() {
 }
 
 #[test]
+fn parse_unified_diff_saturates_line_counters_at_u32_max() {
+    let raw = format!(
+        "@@ -{max},3 +{max},3 @@\n context\n-old\n+new\n",
+        max = u32::MAX
+    );
+    let diff = parse_unified_diff("huge.rs", &raw);
+    let stats = diff.stats();
+    assert_eq!(stats.files_changed, 1);
+    assert_eq!(stats.additions, 1);
+    assert_eq!(stats.deletions, 1);
+
+    let lines = &diff.hunks[0].lines;
+    assert_eq!(lines[0].old_line_no, Some(u32::MAX));
+    assert_eq!(lines[0].new_line_no, Some(u32::MAX));
+    assert_eq!(lines[1].old_line_no, Some(u32::MAX));
+    assert_eq!(lines[2].new_line_no, Some(u32::MAX));
+}
+
+#[test]
 fn word_diff_detects_changed_segments() {
     let old_tokens = tokenize("let y = 2;");
     let new_tokens = tokenize("let y = 3;");

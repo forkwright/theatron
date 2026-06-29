@@ -391,10 +391,10 @@ pub fn parse_unified_diff(path: &str, raw: &str) -> DiffFile {
 
         if let Some(ref mut builder) = current_hunk {
             if let Some(stripped) = line.strip_prefix('+') {
-                additions += 1;
+                additions = additions.saturating_add(1);
                 builder.add_line(ChangeType::Add, stripped);
             } else if let Some(stripped) = line.strip_prefix('-') {
-                deletions += 1;
+                deletions = deletions.saturating_add(1);
                 builder.add_line(ChangeType::Remove, stripped);
             } else if let Some(stripped) = line.strip_prefix(' ') {
                 builder.add_line(ChangeType::Context, stripped);
@@ -557,18 +557,18 @@ impl HunkBuilder {
             ChangeType::Context => {
                 let old = self.old_line;
                 let new = self.new_line;
-                self.old_line += 1;
-                self.new_line += 1;
+                self.old_line = self.old_line.saturating_add(1);
+                self.new_line = self.new_line.saturating_add(1);
                 (Some(old), Some(new))
             }
             ChangeType::Add => {
                 let new = self.new_line;
-                self.new_line += 1;
+                self.new_line = self.new_line.saturating_add(1);
                 (None, Some(new))
             }
             ChangeType::Remove => {
                 let old = self.old_line;
-                self.old_line += 1;
+                self.old_line = self.old_line.saturating_add(1);
                 (Some(old), None)
             }
         };
