@@ -40,7 +40,7 @@ type TrayIconSender = tokio::sync::broadcast::Sender<tray_icon::TrayIconEvent>;
 type TrayMenuSender = tokio::sync::broadcast::Sender<tray_icon::menu::MenuEvent>;
 
 /// Type alias for the app-menu broadcast sender installed in
-/// [`crate::launch_cfg_with_props_and_menu`].
+/// [`crate::launch`] (or one of its variants).
 #[cfg(all(
     feature = "menus",
     any(target_os = "windows", target_os = "linux", target_os = "macos")
@@ -125,9 +125,9 @@ pub fn use_tray_menu_event_handler(mut handler: impl FnMut(&tray_icon::menu::Men
 ///
 /// # Panics
 ///
-/// Panics if [`crate::launch_cfg_with_props_and_menu`] was not used
-/// to start the app — the broadcast sender will be missing from
-/// dioxus context.
+/// Panics if [`crate::launch`] (or one of its variants) was not used
+/// to start the app — the app-menu broadcast sender will be missing
+/// from dioxus context.
 #[cfg(all(
     feature = "menus",
     any(target_os = "windows", target_os = "linux", target_os = "macos")
