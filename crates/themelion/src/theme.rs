@@ -283,7 +283,11 @@ impl ThemeMode {
 /// Checks `GTK_THEME` for a "dark" suffix and `COLORFGBG` for background
 /// brightness (same heuristic as the TUI). Falls back to dark.
 fn detect_system_preference() -> ResolvedTheme {
-    if let Ok(gtk_theme) = std::env::var("GTK_THEME") {
+    detect_system_preference_with(|key| std::env::var(key).ok())
+}
+
+fn detect_system_preference_with(env_var: impl Fn(&str) -> Option<String>) -> ResolvedTheme {
+    if let Some(gtk_theme) = env_var("GTK_THEME") {
         return if gtk_theme.to_ascii_lowercase().contains("dark") {
             ResolvedTheme::Dark
         } else {
@@ -294,7 +298,7 @@ fn detect_system_preference() -> ResolvedTheme {
     // WHY: COLORFGBG format is "fg;bg" or "fg;X;bg". Background is always
     // the last component. Indices 0-6 are dark, 7+ are light. Matches the
     // TUI detection logic in koilon/src/theme.rs.
-    if let Ok(val) = std::env::var("COLORFGBG")
+    if let Some(val) = env_var("COLORFGBG")
         && let Some(bg_str) = val.rsplit(';').next()
         && let Ok(bg) = bg_str.parse::<u8>()
     {
@@ -414,10 +418,45 @@ mod tests {
         }
     }
 
+    fn detect_with(vars: &[(&str, &str)]) -> ResolvedTheme {
+        detect_system_preference_with(|key| {
+            vars.iter()
+                .find_map(|(name, value)| (*name == key).then(|| (*value).to_owned()))
+        })
+    }
+
     #[test]
-    fn system_resolve_returns_valid_theme() {
-        let resolved = ThemeMode::System.resolve();
-        assert!(resolved == ResolvedTheme::Dark || resolved == ResolvedTheme::Light);
+    fn system_preference_uses_gtk_dark_variant() {
+        assert_eq!(
+            detect_with(&[("GTK_THEME", "Adwaita:dark")]),
+            ResolvedTheme::Dark
+        );
+    }
+
+    #[test]
+    fn system_preference_uses_gtk_light_default() {
+        assert_eq!(
+            detect_with(&[("GTK_THEME", "Adwaita")]),
+            ResolvedTheme::Light
+        );
+    }
+
+    #[test]
+    fn system_preference_uses_dark_colorfgbg_background() {
+        assert_eq!(detect_with(&[("COLORFGBG", "15;0")]), ResolvedTheme::Dark);
+    }
+
+    #[test]
+    fn system_preference_uses_light_colorfgbg_background() {
+        assert_eq!(
+            detect_with(&[("COLORFGBG", "15;0;12")]),
+            ResolvedTheme::Light
+        );
+    }
+
+    #[test]
+    fn system_preference_falls_back_to_dark() {
+        assert_eq!(detect_with(&[]), ResolvedTheme::Dark);
     }
 
     #[test]
