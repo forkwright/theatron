@@ -11,3 +11,8 @@ authors.workspace = true
 
 [dependencies]
 dioxus = { workspace = true }
+
+[package.metadata.kanon]
+maturity = "production"
+since = "2026-05-02"
+exit-criteria = "v2.0 policy revision or deprecation issue changes the public API maturity contract"

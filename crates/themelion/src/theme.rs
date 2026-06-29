@@ -514,16 +514,16 @@ mod tests {
     }
 
     #[test]
-    fn resolved_theme_eq_and_copy_are_derived() {
-        // Compile-time check: ResolvedTheme is Copy + Eq (the
-        // derive in the source must hold). Used by chalkeion /
-        // proskenion view code to copy across closure boundaries.
-        fn assert_copy<T: Copy>() {}
-        fn assert_eq_trait<T: Eq>() {}
-        assert_copy::<ResolvedTheme>();
-        assert_copy::<ThemeMode>();
-        assert_eq_trait::<ResolvedTheme>();
-        assert_eq_trait::<ThemeMode>();
+    fn theme_types_copy_without_changing_equality() {
+        fn duplicate<T: Copy + Eq>(value: T) -> (T, T) {
+            (value, value)
+        }
+
+        let (resolved, copied_resolved) = duplicate(ResolvedTheme::Dark);
+        let (mode, copied_mode) = duplicate(ThemeMode::System);
+
+        assert_eq!(resolved, copied_resolved);
+        assert_eq!(mode, copied_mode);
     }
 
     #[test]
@@ -580,11 +580,13 @@ mod tests {
         // If a fourth variant is ever added, this loop forces a
         // compile-time consideration of whether it should appear in
         // all() — the match is exhaustive.
-        for mode in ThemeMode::all() {
-            match mode {
-                ThemeMode::Dark | ThemeMode::Light | ThemeMode::System => (),
-            }
-        }
+        let labels = ThemeMode::all().map(|mode| match mode {
+            ThemeMode::Dark => "dark",
+            ThemeMode::Light => "light",
+            ThemeMode::System => "system",
+        });
+
+        assert_eq!(labels, ["dark", "light", "system"]);
     }
 
     #[test]
