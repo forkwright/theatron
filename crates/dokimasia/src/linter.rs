@@ -205,6 +205,50 @@ mod tests {
         assert_eq!(diags.len(), 1);
     }
 
+    #[test]
+    fn lint_path_routes_cargo_toml_patch_blocks() {
+        let dir = tempdir();
+        std::fs::write(
+            dir.join("Cargo.toml"),
+            r#"
+[package]
+name = "foo"
+version = "0.1.0"
+
+[patch.crates-io]
+serde = { git = "https://forge.forkwright.com/forkwright/serde" }
+"#,
+        )
+        .unwrap();
+
+        let linter = Linter::new(registry());
+        let diags = linter.lint_path(&dir);
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].severity, crate::diagnostic::Severity::Error);
+        assert_eq!(diags[0].code, "forbidden-patch-block");
+    }
+
+    #[test]
+    fn lint_path_accepts_cargo_toml_without_patch_blocks() {
+        let dir = tempdir();
+        std::fs::write(
+            dir.join("Cargo.toml"),
+            r#"
+[package]
+name = "foo"
+version = "0.1.0"
+
+[dependencies]
+serde = "1"
+"#,
+        )
+        .unwrap();
+
+        let linter = Linter::new(registry());
+        let diags = linter.lint_path(&dir);
+        assert!(diags.is_empty(), "expected no diagnostics, got: {diags:?}");
+    }
+
     // ---- Graceful per-file errors (caught by QA swarm A03 H-01, M-13) ---
 
     #[test]
