@@ -17,7 +17,10 @@
 //! [`dirs`]: https://docs.rs/dirs
 //! [`persist`]: tempfile::NamedTempFile::persist
 
-use std::path::{Path, PathBuf};
+use std::{
+    ffi::{OsStr, OsString},
+    path::{Path, PathBuf},
+};
 
 use serde::{Serialize, de::DeserializeOwned};
 use snafu::{OptionExt, ResultExt, Snafu};
@@ -134,14 +137,19 @@ impl SettingsError {
     }
 }
 
-/// Operator-tier KV store. One instance per app; cheap to clone the
-/// underlying path if needed (each [`get`]/[`set`] re-reads the file).
+/// Operator-tier KV store. One instance per app; cloned handles and
+/// separate handles for the same path coordinate writes through a
+/// per-file advisory lock.
 ///
 /// [`get`]: Settings::get
 /// [`set`]: Settings::set
 #[derive(Debug, Clone)]
 pub struct Settings {
     file: PathBuf,
+}
+
+struct WriteLock {
+    _file: std::fs::File,
 }
 
 impl Settings {
@@ -183,6 +191,33 @@ impl Settings {
     #[must_use]
     pub fn file(&self) -> &Path {
         &self.file
+    }
+
+    fn lock_file_path(&self) -> PathBuf {
+        let parent = self.file.parent().unwrap_or_else(|| Path::new("."));
+        let mut file_name = OsString::from(".");
+        file_name.push(
+            self.file
+                .file_name()
+                .unwrap_or_else(|| OsStr::new("settings.toml")),
+        );
+        file_name.push(".lock");
+        parent.join(file_name)
+    }
+
+    fn acquire_write_lock(&self) -> Result<WriteLock, SettingsError> {
+        let lock_path = self.lock_file_path();
+        let file = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(&lock_path)
+            .context(WriteFileSnafu {
+                path: lock_path.clone(),
+            })?;
+        lock_file_exclusive(&file).context(WriteFileSnafu { path: lock_path })?;
+        Ok(WriteLock { _file: file })
     }
 
     fn read_doc(&self) -> Result<toml::Table, SettingsError> {
@@ -294,6 +329,7 @@ impl Settings {
     /// [`SettingsError::ReadFile`], [`SettingsError::WriteFile`],
     /// [`SettingsError::PersistFile`], [`SettingsError::SerializeToml`].
     pub fn set<T: Serialize>(&self, key: &str, value: &T) -> Result<(), SettingsError> {
+        let _lock = self.acquire_write_lock()?;
         let mut doc = self.read_doc()?;
         let serialized = toml::Value::try_from(value).context(SerializeTomlSnafu)?;
         doc.insert(key.to_string(), serialized);
@@ -322,6 +358,7 @@ impl Settings {
     /// [`SettingsError::WriteFile`], [`SettingsError::PersistFile`],
     /// [`SettingsError::SerializeToml`].
     pub fn remove(&self, key: &str) -> Result<bool, SettingsError> {
+        let _lock = self.acquire_write_lock()?;
         let mut doc = self.read_doc()?;
         if doc.remove(key).is_none() {
             return Ok(false);
@@ -334,3 +371,90 @@ impl Settings {
 #[cfg(test)]
 #[path = "settings_tests.rs"]
 mod tests;
+
+#[cfg(unix)]
+fn lock_file_exclusive(file: &std::fs::File) -> std::io::Result<()> {
+    use std::os::{fd::AsRawFd, raw::c_int};
+
+    const LOCK_EX: c_int = 2;
+
+    unsafe extern "C" {
+        fn flock(fd: c_int, operation: c_int) -> c_int;
+    }
+
+    loop {
+        // SAFETY: `file.as_raw_fd()` is a valid open file descriptor for the
+        // duration of this call, and `LOCK_EX` is the documented flock
+        // operation for a blocking exclusive advisory lock.
+        if unsafe { flock(file.as_raw_fd(), LOCK_EX) } == 0 {
+            return Ok(());
+        }
+        let source = std::io::Error::last_os_error();
+        if source.kind() != std::io::ErrorKind::Interrupted {
+            return Err(source);
+        }
+    }
+}
+
+#[cfg(windows)]
+fn lock_file_exclusive(file: &std::fs::File) -> std::io::Result<()> {
+    use std::{ffi::c_void, os::windows::io::AsRawHandle};
+
+    type Bool = i32;
+    type Dword = u32;
+    type Handle = *mut c_void;
+
+    const LOCKFILE_EXCLUSIVE_LOCK: Dword = 0x0000_0002;
+
+    #[repr(C)]
+    struct Overlapped {
+        internal: usize,
+        internal_high: usize,
+        offset: Dword,
+        offset_high: Dword,
+        h_event: Handle,
+    }
+
+    unsafe extern "system" {
+        fn LockFileEx(
+            h_file: Handle,
+            dw_flags: Dword,
+            dw_reserved: Dword,
+            n_number_of_bytes_to_lock_low: Dword,
+            n_number_of_bytes_to_lock_high: Dword,
+            lp_overlapped: *mut Overlapped,
+        ) -> Bool;
+    }
+
+    let mut overlapped = Overlapped {
+        internal: 0,
+        internal_high: 0,
+        offset: 0,
+        offset_high: 0,
+        h_event: std::ptr::null_mut(),
+    };
+    // SAFETY: `file.as_raw_handle()` is valid while `file` is open, the
+    // OVERLAPPED value points to initialized stack storage for the duration of
+    // the blocking call, and the lock range covers the whole lock file.
+    let ok = unsafe {
+        LockFileEx(
+            file.as_raw_handle().cast::<c_void>(),
+            LOCKFILE_EXCLUSIVE_LOCK,
+            0,
+            Dword::MAX,
+            Dword::MAX,
+            &mut overlapped,
+        )
+    };
+    if ok == 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    Ok(())
+}
+
+#[cfg(not(any(unix, windows)))]
+fn lock_file_exclusive(_file: &std::fs::File) -> std::io::Result<()> {
+    Err(std::io::Error::other(
+        "settings write locks are unsupported on this platform",
+    ))
+}
