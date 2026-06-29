@@ -1,0 +1,81 @@
+# Derived via `kanon derive --apply --only audit-pipeline-plan`;
+# edit `crates/skopos/src/pipeline.rs` to change role→lens mappings,
+# or re-derive after adding or removing workspace crates.
+# Units are ordered by suggested execution sequence (seq ascending).
+
+[[unit]]
+name = "bathron"
+role = "cli"
+src_prefix = "crates/bathron/src"
+lenses = ["correctness", "doc-substance"]
+seq = 8
+
+[[unit]]
+name = "dokimasia"
+role = "cli"
+src_prefix = "crates/dokimasia/src"
+lenses = ["correctness", "doc-substance"]
+seq = 8
+
+[[unit]]
+name = "gramma"
+role = "cli"
+src_prefix = "crates/gramma/src"
+lenses = ["correctness", "doc-substance"]
+seq = 8
+
+[[unit]]
+name = "keryx"
+role = "cli"
+src_prefix = "crates/keryx/src"
+lenses = ["correctness", "doc-substance"]
+seq = 8
+
+[[unit]]
+name = "mekhane"
+role = "cli"
+src_prefix = "crates/mekhane/src"
+lenses = ["correctness", "doc-substance"]
+seq = 8
+
+[[unit]]
+name = "parodos"
+role = "cli"
+src_prefix = "crates/parodos/src"
+lenses = ["correctness", "doc-substance"]
+seq = 8
+
+[[unit]]
+name = "skeue"
+role = "cli"
+src_prefix = "crates/skeue/src"
+lenses = ["correctness", "doc-substance"]
+seq = 8
+
+[[unit]]
+name = "theatron-example-full-app"
+role = "cli"
+src_prefix = "examples/full_app/src"
+lenses = ["correctness", "doc-substance"]
+seq = 8
+
+[[unit]]
+name = "theatron-example-minimal"
+role = "cli"
+src_prefix = "examples/minimal/src"
+lenses = ["correctness", "doc-substance"]
+seq = 8
+
+[[unit]]
+name = "theatron-example-tray-smoke"
+role = "cli"
+src_prefix = "examples/tray_smoke/src"
+lenses = ["correctness", "doc-substance"]
+seq = 8
+
+[[unit]]
+name = "themelion"
+role = "cli"
+src_prefix = "crates/themelion/src"
+lenses = ["correctness", "doc-substance"]
+seq = 8
