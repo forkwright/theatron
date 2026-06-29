@@ -214,16 +214,21 @@ impl LitVisitor<'_> {
     }
 }
 
-/// Map a proc-macro2 `LineColumn` (1-indexed line, 0-indexed column) to a
-/// byte offset using the source's line index.
+/// Map a proc-macro2 `LineColumn` (1-indexed line, 0-indexed character
+/// column) to a byte offset using the source's line index.
 fn lc_to_offset(source: &str, line_starts: &[usize], lc: LineColumn) -> Option<usize> {
     let line_idx = lc.line.checked_sub(1)?;
     let line_start = *line_starts.get(line_idx)?;
-    let offset = line_start.checked_add(lc.column)?;
-    if offset > source.len() {
-        return None;
-    }
-    Some(offset)
+    let line_end = line_starts
+        .get(line_idx + 1)
+        .copied()
+        .unwrap_or(source.len());
+    let line = source.get(line_start..line_end)?;
+    let line_offset = line
+        .char_indices()
+        .nth(lc.column)
+        .map_or(line.len(), |(byte_offset, _)| byte_offset);
+    line_start.checked_add(line_offset)
 }
 
 #[cfg(test)]
@@ -277,6 +282,22 @@ fn render() {
         let src = "const S: &str = r\"var(--bad);\";\n";
         let diags = lint_rust(&registry(), src, Path::new("a.rs"));
         assert_eq!(diags.len(), 1);
+    }
+
+    #[test]
+    fn utf8_before_literal_uses_char_boundary_byte_span() {
+        let src = "const NOTE: &str = \"\\u{1f4a5}\"; const S: &str = \"color: var(--bad);\";\n";
+        let diags = lint_rust(&registry(), src, Path::new("a.rs"));
+        assert_eq!(diags.len(), 1, "expected 1 diagnostic, got: {diags:?}");
+
+        let diag = &diags[0];
+        let span_end = diag.byte_offset + diag.byte_len;
+        assert!(src.is_char_boundary(diag.byte_offset));
+        assert!(src.is_char_boundary(span_end));
+        assert_eq!(&src[diag.byte_offset..span_end], "\"color: var(--bad);\"");
+
+        let mut writer = codespan_reporting::term::termcolor::NoColor::new(Vec::new());
+        crate::render::render_human(&diags, &mut writer, |_| src.to_string()).expect("render");
     }
 
     #[test]
