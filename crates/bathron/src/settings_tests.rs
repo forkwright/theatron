@@ -76,6 +76,40 @@ fn multiple_keys_coexist() {
 }
 
 #[test]
+fn concurrent_writes_from_shared_path_keep_all_keys() {
+    let tmp = tempfile::tempdir().unwrap();
+    let writer_a = Settings::open_at(tmp.path()).unwrap();
+    let writer_b = Settings::open_at(tmp.path()).unwrap();
+    let reader = Settings::open_at(tmp.path()).unwrap();
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+    let iterations = 64_i64;
+
+    let barrier_a = std::sync::Arc::clone(&barrier);
+    let thread_a = std::thread::spawn(move || {
+        barrier_a.wait();
+        for i in 0..iterations {
+            writer_a.set(&format!("a_{i}"), &i).unwrap();
+        }
+    });
+
+    let barrier_b = std::sync::Arc::clone(&barrier);
+    let thread_b = std::thread::spawn(move || {
+        barrier_b.wait();
+        for i in 0..iterations {
+            writer_b.set(&format!("b_{i}"), &i).unwrap();
+        }
+    });
+
+    thread_a.join().unwrap();
+    thread_b.join().unwrap();
+
+    for i in 0..iterations {
+        assert_eq!(reader.get::<i64>(&format!("a_{i}")).unwrap(), Some(i));
+        assert_eq!(reader.get::<i64>(&format!("b_{i}")).unwrap(), Some(i));
+    }
+}
+
+#[test]
 fn atomic_write_no_partial_file() {
     // After a successful set(), the file must contain a fully-
     // parseable TOML document — never a half-written truncate.
