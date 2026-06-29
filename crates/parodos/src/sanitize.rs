@@ -128,17 +128,11 @@ pub fn sanitize_for_display(s: &str) -> Cow<'_, str> {
 
 /// Quick check whether the string contains any bytes that need sanitization.
 fn needs_sanitization(s: &str) -> bool {
-    for &b in s.as_bytes() {
-        match b {
-            // NOTE: replace C0 controls (except HT/LF/CR) and DEL with control pictures
-            0x00..=0x08 | 0x0B..=0x0C | 0x0E..=0x1F | 0x7F => return true,
-            _ => {
-                // NOTE: printable ASCII byte, no sanitization needed
-            }
-        }
-    }
     for ch in s.chars() {
-        if ('\u{0080}'..='\u{009F}').contains(&ch) {
+        if (ch.is_ascii_control() && !matches!(ch, '\t' | '\n' | '\r'))
+            || ch == '\u{007F}'
+            || ('\u{0080}'..='\u{009F}').contains(&ch)
+        {
             return true;
         }
     }
