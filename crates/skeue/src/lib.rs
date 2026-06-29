@@ -7,9 +7,6 @@
 //! external sources where their anatomy was sourced (Linear, Sourcehut,
 //! Fly.io, Grafana, Radicle) — folds in kanon discussion docket #40.
 //!
-//! Phase 1+2 deliverable. See `~/dev/kanon/projects/chalkeion/{vision,STATE,ROADMAP}.md`
-//! for the broader plan.
-//!
 //! ## Components seeded from extraction spike (W1)
 //!
 //! - [`virtual_list`] — virtual scrolling primitives + helpers
