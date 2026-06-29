@@ -57,7 +57,9 @@ pub(crate) fn lint_manifest(
             let bracket_rel = line_str.find('[').unwrap_or(0);
             found_offset = line_start + bracket_rel;
             found_col = u32::try_from(bracket_rel).unwrap_or(0) + 1;
-            found_len = line_str.trim_end().len();
+            found_len = line_str
+                .get(bracket_rel..)
+                .map_or(0, |header| header.trim_end().len());
             break;
         }
     }
@@ -98,6 +100,44 @@ serde = { git = "https://forge.forkwright.com/forkwright/serde" }
         // Source has a leading newline so [package] is line 2;
         // [patch.crates-io] is line 6.
         assert_eq!(diags[0].line, 6);
+    }
+
+    #[test]
+    fn indented_patch_header_span_covers_header() {
+        let src = r#"
+[package]
+name = "foo"
+version = "0.1.0"
+
+  [patch.crates-io]
+serde = { git = "https://forge.forkwright.com/forkwright/serde" }
+"#;
+        let diags = lint_manifest(&registry(), src, Path::new("Cargo.toml"));
+        assert_eq!(diags.len(), 1);
+
+        let header_offset = src.find("[patch.crates-io]").expect("header exists");
+        assert_eq!(diags[0].byte_offset, header_offset);
+        assert_eq!(diags[0].byte_len, "[patch.crates-io]".len());
+        assert_eq!(diags[0].line, 6);
+        assert_eq!(diags[0].column, 3);
+    }
+
+    #[test]
+    fn indented_patch_header_at_eof_span_renders() {
+        let src = r#"[package]
+name = "foo"
+version = "0.1.0"
+
+  [patch.crates-io]"#;
+        let diags = lint_manifest(&registry(), src, Path::new("Cargo.toml"));
+        assert_eq!(diags.len(), 1);
+
+        let header_offset = src.find("[patch.crates-io]").expect("header exists");
+        assert_eq!(diags[0].byte_offset, header_offset);
+        assert_eq!(diags[0].byte_len, "[patch.crates-io]".len());
+
+        let mut writer = codespan_reporting::term::termcolor::NoColor::new(Vec::new());
+        crate::render::render_human(&diags, &mut writer, |_| src.to_string()).expect("render");
     }
 
     #[test]
