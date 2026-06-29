@@ -20,3 +20,8 @@ tokio = { workspace = true }
 
 [dev-dependencies]
 dioxus-ssr = "=0.7.6"
+
+[package.metadata.kanon]
+maturity = "production"
+since = "2026-05-02"
+exit-criteria = "maintain SemVer-stable public API and consumer gate coverage"

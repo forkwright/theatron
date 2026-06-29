@@ -47,6 +47,17 @@ pub struct ActivityStatus {
     pub label: String,
 }
 
+impl ActivityStatus {
+    /// Create an activity-row status annotation.
+    #[must_use]
+    pub fn new(kind: StatusPillKind, label: impl Into<String>) -> Self {
+        Self {
+            kind,
+            label: label.into(),
+        }
+    }
+}
+
 const ROW_STYLE_FMT: &str = "\
     display: flex; \
     align-items: center; \
@@ -203,10 +214,7 @@ mod tests {
 
     #[test]
     fn activity_status_carries_kind_and_label() {
-        let s = ActivityStatus {
-            kind: StatusPillKind::Success,
-            label: "merged".to_string(),
-        };
+        let s = ActivityStatus::new(StatusPillKind::Success, "merged");
         assert_eq!(s.kind, StatusPillKind::Success);
         assert_eq!(s.label, "merged");
     }

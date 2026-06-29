@@ -42,6 +42,41 @@ pub struct QueueItem {
     pub status: Option<ActivityStatus>,
 }
 
+impl QueueItem {
+    /// Create a queue item with required display text.
+    #[must_use]
+    pub fn new(title: impl Into<String>, timestamp: impl Into<String>) -> Self {
+        Self {
+            title: title.into(),
+            timestamp: timestamp.into(),
+            icon: None,
+            metadata: None,
+            status: None,
+        }
+    }
+
+    /// Attach a leading icon glyph or short string.
+    #[must_use]
+    pub fn with_icon(mut self, icon: impl Into<String>) -> Self {
+        self.icon = Some(icon.into());
+        self
+    }
+
+    /// Attach secondary metadata between title and timestamp.
+    #[must_use]
+    pub fn with_metadata(mut self, metadata: impl Into<String>) -> Self {
+        self.metadata = Some(metadata.into());
+        self
+    }
+
+    /// Attach an inline status pill.
+    #[must_use]
+    pub fn with_status(mut self, status: ActivityStatus) -> Self {
+        self.status = Some(status);
+        self
+    }
+}
+
 const HEADER_STYLE: &str = "\
     display: flex; \
     align-items: center; \
@@ -323,18 +358,14 @@ mod tests {
 
     #[test]
     fn queue_item_carries_all_fields() {
-        let item = QueueItem {
-            title: "PR #100".to_string(),
-            timestamp: "2m ago".to_string(),
-            icon: Some("\u{2605}".to_string()),
-            metadata: Some("forkwright/theatron".to_string()),
-            status: Some(ActivityStatus {
-                kind: StatusPillKind::Success,
-                label: "merged".to_string(),
-            }),
-        };
+        let item = QueueItem::new("PR #100", "2m ago")
+            .with_icon("\u{2605}")
+            .with_metadata("forkwright/theatron")
+            .with_status(ActivityStatus::new(StatusPillKind::Success, "merged"));
         assert_eq!(item.title, "PR #100");
+        assert_eq!(item.timestamp, "2m ago");
         assert!(item.icon.is_some());
+        assert!(item.metadata.is_some());
         assert!(item.status.is_some());
     }
 }
