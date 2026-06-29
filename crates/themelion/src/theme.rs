@@ -280,15 +280,18 @@ impl ThemeMode {
 
 /// Detect OS color preference from environment variables.
 ///
-/// Checks `GTK_THEME` for a "dark" suffix and `COLORFGBG` for background
-/// brightness (same heuristic as the TUI). Falls back to dark.
+/// Checks `GTK_THEME` for a `:dark` variant suffix, a `-dark` name suffix,
+/// or an exact `dark` value. Falls back to `COLORFGBG` background brightness
+/// (same heuristic as the TUI), then to dark.
 fn detect_system_preference() -> ResolvedTheme {
     detect_system_preference_with(|key| std::env::var(key).ok())
 }
 
 fn detect_system_preference_with(env_var: impl Fn(&str) -> Option<String>) -> ResolvedTheme {
     if let Some(gtk_theme) = env_var("GTK_THEME") {
-        return if gtk_theme.to_ascii_lowercase().contains("dark") {
+        let lower = gtk_theme.to_ascii_lowercase();
+        let is_dark = lower.ends_with(":dark") || lower.ends_with("-dark") || lower == "dark";
+        return if is_dark {
             ResolvedTheme::Dark
         } else {
             ResolvedTheme::Light
@@ -439,6 +442,22 @@ mod tests {
             detect_with(&[("GTK_THEME", "Adwaita")]),
             ResolvedTheme::Light
         );
+    }
+
+    #[test]
+    fn gtk_theme_dark_matching_uses_variant_or_name_suffix() {
+        for (gtk_theme, expected) in [
+            ("Darkly", ResolvedTheme::Light),
+            ("Adwaita:dark", ResolvedTheme::Dark),
+            ("Arc-Dark", ResolvedTheme::Dark),
+            ("Adwaita", ResolvedTheme::Light),
+        ] {
+            assert_eq!(
+                detect_with(&[("GTK_THEME", gtk_theme)]),
+                expected,
+                "GTK_THEME={gtk_theme:?}"
+            );
+        }
     }
 
     #[test]
