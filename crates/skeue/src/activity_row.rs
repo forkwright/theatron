@@ -97,7 +97,7 @@ const TIMESTAMP_STYLE: &str = "\
 /// - **Name**: The `title` text provides the primary accessible name;
 ///   the optional status pill contributes additional state.
 /// - **Consumer responsibility**: Wrap rows in a parent with `role="list"`
-///   or `role="table"` as appropriate.
+///   when rendering an activity feed.
 #[component]
 pub fn ActivityRow(
     /// Primary text — actor + action, or just title.

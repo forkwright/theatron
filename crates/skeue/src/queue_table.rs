@@ -4,7 +4,7 @@
 //! - Structure: header row + activity rows + optional pagination
 //! - Token use: header `--text-secondary` / `--text-xs` /
 //!   `--weight-semibold` / `--border-separator`
-//! - Row: see [`ActivityRow`] above
+//! - Row: icon/title/status/metadata/timestamp cells
 //!
 //! References (folds in #40):
 //! - Sourcehut PR queue: header + monospace rows + cursor pagination
@@ -13,7 +13,8 @@
 
 use dioxus::prelude::*;
 
-use crate::activity_row::{ActivityRow, ActivityStatus, RowDensity};
+use crate::activity_row::{ActivityStatus, RowDensity};
+use crate::status_pill::{StatusPill, StatusPillShape};
 
 /// One column header definition for [`QueueTable`].
 ///
@@ -62,6 +63,49 @@ const HEADER_LABEL_STYLE: &str = "\
     white-space: nowrap;\
 ";
 
+const ROW_STYLE: &str = "\
+    display: flex; \
+    align-items: center; \
+    gap: var(--space-3); \
+    padding: var(--space-1) var(--space-3); \
+    border-bottom: 1px solid var(--border-separator); \
+    transition: background-color var(--transition-quick);\
+";
+
+const ICON_CELL_STYLE: &str = "\
+    flex: 0 0 auto; \
+    color: var(--text-secondary); \
+    font-size: var(--text-sm);\
+";
+
+const TITLE_CELL_STYLE: &str = "\
+    flex: 1 1 auto; \
+    min-width: 0; \
+    color: var(--text-primary); \
+    font-size: var(--text-sm); \
+    font-weight: var(--weight-medium); \
+    overflow: hidden; \
+    text-overflow: ellipsis; \
+    white-space: nowrap;\
+";
+
+const STATUS_CELL_STYLE: &str = "\
+    flex: 0 0 auto;\
+";
+
+const META_CELL_STYLE: &str = "\
+    flex: 0 0 auto; \
+    color: var(--text-secondary); \
+    font-size: var(--text-xs);\
+";
+
+const TIMESTAMP_CELL_STYLE: &str = "\
+    flex: 0 0 auto; \
+    color: var(--text-muted); \
+    font-size: var(--text-xs); \
+    font-variant-numeric: tabular-nums;\
+";
+
 const TABLE_STYLE: &str = "\
     display: flex; \
     flex-direction: column; \
@@ -82,21 +126,22 @@ const EMPTY_STYLE: &str = "\
 
 /// A sortable list of pending work items.
 ///
-/// Composes [`ActivityRow`] for each item plus a single header row.
+/// Renders a single header row plus table-native data rows.
 /// Sorting is consumer-driven — pass items already in display order.
 ///
 /// # Accessibility
 ///
 /// - **Role**: `table` — column headers carry `role="columnheader"` and
-///   `scope="col"`.
+///   `scope="col"`; data rows carry `role="row"` with `role="cell"`
+///   descendants.
 /// - **Name**: Column header text provides the column names.
 /// - **Consumer responsibility**: If rows are interactive (click-to-detail),
-///   the consumer must wrap each row in `role="row"` and `tabindex="0"`.
+///   the consumer must provide keyboard focus and activation behavior.
 #[component]
 pub fn QueueTable(
     /// Column headers.
     columns: Vec<QueueColumn>,
-    /// Items to render. Each becomes one [`ActivityRow`].
+    /// Items to render. Each becomes one data row.
     items: Vec<QueueItem>,
     /// Row density — applied uniformly to every row.
     #[props(default)]
@@ -124,20 +169,66 @@ pub fn QueueTable(
                 }
             }
             if items.is_empty() {
-                div { style: "{EMPTY_STYLE}", "{empty_msg}" }
+                div {
+                    role: "row",
+                    style: "{EMPTY_STYLE}",
+                    span { role: "cell", "{empty_msg}" }
+                }
             } else {
                 for (i , item) in items.into_iter().enumerate() {
-                    ActivityRow {
-                        key: "{i}",
-                        title: item.title,
-                        timestamp: item.timestamp,
-                        icon: item.icon,
-                        metadata: item.metadata,
-                        status: item.status,
-                        density,
+                    {render_queue_row(i, item, density)}
+                }
+            }
+        }
+    }
+}
+
+fn render_queue_row(row_key: usize, item: QueueItem, density: RowDensity) -> Element {
+    let QueueItem {
+        title,
+        timestamp,
+        icon,
+        metadata,
+        status,
+    } = item;
+    let height = match density {
+        RowDensity::Standard => "var(--row-h-standard, 36px)",
+        RowDensity::Roomy => "var(--row-h-roomy, 48px)",
+    };
+
+    rsx! {
+        div {
+            key: "{row_key}",
+            role: "row",
+            style: "{ROW_STYLE} min-height: {height};",
+            if let Some(glyph) = icon {
+                span {
+                    role: "cell",
+                    style: "{ICON_CELL_STYLE}",
+                    span { aria_hidden: "true", "{glyph}" }
+                }
+            }
+            div {
+                role: "cell",
+                style: "{TITLE_CELL_STYLE}",
+                title: "{title}",
+                "{title}"
+            }
+            if let Some(s) = status {
+                div {
+                    role: "cell",
+                    style: "{STATUS_CELL_STYLE}",
+                    StatusPill {
+                        kind: s.kind,
+                        label: s.label,
+                        shape: StatusPillShape::Pill,
                     }
                 }
             }
+            if let Some(meta) = metadata {
+                span { role: "cell", style: "{META_CELL_STYLE}", "{meta}" }
+            }
+            span { role: "cell", style: "{TIMESTAMP_CELL_STYLE}", "{timestamp}" }
         }
     }
 }
@@ -180,6 +271,41 @@ mod tests {
             "expected scope=col in {html}"
         );
         assert!(html.contains("Title"), "expected header text in {html}");
+    }
+
+    #[test]
+    fn renders_data_rows_with_table_roles() {
+        use dioxus::prelude::*;
+        use dioxus_ssr::render_element;
+        let html = render_element(rsx! {
+            QueueTable {
+                columns: vec![QueueColumn { label: "Title".to_string() }],
+                items: vec![QueueItem {
+                    title: "PR #1".to_string(),
+                    timestamp: "2m ago".to_string(),
+                    icon: Some("!".to_string()),
+                    metadata: Some("forkwright/theatron".to_string()),
+                    status: Some(ActivityStatus {
+                        kind: StatusPillKind::Success,
+                        label: "merged".to_string(),
+                    }),
+                }],
+            }
+        });
+        assert_eq!(
+            html.matches("role=\"row\"").count(),
+            2,
+            "expected header and data row in {html}"
+        );
+        assert_eq!(
+            html.matches("role=\"cell\"").count(),
+            5,
+            "expected five data cells in {html}"
+        );
+        assert!(
+            !html.contains("role=\"listitem\""),
+            "table must not contain listitem descendants in {html}"
+        );
     }
 
     #[test]
