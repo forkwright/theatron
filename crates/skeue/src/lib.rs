@@ -48,7 +48,7 @@ pub use empty_state::EmptyState;
 pub use error_state::ErrorState;
 pub use metric_tile::{DeltaDirection, DeltaTone, MetricDelta, MetricTile};
 pub use queue_table::{QueueColumn, QueueItem, QueueTable};
-pub use sparkline::{Sparkline, SparklineShape, SparklineTone, bar_positions, polyline_points};
+pub use sparkline::{Sparkline, SparklineShape, SparklineTone};
 pub use spinner::{Spinner, SpinnerSize};
 pub use status_pill::{StatusPill, StatusPillKind, StatusPillShape};
 pub use table::{MdTable, TableAlignment};

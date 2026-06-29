@@ -74,7 +74,7 @@ const fn usize_to_f64(n: usize) -> f64 {
 /// Pure function: produced as `"x1,y1 x2,y2 ..."` strings for given
 /// width/height. Empty input yields an empty string.
 #[must_use]
-pub fn polyline_points(values: &[f64], width: f64, height: f64) -> String {
+pub(crate) fn polyline_points(values: &[f64], width: f64, height: f64) -> String {
     if values.is_empty() || width <= 0.0 || height <= 0.0 {
         return String::new();
     }
@@ -104,7 +104,7 @@ pub fn polyline_points(values: &[f64], width: f64, height: f64) -> String {
 
 /// Compute (x, height) bar positions for `values` at fixed bar width.
 #[must_use]
-pub fn bar_positions(values: &[f64], width: f64, height: f64) -> Vec<(f64, f64, f64, f64)> {
+pub(crate) fn bar_positions(values: &[f64], width: f64, height: f64) -> Vec<(f64, f64, f64, f64)> {
     if values.is_empty() || width <= 0.0 || height <= 0.0 {
         return Vec::new();
     }
