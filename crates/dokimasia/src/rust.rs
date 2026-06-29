@@ -79,7 +79,7 @@ impl<'ast> Visit<'ast> for LitVisitor<'_> {
         // Skip any item gated on `#[cfg(test)]` (or any nested combinator
         // containing it). The original implementation only skipped `mod`
         // items and only matched `cfg(test)` / `cfg(any(test, …))` at the
-        // top level — `cfg(all(test, feature = "…"))` and cfg(test) on
+        // top level — `cfg(all(test, target_os = "…"))` and cfg(test) on
         // non-module items (functions, consts, statics) leaked through.
         if has_cfg_test(item_attrs(item)) {
             return;
@@ -359,7 +359,7 @@ mod tests {
     #[test]
     fn cfg_all_test_module_is_skipped() {
         let src = r#"
-#[cfg(all(test, feature = "extra"))]
+#[cfg(all(test, target_os = "linux"))]
 mod combined {
     const BOGUS: &str = "color: var(--bogus-all);";
 }

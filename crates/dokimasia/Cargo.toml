@@ -29,3 +29,8 @@ serde_json = { workspace = true }
 snafu = { workspace = true }
 syn = { workspace = true }
 toml = { workspace = true }
+
+[package.metadata.kanon]
+maturity = "production"
+since = "2026-05-02"
+exit-criteria = "maintain SemVer-stable lint behavior and consumer gate coverage"
