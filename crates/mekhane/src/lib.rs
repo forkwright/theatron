@@ -61,7 +61,10 @@ use dioxus_core::ComponentFunction;
 mod hooks;
 pub mod tray;
 
-#[cfg(feature = "global-hotkeys")]
+#[cfg(all(
+    feature = "global-hotkeys",
+    any(target_os = "windows", target_os = "linux", target_os = "macos")
+))]
 pub mod hotkey;
 
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
@@ -101,9 +104,15 @@ pub fn launch_cfg_with_props<P: Clone + 'static, M: 'static>(
     contexts: Vec<Box<dyn Fn() -> Box<dyn Any> + Send + Sync>>,
     configs: Vec<Box<dyn Any>>,
 ) {
-    #[cfg(feature = "menus")]
+    #[cfg(all(
+        feature = "menus",
+        any(target_os = "windows", target_os = "linux", target_os = "macos")
+    ))]
     launch_inner(app, props, contexts, configs, None);
-    #[cfg(not(feature = "menus"))]
+    #[cfg(not(all(
+        feature = "menus",
+        any(target_os = "windows", target_os = "linux", target_os = "macos")
+    )))]
     launch_inner(app, props, contexts, configs);
 }
 
@@ -133,7 +142,10 @@ pub fn launch_cfg_with_props<P: Clone + 'static, M: 'static>(
 /// Panics if `global-hotkeys` feature is enabled and
 /// [`global_hotkey::GlobalHotKeyManager::new`] fails (usually a
 /// headless-CI or missing-display situation).
-#[cfg(feature = "menus")]
+#[cfg(all(
+    feature = "menus",
+    any(target_os = "windows", target_os = "linux", target_os = "macos")
+))]
 pub fn launch_cfg_with_props_and_menu<P: Clone + 'static, M: 'static>(
     app: impl ComponentFunction<P, M>,
     props: P,
@@ -149,7 +161,11 @@ fn launch_inner<P: Clone + 'static, M: 'static>(
     props: P,
     mut contexts: Vec<Box<dyn Fn() -> Box<dyn Any> + Send + Sync>>,
     configs: Vec<Box<dyn Any>>,
-    #[cfg(feature = "menus")] menu: Option<muda::Menu>,
+    #[cfg(all(
+        feature = "menus",
+        any(target_os = "windows", target_os = "linux", target_os = "macos")
+    ))]
+    menu: Option<muda::Menu>,
 ) {
     // Install process-global tray-icon and tray-menu callbacks that
     // forward into tokio broadcast channels; provide the senders as
@@ -228,7 +244,10 @@ fn launch_inner<P: Clone + 'static, M: 'static>(
         }
     }
 
-    #[cfg(feature = "menus")]
+    #[cfg(all(
+        feature = "menus",
+        any(target_os = "windows", target_os = "linux", target_os = "macos")
+    ))]
     if let Some(menu) = menu {
         // Leak the menu so it lives for the duration of the process; the
         // returned `&'static mut Menu` is discarded — we only need the
