@@ -83,6 +83,7 @@ impl<'a> NotificationRequest<'a> {
 ///
 /// Drop to release the handle without explicit close. Call
 /// [`NotificationHandle::close`] to dismiss the notification.
+// kanon:ignore RUST/pub-visibility -- returned notification handles are part of bathron's feature-gated cross-crate API.
 pub struct NotificationHandle {
     inner: notify_rust::NotificationHandle,
 }

@@ -188,6 +188,7 @@ impl LogConfig {
 ///   installed).
 #[cfg(not(test))]
 // kanon:ignore RUST/doc-promised-observability -- this function installs the tracing subscriber; emitting tracing events here would be lost (no subscriber yet).
+// kanon:ignore RUST/pub-visibility -- logging initialization is bathron's feature-gated cross-crate API.
 pub fn init(
     config: LogConfig,
 ) -> Result<tracing_appender::non_blocking::WorkerGuard, LoggingError> {
@@ -222,6 +223,7 @@ pub fn init(
 ///   installed).
 #[cfg(not(test))]
 // kanon:ignore RUST/doc-promised-observability -- this function installs the tracing subscriber; emitting tracing events here would be lost (no subscriber yet).
+// kanon:ignore RUST/pub-visibility -- stderr-capable logging initialization is bathron's feature-gated cross-crate API.
 pub fn init_with_stderr(
     config: LogConfig,
     also_to_stderr: bool,
@@ -478,10 +480,16 @@ mod tests {
 
     #[test]
     fn logging_error_is_send_sync() {
-        // Snafu-derived errors should be both Send + Sync so they
-        // cross thread / await boundaries cleanly. Compile-time check.
-        fn assert_send_sync<T: Send + Sync>() {}
-        assert_send_sync::<LoggingError>();
+        let err = std::sync::Arc::new(LoggingError::NoStateDir);
+        let thread_err = std::sync::Arc::clone(&err);
+        let rendered = std::thread::spawn(move || thread_err.to_string())
+            .join()
+            .expect("thread should render shared error");
+
+        assert_eq!(
+            rendered,
+            "could not determine user state directory for logs"
+        );
     }
 
     #[test]
@@ -505,9 +513,8 @@ mod tests {
 
     #[test]
     fn logging_error_implements_std_error() {
-        // Snafu-derived errors should impl std::error::Error so they
-        // compose with `?` into anyhow / boxed-error chains.
-        fn assert_error<T: std::error::Error>() {}
-        assert_error::<LoggingError>();
+        let err: &dyn std::error::Error = &LoggingError::NoStateDir;
+
+        assert!(err.source().is_none());
     }
 }

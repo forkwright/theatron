@@ -40,3 +40,8 @@ tracing-appender = { version = "0.2", optional = true }
 [dev-dependencies]
 tempfile = "3"
 serde = { workspace = true }
+
+[package.metadata.kanon]
+maturity = "production"
+since = "2026-05-02"
+exit-criteria = "maintain SemVer-stable public API and consumer gate coverage"
