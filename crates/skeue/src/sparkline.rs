@@ -75,7 +75,16 @@ const fn usize_to_f64(n: usize) -> f64 {
 /// width/height. Empty input yields an empty string.
 #[must_use]
 pub(crate) fn polyline_points(values: &[f64], width: f64, height: f64) -> String {
-    if values.is_empty() || width <= 0.0 || height <= 0.0 {
+    if values.is_empty()
+        || !width.is_finite()
+        || !height.is_finite()
+        || width <= 0.0
+        || height <= 0.0
+    {
+        return String::new();
+    }
+    let values: Vec<f64> = values.iter().copied().filter(|v| v.is_finite()).collect();
+    if values.is_empty() {
         return String::new();
     }
     let min = values.iter().copied().fold(f64::INFINITY, f64::min);
@@ -105,7 +114,16 @@ pub(crate) fn polyline_points(values: &[f64], width: f64, height: f64) -> String
 /// Compute (x, height) bar positions for `values` at fixed bar width.
 #[must_use]
 pub(crate) fn bar_positions(values: &[f64], width: f64, height: f64) -> Vec<(f64, f64, f64, f64)> {
-    if values.is_empty() || width <= 0.0 || height <= 0.0 {
+    if values.is_empty()
+        || !width.is_finite()
+        || !height.is_finite()
+        || width <= 0.0
+        || height <= 0.0
+    {
+        return Vec::new();
+    }
+    let values: Vec<f64> = values.iter().copied().filter(|v| v.is_finite()).collect();
+    if values.is_empty() {
         return Vec::new();
     }
     let max = values
@@ -373,6 +391,37 @@ mod tests {
     }
 
     #[test]
+    fn polyline_points_returns_empty_when_all_values_are_nan() {
+        assert_eq!(polyline_points(&[f64::NAN, f64::NAN], 100.0, 20.0), "");
+    }
+
+    #[test]
+    fn polyline_points_filters_mixed_nan_and_finite_values() {
+        let s = polyline_points(&[f64::NAN, 1.0, 2.0], 100.0, 20.0);
+        assert_eq!(s, "0.00,20.00 100.00,0.00");
+    }
+
+    #[test]
+    fn polyline_points_filters_positive_infinity() {
+        let s = polyline_points(&[f64::INFINITY, 1.0], 100.0, 20.0);
+        assert_eq!(s, "0.00,20.00");
+    }
+
+    #[test]
+    fn polyline_points_filters_negative_infinity() {
+        let s = polyline_points(&[f64::NEG_INFINITY, 1.0], 100.0, 20.0);
+        assert_eq!(s, "0.00,20.00");
+    }
+
+    #[test]
+    fn polyline_points_returns_empty_when_all_values_are_infinite() {
+        assert_eq!(
+            polyline_points(&[f64::INFINITY, f64::NEG_INFINITY], 100.0, 20.0),
+            ""
+        );
+    }
+
+    #[test]
     fn bar_positions_returns_empty_when_width_is_zero() {
         assert!(bar_positions(&[1.0, 2.0], 0.0, 20.0).is_empty());
     }
@@ -435,5 +484,39 @@ mod tests {
             last_x > 10.0,
             "last bar x ({last_x}) should exceed viewport width"
         );
+    }
+
+    #[test]
+    fn bar_positions_returns_empty_when_all_values_are_nan() {
+        assert!(bar_positions(&[f64::NAN, f64::NAN], 100.0, 20.0).is_empty());
+    }
+
+    #[test]
+    fn bar_positions_filters_mixed_nan_and_finite_values() {
+        let bars = bar_positions(&[f64::NAN, 1.0, 2.0], 100.0, 20.0);
+        assert_eq!(bars.len(), 2);
+        assert!(
+            bars.iter()
+                .all(|bar| [bar.0, bar.1, bar.2, bar.3].into_iter().all(f64::is_finite))
+        );
+    }
+
+    #[test]
+    fn bar_positions_filters_positive_infinity() {
+        let bars = bar_positions(&[f64::INFINITY, 1.0], 100.0, 20.0);
+        assert_eq!(bars.len(), 1);
+        assert!(bars[0].3.is_finite());
+    }
+
+    #[test]
+    fn bar_positions_filters_negative_infinity() {
+        let bars = bar_positions(&[f64::NEG_INFINITY, 1.0], 100.0, 20.0);
+        assert_eq!(bars.len(), 1);
+        assert!(bars[0].3.is_finite());
+    }
+
+    #[test]
+    fn bar_positions_returns_empty_when_all_values_are_infinite() {
+        assert!(bar_positions(&[f64::INFINITY, f64::NEG_INFINITY], 100.0, 20.0).is_empty());
     }
 }
