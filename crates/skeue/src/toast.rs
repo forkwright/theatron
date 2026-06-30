@@ -161,6 +161,7 @@ const ACTION_STYLE: &str = "\
 ///   `aria-label`.
 /// - **Consumer responsibility**: None.
 #[component]
+// kanon:ignore RUST/pub-visibility -- re-exported skeue component for external Dioxus consumers
 pub fn ToastItem(
     toast: Toast,
     on_dismiss: EventHandler<ToastId>,

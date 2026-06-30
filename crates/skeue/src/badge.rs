@@ -37,6 +37,7 @@ const BADGE_STYLE_BASE: &str = concat!(
 
 /// Returns a compact badge CSS style using the shared skeue badge shell.
 #[must_use]
+// kanon:ignore RUST/pub-visibility -- re-exported badge styling helper for external Dioxus consumers
 pub fn badge_style(colors: BadgeColors) -> String {
     format!(
         "{BADGE_STYLE_BASE} background: {}; color: {};",

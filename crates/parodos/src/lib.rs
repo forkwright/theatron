@@ -35,6 +35,8 @@
 #![deny(missing_docs)]
 #![warn(clippy::all, clippy::pedantic)]
 
+mod command_runner;
+
 pub mod clipboard;
 pub mod env;
 pub mod fuzzy;

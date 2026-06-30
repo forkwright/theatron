@@ -6,6 +6,7 @@
 /// filled cell count uses integer flooring, matching common terminal
 /// gauge behavior. A zero `width` returns an empty string.
 #[must_use]
+// kanon:ignore RUST/pub-visibility -- external TUI consumers share terminal widget string helpers
 pub fn meter_string(pct: u8, width: usize, filled: char, empty: char) -> String {
     let pct = usize::from(pct.min(100));
     let filled_count = pct * width / 100;

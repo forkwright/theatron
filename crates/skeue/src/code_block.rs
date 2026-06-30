@@ -64,6 +64,7 @@ const CONTENT_STYLE: &str = "white-space: pre; flex: 1;";
 ///   `aria-label` describing its action.
 /// - **Consumer responsibility**: None.
 #[component]
+// kanon:ignore RUST/pub-visibility -- re-exported skeue component for external Dioxus consumers
 pub fn CodeBlock(code: String, language: String) -> Element {
     let lang_display = if language.is_empty() {
         "text".to_string()

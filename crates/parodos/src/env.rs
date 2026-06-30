@@ -14,6 +14,7 @@
 //! The trait is small and the standard-library backing is the same.
 
 /// Read environment variables.
+// kanon:ignore RUST/pub-visibility -- re-exported parodos environment abstraction for consumer tests and probes
 pub trait Env: Send + Sync {
     /// Return the value of environment variable `name`, or `None` if unset
     /// or holds non-UTF-8 bytes.

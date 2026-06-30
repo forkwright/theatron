@@ -9,6 +9,7 @@ use super::{DiffFile, parse_unified_diff};
 /// derived from `+++` / `---` headers when present, with the `diff --git`
 /// header used as a fallback for binary or metadata-only sections.
 #[must_use]
+// kanon:ignore RUST/pub-visibility -- re-exported gramma git-diff parser for external renderer crates
 pub fn parse_git_diff(raw: &str) -> Vec<DiffFile> {
     git_diff_sections(raw)
         .into_iter()

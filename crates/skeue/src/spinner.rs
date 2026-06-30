@@ -87,6 +87,7 @@ const KEYFRAMES: &str = "\
 ///   on the media-query — that's a global decision the host app
 ///   makes via its own CSS).
 #[component]
+// kanon:ignore RUST/pub-visibility -- re-exported skeue component for external Dioxus consumers
 pub fn Spinner(
     /// Visual size — small / medium / large.
     #[props(default)]

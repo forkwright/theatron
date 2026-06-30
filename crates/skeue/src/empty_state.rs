@@ -71,6 +71,7 @@ const MESSAGE_STYLE: &str = "\
 ///   interactive element (button, link), the consumer ensures it
 ///   is keyboard-focusable and labelled.
 #[component]
+// kanon:ignore RUST/pub-visibility -- re-exported skeue component for external Dioxus consumers
 pub fn EmptyState(
     /// Headline text — the accessible name of the empty state.
     title: String,

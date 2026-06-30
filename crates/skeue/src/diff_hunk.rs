@@ -56,6 +56,7 @@ const SBS_DIVIDER_STYLE: &str = "\
 /// - **Name**: `aria-label` is set to `"Diff hunk: {context_label}"`.
 /// - **Consumer responsibility**: None.
 #[component]
+// kanon:ignore RUST/pub-visibility -- re-exported skeue component for external Dioxus consumers
 pub fn DiffHunkView(hunk: DiffHunk, language: String, mode: DiffViewMode) -> Element {
     let header = format!(
         "@@ -{},{} +{},{} @@ {}",

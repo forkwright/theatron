@@ -7,6 +7,7 @@
 use dioxus::prelude::*;
 
 /// Default overscan -- extra items rendered above and below the visible window.
+// kanon:ignore RUST/pub-visibility -- re-exported virtual-list default for external Dioxus consumers
 pub const DEFAULT_OVERSCAN: usize = 10;
 
 /// Compute which item indices are visible given scroll position and item height.
@@ -14,6 +15,7 @@ pub const DEFAULT_OVERSCAN: usize = 10;
 /// Returns `(range_start, range_end)` -- a half-open slice into the item list.
 /// Both ends are clamped to `[0, total_items]`.
 #[must_use]
+// kanon:ignore RUST/pub-visibility -- re-exported virtual-list helper for external Dioxus consumers
 pub fn visible_range(
     scroll_top: f64,
     container_height: f64,
@@ -43,6 +45,7 @@ pub fn visible_range(
 ///
 /// Returns `(pad_top_px, pad_bottom_px)`.
 #[must_use]
+// kanon:ignore RUST/pub-visibility -- re-exported virtual-list helper for external Dioxus consumers
 pub fn spacer_heights(
     range_start: usize,
     range_end: usize,
@@ -80,6 +83,7 @@ pub fn spacer_heights(
 /// - **Consumer responsibility**: Choose a descriptive `scroll_key` that
 ///   identifies the scrolled content (e.g. `"chat-messages"`).
 #[component]
+// kanon:ignore RUST/pub-visibility -- re-exported skeue component for external Dioxus consumers
 pub fn VirtualScrollContainer(
     pad_top: f64,
     pad_bottom: f64,

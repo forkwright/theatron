@@ -104,6 +104,7 @@ mod icon {
     /// the resulting RGBA8 buffer is rejected by
     /// [`tray_icon::Icon::from_rgba`] (rare; usually a zero-dimension
     /// image).
+    // kanon:ignore RUST/pub-visibility -- re-exported optional tray-icon loader for desktop consumers
     pub fn default_icon(bytes: &[u8]) -> Result<tray_icon::Icon, DefaultIconError> {
         let img =
             image::load_from_memory(bytes).map_err(|source| DefaultIconError::Decode { source })?;
@@ -127,11 +128,16 @@ mod tests {
 
     #[test]
     fn default_tray_icon_returns_menu() {
-        // Constructs the default tray menu without panicking.
-        // We don't assert on the populated state — the OS may reject
-        // PredefinedMenuItem::quit on a CI environment without a
-        // session bus — but the function must not panic.
-        let _ = default_tray_icon();
+        let menu = default_tray_icon();
+        let items = menu.items();
+
+        assert!(
+            items.len() <= 1,
+            "default tray menu should contain at most the Quit item"
+        );
+        if let Some(item) = items.first() {
+            assert!(matches!(item, tray_icon::menu::MenuItemKind::Predefined(_)));
+        }
     }
 
     #[cfg(feature = "default-icon")]

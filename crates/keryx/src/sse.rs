@@ -42,6 +42,7 @@ where
     E: std::fmt::Display,
 {
     /// Create a new SSE stream parser wrapping the given byte stream.
+    // kanon:ignore RUST/pub-visibility -- constructor for the public SseStream parser type
     pub fn new(stream: S) -> Self {
         Self {
             stream,

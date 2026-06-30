@@ -99,6 +99,7 @@ const TIMESTAMP_STYLE: &str = "\
 /// - **Consumer responsibility**: Wrap rows in a parent with `role="list"`
 ///   or `role="table"` as appropriate.
 #[component]
+// kanon:ignore RUST/pub-visibility -- re-exported skeue component for external Dioxus consumers
 pub fn ActivityRow(
     /// Primary text — actor + action, or just title.
     title: String,

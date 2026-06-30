@@ -307,6 +307,7 @@ impl ApiError {
 }
 
 /// Result alias for keryx API operations.
+// kanon:ignore RUST/pub-visibility -- re-exported keryx API result alias for HTTP clients
 pub type Result<T> = std::result::Result<T, ApiError>;
 
 #[cfg(test)]
@@ -392,15 +393,21 @@ mod tests {
     fn api_error_is_send_sync() {
         // Compile-time check: ApiError crosses thread / await
         // boundaries cleanly. Required for use in async tasks.
-        fn assert_send_sync<T: Send + Sync>() {}
-        assert_send_sync::<ApiError>();
+        fn assert_send_sync<T: Send + Sync>(value: T) -> T {
+            value
+        }
+        let err = assert_send_sync(ApiError::Auth);
+
+        assert!(!err.is_retryable());
     }
 
     #[test]
     fn api_error_implements_std_error() {
         // ApiError composes with `?` into anyhow / boxed-error chains.
-        fn assert_error<T: std::error::Error>() {}
-        assert_error::<ApiError>();
+        let err = ApiError::Auth;
+        let as_error: &dyn std::error::Error = &err;
+
+        assert!(as_error.to_string().contains("authentication"));
     }
 
     #[test]

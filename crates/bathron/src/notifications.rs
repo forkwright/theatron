@@ -82,6 +82,7 @@ impl<'a> NotificationRequest<'a> {
 ///
 /// Drop to release the handle without explicit close. Call
 /// [`NotificationHandle::close`] to dismiss the notification.
+// kanon:ignore RUST/pub-visibility -- returned by public notification API so callers can close posted notifications
 pub struct NotificationHandle {
     inner: notify_rust::NotificationHandle,
 }

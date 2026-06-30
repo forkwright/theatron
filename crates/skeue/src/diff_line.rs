@@ -88,6 +88,7 @@ fn indicator_color(change_type: ChangeType) -> &'static str {
 ///   decorative (`aria-hidden="true"`); consumers should ensure the parent
 ///   hunk or diff view provides sufficient context.
 #[component]
+// kanon:ignore RUST/pub-visibility -- re-exported skeue component for external Dioxus consumers
 pub fn DiffLineView(line: DiffLine, language: String) -> Element {
     let bg = line_bg(line.change_type);
     let old_no = line.old_line_no.map_or_else(String::new, |n| n.to_string());

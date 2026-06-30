@@ -1,8 +1,9 @@
 //! OSC 8 terminal hyperlink support.
 
-use std::sync::LazyLock;
+use std::{path::Path, sync::LazyLock};
 
 use regex::Regex;
+use unicode_width::UnicodeWidthStr;
 
 use crate::env::{Env, RealEnv};
 
@@ -11,45 +12,72 @@ use crate::env::{Env, RealEnv};
 /// Line index and column are **relative** to the `Vec<Line>` returned by
 /// the consumer's markdown renderer and do **not** include any
 /// content-prefix span that downstream views may prepend to each line.
+#[expect(
+    dead_code,
+    reason = "link-position model is crate-visible until renderer wiring lands"
+)]
 #[derive(Debug, Clone)]
-pub struct MdLink {
+pub(crate) struct MdLink {
     /// Zero-based index into the returned `Vec<Line>`.
-    pub line_idx: usize,
-    /// Display column within that line (byte-based, content-prefix excluded).
-    pub col: u16,
+    pub(crate) line_idx: usize,
+    /// Terminal display column within that line, content-prefix excluded.
+    pub(crate) display_col: u16,
     /// Visible display text of the link (for re-rendering with OSC 8).
-    pub text: String,
+    pub(crate) text: String,
     /// Target URL.
-    pub url: String,
+    pub(crate) url: String,
 }
 
 /// A hyperlink fully resolved to absolute screen coordinates, ready to emit.
+#[expect(
+    dead_code,
+    reason = "link-position model is crate-visible until renderer wiring lands"
+)]
 #[derive(Debug, Clone)]
-pub struct OscLink {
-    /// Absolute terminal column (0-based).
-    pub screen_x: u16,
+pub(crate) struct OscLink {
+    /// Absolute terminal display column (0-based).
+    pub(crate) screen_x: u16,
     /// Absolute terminal row (0-based).
-    pub screen_y: u16,
+    pub(crate) screen_y: u16,
     /// Visible display text.
-    pub text: String,
+    pub(crate) text: String,
     /// Target URL.
-    pub url: String,
+    pub(crate) url: String,
     /// Accent colour (R, G, B) to apply when re-writing the link text.
-    pub accent: (u8, u8, u8),
+    pub(crate) accent: (u8, u8, u8),
 }
 
 /// Format an OSC 8 hyperlink **opening** sequence.
 ///
 /// Format: `ESC ] 8 ;; URL BEL`
 #[must_use]
+// kanon:ignore RUST/pub-visibility -- external TUI consumers emit OSC 8 hyperlinks
 pub fn osc8_open(url: &str) -> String {
     format!("\x1b]8;;{url}\x07")
 }
 
 /// OSC 8 hyperlink **closing** sequence: `ESC ] 8 ;; BEL`
 #[must_use]
+// kanon:ignore RUST/pub-visibility -- external TUI consumers emit OSC 8 hyperlinks
 pub const fn osc8_close() -> &'static str {
     "\x1b]8;;\x07"
+}
+
+/// Convert a byte offset in `text` to a terminal display column.
+///
+/// If `byte_offset` is not on a UTF-8 character boundary, it is rounded down
+/// to the previous boundary. Offsets past the end of the string use the full
+/// string width. The returned value saturates at `u16::MAX`.
+#[must_use]
+// kanon:ignore RUST/pub-visibility -- external TUI consumers position hyperlinks by terminal display column
+pub fn display_column_for_byte_offset(text: &str, byte_offset: usize) -> u16 {
+    let capped = byte_offset.min(text.len());
+    let mut end = capped;
+    while end > 0 && !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    let prefix = text.get(..end).unwrap_or("");
+    u16::try_from(UnicodeWidthStr::width(prefix)).unwrap_or(u16::MAX)
 }
 
 /// Returns `true` if the running terminal is known to support OSC 8 hyperlinks.
@@ -61,6 +89,7 @@ pub const fn osc8_close() -> &'static str {
 /// Terminals that do **not** support it: raw Linux console, most older xterm
 /// derivatives. Callers should degrade gracefully (underline + colour only).
 #[must_use]
+// kanon:ignore RUST/pub-visibility -- external TUI consumers probe OSC 8 support
 pub fn supports_hyperlinks() -> bool {
     static CACHE: LazyLock<bool> = LazyLock::new(probe_hyperlink_support);
     *CACHE
@@ -123,6 +152,7 @@ fn probe_hyperlink_support() -> bool {
 ///
 /// The caller is responsible for skipping code blocks and inline code;
 /// those contexts should not be passed to this function.
+// kanon:ignore RUST/pub-visibility -- external TUI consumers detect URL spans for hyperlink rendering
 pub fn detect_urls(text: &str) -> Vec<(usize, usize, &str)> {
     #[expect(
         clippy::expect_used,
@@ -177,12 +207,11 @@ fn trim_trailing_punct(url: &str) -> usize {
 /// Detect `path/to/file.rs` and `path/to/file.rs:LINE` patterns in text.
 ///
 /// Returns `(start, end, path, url)` where `url` is a `file://` URL suitable
-/// for OSC 8. Only relative paths with known source extensions are matched to
+/// for OSC 8. Only paths with known source extensions are matched to
 /// avoid false positives on arbitrary words.
-///
-/// Not yet called by the renderer; kept in `#[cfg(test)]` until wired in.
-#[cfg(test)]
-fn detect_file_paths(text: &str) -> Vec<(usize, usize, &str, String)> {
+#[must_use]
+// kanon:ignore RUST/pub-visibility -- external TUI consumers detect file spans for hyperlink rendering
+pub fn detect_file_paths(text: &str) -> Vec<(usize, usize, &str, String)> {
     #[expect(
         clippy::expect_used,
         reason = "regex is a compile-time string literal and is always valid"
@@ -207,10 +236,22 @@ fn detect_file_paths(text: &str) -> Vec<(usize, usize, &str, String)> {
             continue;
         }
         let path_only = base.trim_start_matches("./");
-        let url = format!("file://{path_only}");
+        let Some(url) = file_url_for_path(path_only) else {
+            continue;
+        };
         out.push((m.start(), m.end(), m.as_str(), url));
     }
     out
+}
+
+fn file_url_for_path(path: &str) -> Option<String> {
+    let path = Path::new(path);
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir().ok()?.join(path)
+    };
+    Some(format!("file://{}", absolute.display()))
 }
 
 #[cfg(test)]
@@ -345,6 +386,19 @@ mod tests {
     }
 
     #[test]
+    fn display_column_for_byte_offset_counts_terminal_width() {
+        assert_eq!(display_column_for_byte_offset("é中x", 0), 0);
+        assert_eq!(display_column_for_byte_offset("é中x", 2), 1);
+        assert_eq!(display_column_for_byte_offset("é中x", 5), 3);
+        assert_eq!(display_column_for_byte_offset("é中x", 6), 4);
+    }
+
+    #[test]
+    fn display_column_for_byte_offset_rounds_down_to_char_boundary() {
+        assert_eq!(display_column_for_byte_offset("éx", 1), 0);
+    }
+
+    #[test]
     fn osc8_full_wraps_text() {
         let full = format!(
             "{}{}{}",
@@ -353,12 +407,6 @@ mod tests {
             osc8_close()
         );
         assert_eq!(full, "\x1b]8;;https://example.com\x07click me\x1b]8;;\x07");
-    }
-
-    #[test]
-    fn supports_hyperlinks_returns_bool() {
-        // NOTE: function must not panic regardless of environment
-        let _ = supports_hyperlinks();
     }
 
     #[test]
@@ -650,9 +698,26 @@ mod tests {
     }
 
     #[test]
-    fn detect_file_paths_trims_dotslash_prefix() {
+    fn detect_file_paths_trims_dotslash_prefix() -> std::io::Result<()> {
         let paths = detect_file_paths("./src/lib.rs");
         assert_eq!(paths.len(), 1);
-        assert!(paths[0].3.starts_with("file://src/lib.rs"));
+        let expected = format!(
+            "file://{}",
+            std::env::current_dir()?.join("src/lib.rs").display()
+        );
+        assert_eq!(paths[0].3, expected);
+        assert!(paths[0].3.starts_with("file:///"));
+        Ok(())
+    }
+
+    #[test]
+    fn detect_file_paths_keeps_absolute_paths_as_empty_authority_urls() -> std::io::Result<()> {
+        let absolute = std::env::current_dir()?.join("src/lib.rs");
+        let text = format!("edit {}", absolute.display());
+        let paths = detect_file_paths(&text);
+        assert_eq!(paths.len(), 1);
+        assert_eq!(paths[0].3, format!("file://{}", absolute.display()));
+        assert!(paths[0].3.starts_with("file:///"));
+        Ok(())
     }
 }

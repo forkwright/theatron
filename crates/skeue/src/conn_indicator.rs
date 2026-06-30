@@ -63,6 +63,7 @@ const INDICATOR_STYLE: &str = "\
 /// - **Consumer responsibility**: Provide a descriptive `label` that
 ///   conveys the current state (e.g. "Connected" or "Reconnecting (3)").
 #[component]
+// kanon:ignore RUST/pub-visibility -- re-exported skeue component for external Dioxus consumers
 pub fn ConnectionIndicator(
     /// Semantic health register.
     tone: IndicatorTone,

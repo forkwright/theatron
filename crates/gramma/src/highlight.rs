@@ -155,6 +155,7 @@ fn syn_color_to_css(c: SynColor) -> String {
 /// Takes the first whitespace-delimited token (e.g. `"rust"` from
 /// `"rust playground"`). Returns an empty string if the input is empty.
 #[must_use]
+// kanon:ignore RUST/pub-visibility -- re-exported fenced-code language parser for external renderer crates
 pub fn detect_language(info_string: &str) -> &str {
     info_string.split_whitespace().next().unwrap_or("")
 }

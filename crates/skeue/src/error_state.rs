@@ -80,6 +80,7 @@ const MESSAGE_STYLE: &str = "\
 ///   is keyboard-focusable and labelled. Operators should be
 ///   able to recover from the error via keyboard alone.
 #[component]
+// kanon:ignore RUST/pub-visibility -- re-exported skeue component for external Dioxus consumers
 pub fn ErrorState(
     /// Headline text — the accessible name of the error state
     /// (e.g. "Could not load runs", "Connection lost").

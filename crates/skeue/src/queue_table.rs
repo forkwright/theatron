@@ -95,6 +95,7 @@ const EMPTY_STYLE: &str = "\
 /// - **Consumer responsibility**: If rows are interactive (click-to-detail),
 ///   the consumer must wrap each row in `role="row"` and `tabindex="0"`.
 #[component]
+// kanon:ignore RUST/pub-visibility -- re-exported skeue component for external Dioxus consumers
 pub fn QueueTable(
     /// Column headers.
     columns: Vec<QueueColumn>,

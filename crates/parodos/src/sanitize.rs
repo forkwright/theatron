@@ -12,6 +12,7 @@ use std::borrow::Cow;
     clippy::indexing_slicing,
     reason = "all byte accesses are guarded by `i < len` or `i + 1 < len` checks in the enclosing while/if conditions"
 )]
+// kanon:ignore RUST/pub-visibility -- external TUI consumers sanitize untrusted terminal text
 pub fn sanitize_for_display(s: &str) -> Cow<'_, str> {
     if !needs_sanitization(s) {
         return Cow::Borrowed(s);
@@ -531,7 +532,7 @@ mod tests {
     #[test]
     fn bare_esc_at_end() {
         let result = sanitize_for_display("text\x1b");
-        // The bare ESC at end without a follow-up byte is just skipped
+        // The trailing ESC is dropped because no sequence byte follows it.
         assert!(!result.contains('\x1b'));
     }
 

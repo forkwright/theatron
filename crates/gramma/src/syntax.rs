@@ -28,6 +28,7 @@
 /// assert_eq!(language_from_path("no-extension"), "text");
 /// ```
 #[must_use]
+// kanon:ignore RUST/pub-visibility -- public file-viewer syntax helper for external renderer crates
 pub fn language_from_path(path: &str) -> &'static str {
     let ext = path.rsplit('.').next().unwrap_or("");
     language_from_extension(ext)
@@ -51,6 +52,7 @@ pub fn language_from_path(path: &str) -> &'static str {
 /// assert_eq!(language_from_extension("xyz"), "text");
 /// ```
 #[must_use]
+// kanon:ignore RUST/pub-visibility -- public file-viewer syntax helper for external renderer crates
 pub fn language_from_extension(ext: &str) -> &'static str {
     match ext {
         "rs" => "rust",

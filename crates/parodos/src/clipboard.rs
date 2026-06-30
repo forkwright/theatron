@@ -11,6 +11,7 @@ use crate::env::{Env, RealEnv};
 ///
 /// # Errors
 /// Returns an error if both the native clipboard and OSC52 fallback fail.
+// kanon:ignore RUST/pub-visibility -- external fleet TUI consumers call parodos::clipboard::copy_to_clipboard
 pub fn copy_to_clipboard(text: &str) -> Result<(), String> {
     match arboard::Clipboard::new() {
         Ok(mut clipboard) => match clipboard.set_text(text) {
@@ -31,12 +32,13 @@ pub fn copy_to_clipboard(text: &str) -> Result<(), String> {
 }
 
 /// Content read from the system clipboard.
-#[non_exhaustive]
 #[expect(
     missing_docs,
     reason = "ClipboardContent variants and image-payload fields are self-evident from naming"
 )]
-pub enum ClipboardContent {
+#[non_exhaustive]
+pub enum ClipboardContent /* kanon:ignore RUST/pub-visibility -- external fleet TUI consumers match clipboard read results */
+{
     Text(String),
     Image {
         png_data: Vec<u8>,
@@ -48,34 +50,72 @@ pub enum ClipboardContent {
 
 /// Read from the system clipboard, returning text or image data.
 /// Tries arboard (native) first, falls back to system CLI tools for text.
+// kanon:ignore RUST/pub-visibility -- external fleet TUI consumers call parodos::clipboard::read_from_clipboard
 pub fn read_from_clipboard() -> ClipboardContent {
     match arboard::Clipboard::new() {
         Ok(mut clipboard) => {
-            // WHY: try image first -- if the clipboard holds an image and we ask for text,
-            // some platforms return the file path instead of the actual image data.
-            if let Ok(img) = clipboard.get_image() {
-                // WHY: arboard returns dimensions as usize; clipboard images are
-                // bounded by screen size and always fit in u32. Skip the image
-                // on impossible overflow rather than truncate silently.
-                if let (Ok(width), Ok(height)) =
-                    (u32::try_from(img.width), u32::try_from(img.height))
-                    && let Some(png_data) = rgba_to_png(&img.bytes, width, height)
-                {
-                    return ClipboardContent::Image {
-                        png_data,
-                        width,
-                        height,
-                    };
-                }
-            }
-            match clipboard.get_text() {
-                Ok(text) if !text.is_empty() => ClipboardContent::Text(text),
-                _ => ClipboardContent::Empty,
-            }
+            read_from_initialized_clipboard(&mut clipboard, read_system_clipboard_text)
         }
         Err(e) => {
             tracing::warn!("clipboard read failed: {e}, trying system tools");
             read_system_clipboard_text()
+        }
+    }
+}
+
+struct ClipboardImage {
+    png_data: Vec<u8>,
+    width: u32,
+    height: u32,
+}
+
+trait ClipboardBackend {
+    fn get_image_png(&mut self) -> Option<ClipboardImage>;
+    fn get_text(&mut self) -> Result<String, String>;
+}
+
+impl ClipboardBackend for arboard::Clipboard {
+    fn get_image_png(&mut self) -> Option<ClipboardImage> {
+        let img = self.get_image().ok()?;
+        // WHY: arboard returns dimensions as usize; clipboard images are
+        // bounded by screen size and always fit in u32. Skip the image on
+        // impossible overflow rather than truncate silently.
+        let (Ok(width), Ok(height)) = (u32::try_from(img.width), u32::try_from(img.height)) else {
+            return None;
+        };
+        let png_data = rgba_to_png(&img.bytes, width, height)?;
+        Some(ClipboardImage {
+            png_data,
+            width,
+            height,
+        })
+    }
+
+    fn get_text(&mut self) -> Result<String, String> {
+        arboard::Clipboard::get_text(self).map_err(|err| err.to_string())
+    }
+}
+
+fn read_from_initialized_clipboard(
+    clipboard: &mut impl ClipboardBackend,
+    fallback_text: impl FnOnce() -> ClipboardContent,
+) -> ClipboardContent {
+    // WHY: try image first -- if the clipboard holds an image and we ask for text,
+    // some platforms return the file path instead of the actual image data.
+    if let Some(img) = clipboard.get_image_png() {
+        return ClipboardContent::Image {
+            png_data: img.png_data,
+            width: img.width,
+            height: img.height,
+        };
+    }
+
+    match clipboard.get_text() {
+        Ok(text) if !text.is_empty() => ClipboardContent::Text(text),
+        Ok(_) => ClipboardContent::Empty,
+        Err(err) => {
+            tracing::warn!("native clipboard text read failed: {err}, trying system tools");
+            fallback_text()
         }
     }
 }
@@ -99,7 +139,7 @@ fn read_system_clipboard_text() -> ClipboardContent {
         ("pbpaste", &[]),
     ];
     for (cmd, args) in tools {
-        if let Ok(output) = std::process::Command::new(cmd).args(*args).output()
+        if let Ok(output) = crate::command_runner::output(cmd, args)
             && output.status.success()
         {
             let text = String::from_utf8_lossy(&output.stdout).to_string();
@@ -137,6 +177,7 @@ fn read_system_clipboard_text() -> ClipboardContent {
 /// to call [`copy_to_clipboard`] regardless and rely on the
 /// arboard-first fallback chain.
 #[must_use]
+// kanon:ignore RUST/pub-visibility -- external fleet TUI consumers probe clipboard fallback support
 pub fn supports_osc52() -> bool {
     static CACHE: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| probe_osc52(&RealEnv));
     *CACHE
@@ -222,6 +263,21 @@ fn copy_osc52(text: &str) -> Result<(), String> {
 #[expect(clippy::unwrap_used, reason = "test assertions may panic on failure")]
 mod tests {
     use super::*;
+
+    struct TestClipboard {
+        image: Option<ClipboardImage>,
+        text: Result<String, String>,
+    }
+
+    impl ClipboardBackend for TestClipboard {
+        fn get_image_png(&mut self) -> Option<ClipboardImage> {
+            self.image.take()
+        }
+
+        fn get_text(&mut self) -> Result<String, String> {
+            self.text.clone()
+        }
+    }
 
     #[test]
     fn copy_osc52_generates_valid_sequence() {
@@ -309,6 +365,34 @@ mod tests {
     #[test]
     fn clipboard_content_empty_is_empty() {
         assert!(matches!(ClipboardContent::Empty, ClipboardContent::Empty));
+    }
+
+    #[test]
+    fn initialized_clipboard_text_error_uses_fallback() {
+        let mut clipboard = TestClipboard {
+            image: None,
+            text: Err("backend read failed".to_string()),
+        };
+
+        let content = read_from_initialized_clipboard(&mut clipboard, || {
+            ClipboardContent::Text("fallback text".to_string())
+        });
+
+        assert!(matches!(content, ClipboardContent::Text(ref text) if text == "fallback text"));
+    }
+
+    #[test]
+    fn initialized_clipboard_empty_text_stays_empty() {
+        let mut clipboard = TestClipboard {
+            image: None,
+            text: Ok(String::new()),
+        };
+
+        let content = read_from_initialized_clipboard(&mut clipboard, || {
+            ClipboardContent::Text("fallback text".to_string())
+        });
+
+        assert!(matches!(content, ClipboardContent::Empty));
     }
 
     /// In-memory `Env` for terminal-detection tests.

@@ -48,6 +48,7 @@ fn build_dialog(filters: &[FileFilter]) -> rfd::FileDialog {
 /// cancels.
 #[cfg(not(test))]
 #[must_use]
+// kanon:ignore RUST/pub-visibility -- bathron dialog API is consumed by external desktop crates
 pub fn open_file(filter: &[FileFilter]) -> Option<std::path::PathBuf> {
     build_dialog(filter).pick_file()
 }
@@ -56,6 +57,7 @@ pub fn open_file(filter: &[FileFilter]) -> Option<std::path::PathBuf> {
 /// the user cancels.
 #[cfg(not(test))]
 #[must_use]
+// kanon:ignore RUST/pub-visibility -- bathron dialog API is consumed by external desktop crates
 pub fn open_files(filter: &[FileFilter]) -> Vec<std::path::PathBuf> {
     // kanon:ignore RUST/no-result-unwrap-or-default -- `pick_files` returns Option<Vec<PathBuf>> (None == user canceled); collapse to empty Vec is the documented behavior.
     build_dialog(filter).pick_files().unwrap_or_default()
@@ -65,6 +67,7 @@ pub fn open_files(filter: &[FileFilter]) -> Vec<std::path::PathBuf> {
 /// cancels.
 #[cfg(not(test))]
 #[must_use]
+// kanon:ignore RUST/pub-visibility -- bathron dialog API is consumed by external desktop crates
 pub fn save_file(default_name: &str, filter: &[FileFilter]) -> Option<std::path::PathBuf> {
     build_dialog(filter).set_file_name(default_name).save_file()
 }
@@ -100,6 +103,7 @@ impl MessageKind {
 /// Show an informational message dialog with an OK button. Blocks
 /// until dismissed.
 #[cfg(not(test))]
+// kanon:ignore RUST/pub-visibility -- bathron dialog API is consumed by external desktop crates
 pub fn info(title: &str, message: &str) {
     show_message(MessageKind::Info, title, message);
 }
@@ -107,6 +111,7 @@ pub fn info(title: &str, message: &str) {
 /// Show a warning message dialog with an OK button. Blocks until
 /// dismissed.
 #[cfg(not(test))]
+// kanon:ignore RUST/pub-visibility -- bathron dialog API is consumed by external desktop crates
 pub fn warn(title: &str, message: &str) {
     show_message(MessageKind::Warning, title, message);
 }
@@ -114,6 +119,7 @@ pub fn warn(title: &str, message: &str) {
 /// Show an error message dialog with an OK button. Blocks until
 /// dismissed.
 #[cfg(not(test))]
+// kanon:ignore RUST/pub-visibility -- bathron dialog API is consumed by external desktop crates
 pub fn error(title: &str, message: &str) {
     show_message(MessageKind::Error, title, message);
 }
@@ -123,6 +129,7 @@ pub fn error(title: &str, message: &str) {
 /// close button). Blocks until dismissed.
 #[cfg(not(test))]
 #[must_use]
+// kanon:ignore RUST/pub-visibility -- bathron dialog API is consumed by external desktop crates
 pub fn confirm(title: &str, message: &str) -> bool {
     let result = rfd::MessageDialog::new()
         .set_level(rfd::MessageLevel::Info)
@@ -184,9 +191,9 @@ mod tests {
 
     #[test]
     fn message_kind_is_copy() {
-        // Compile-time check: small enum used in builder patterns
-        // is Copy so it crosses closure boundaries cheaply.
-        fn assert_copy<T: Copy>() {}
-        assert_copy::<MessageKind>();
+        let kind = MessageKind::Warning;
+        let copied = kind;
+
+        assert_eq!(kind, copied);
     }
 }

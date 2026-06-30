@@ -23,6 +23,7 @@ use crate::diagnostic::{Diagnostic, Severity};
 /// # Errors
 ///
 /// Returns an [`io::Error`] if the underlying writer fails.
+// kanon:ignore RUST/pub-visibility -- re-exported renderer used by dokimasia CLI and library consumers
 pub fn render_human<W, L>(
     diagnostics: &[Diagnostic],
     writer: &mut W,
@@ -75,6 +76,7 @@ where
 /// so the diagnostic output makes the failure visible instead of
 /// silently emitting an empty source frame.
 #[must_use]
+// kanon:ignore RUST/pub-visibility -- re-exported source loader paired with render_human
 pub fn lossy_loader(path: &PathBuf) -> String {
     match std::fs::read(path) {
         Ok(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
@@ -88,6 +90,7 @@ pub fn lossy_loader(path: &PathBuf) -> String {
 ///
 /// Returns the serde error if any field can't serialize (in practice
 /// never, since `Diagnostic` is plain data).
+// kanon:ignore RUST/pub-visibility -- re-exported renderer used by dokimasia CLI and library consumers
 pub fn render_json(diagnostics: &[Diagnostic]) -> Result<String, serde_json::Error> {
     serde_json::to_string_pretty(diagnostics)
 }

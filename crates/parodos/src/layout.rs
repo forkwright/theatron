@@ -7,6 +7,7 @@ use ratatui::layout::Rect;
 /// Percent values above 100 are clamped to 100. Zero percent on either
 /// axis yields a zero-sized rectangle centered in that axis.
 #[must_use]
+// kanon:ignore RUST/pub-visibility -- external TUI consumers use shared ratatui layout helpers
 pub fn centered_rect_pct(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
     let width = size_from_percent(area.width, percent_x);
     let height = size_from_percent(area.height, percent_y);
@@ -20,6 +21,7 @@ pub fn centered_rect_pct(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
 /// the remaining space on an axis is odd, the extra cell stays on the
 /// trailing side.
 #[must_use]
+// kanon:ignore RUST/pub-visibility -- external TUI consumers use shared ratatui layout helpers
 pub fn centered_rect_size(width: u16, height: u16, area: Rect) -> Rect {
     let width = width.min(area.width);
     let height = height.min(area.height);

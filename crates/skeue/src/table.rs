@@ -52,6 +52,7 @@ impl From<pulldown_cmark::Alignment> for TableAlignment {
 ///   `scope="col"`.
 /// - **Consumer responsibility**: None.
 #[component]
+// kanon:ignore RUST/pub-visibility -- re-exported skeue component for external Dioxus consumers
 pub fn MdTable(
     headers: Vec<String>,
     rows: Vec<Vec<String>>,

@@ -26,6 +26,7 @@ pub struct MatchResult {
 /// Returns `Some(MatchResult)` if the pattern is a subsequence of the candidate,
 /// `None` otherwise. The match is case-insensitive.
 #[must_use]
+// kanon:ignore RUST/pub-visibility -- re-exported command-palette matcher for external TUI consumers
 pub fn fuzzy_match(candidate: &str, pattern: &str) -> Option<MatchResult> {
     if pattern.is_empty() {
         return Some(MatchResult {
@@ -36,6 +37,7 @@ pub fn fuzzy_match(candidate: &str, pattern: &str) -> Option<MatchResult> {
 
     let candidate_lower = candidate.to_lowercase();
     let pattern_lower = pattern.to_lowercase();
+    let pattern_char_count = pattern_lower.chars().count();
 
     let mut indices = Vec::new();
     let mut pattern_chars = pattern_lower.chars().peekable();
@@ -52,7 +54,7 @@ pub fn fuzzy_match(candidate: &str, pattern: &str) -> Option<MatchResult> {
     }
 
     // Pattern not fully matched
-    if indices.len() != pattern.len() {
+    if indices.len() != pattern_char_count {
         return None;
     }
 
@@ -64,6 +66,7 @@ pub fn fuzzy_match(candidate: &str, pattern: &str) -> Option<MatchResult> {
 /// Calculate a score for a match based on heuristics.
 fn calculate_score(candidate: &str, indices: &[usize]) -> i64 {
     let mut score: i64 = 100; // Base score
+    let chars_by_byte: Vec<_> = candidate.char_indices().collect();
 
     // Bonus for matching at the start
     if let Some(&first) = indices.first()
@@ -76,8 +79,8 @@ fn calculate_score(candidate: &str, indices: &[usize]) -> i64 {
     // slices; destructuring rather than indexing keeps the lint clean.
     for window in indices.windows(2) {
         let &[prev, curr] = window else { continue };
-        let prev_char = candidate.chars().nth(prev);
-        let curr_char = candidate.chars().nth(curr);
+        let prev_char = char_at_byte(&chars_by_byte, prev);
+        let curr_char = char_at_byte(&chars_by_byte, curr);
 
         if let (Some(p), Some(c)) = (prev_char, curr_char) {
             // Consecutive character bonus
@@ -103,6 +106,14 @@ fn calculate_score(candidate: &str, indices: &[usize]) -> i64 {
     score += match_count * 10;
 
     score
+}
+
+fn char_at_byte(chars_by_byte: &[(usize, char)], byte_offset: usize) -> Option<char> {
+    chars_by_byte
+        .binary_search_by_key(&byte_offset, |(idx, _)| *idx)
+        .ok()
+        .and_then(|idx| chars_by_byte.get(idx))
+        .map(|(_, ch)| *ch)
 }
 
 /// Check if a character is a word boundary.
@@ -189,5 +200,25 @@ mod tests {
     fn unicode_handling() {
         let result = fuzzy_match("héllo world", "hw").unwrap();
         assert_eq!(result.indices, vec![0, 7]);
+    }
+
+    #[test]
+    fn multibyte_patterns_match_exact_candidates() {
+        for text in ["café", "привет", "東京", "go🚀"] {
+            assert!(
+                fuzzy_match(text, text).is_some(),
+                "expected exact match for {text}"
+            );
+        }
+    }
+
+    #[test]
+    fn multibyte_candidate_consecutive_bonus_uses_byte_offsets() {
+        assert_eq!(calculate_score("éa", &[0, 2]), 196);
+    }
+
+    #[test]
+    fn multibyte_candidate_word_boundary_bonus_uses_byte_offsets() {
+        assert_eq!(calculate_score("é-foo", &[2, 3]), 165);
     }
 }

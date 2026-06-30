@@ -64,12 +64,13 @@ impl ColorDepth {
 
 /// Background brightness: drives palette selection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[non_exhaustive]
 #[expect(
     missing_docs,
     reason = "Dark/Light variant names are self-documenting; from_label and is_* methods carry the prose"
 )]
-pub enum ThemeMode {
+#[non_exhaustive]
+pub enum ThemeMode /* kanon:ignore RUST/pub-visibility -- re-exported terminal theme selector for external TUI consumers */
+{
     Dark,
     Light,
 }
@@ -138,6 +139,14 @@ pub struct Colors {
     pub accent_dim: Color,
 }
 
+impl Colors {
+    /// Accent foreground style.
+    #[must_use]
+    pub fn accent_style(&self) -> Style {
+        Style::default().fg(self.accent)
+    }
+}
+
 /// Foreground text and role-speaker colors.
 #[derive(Debug, Clone)]
 #[expect(missing_docs, reason = "palette field names are self-documenting")]
@@ -150,6 +159,14 @@ pub struct TextColors {
     pub system: Color,
 }
 
+impl TextColors {
+    /// Default foreground text style.
+    #[must_use]
+    pub fn fg_style(&self) -> Style {
+        Style::default().fg(self.fg)
+    }
+}
+
 /// Structural border and selection colors.
 #[derive(Debug, Clone)]
 #[expect(missing_docs, reason = "palette field names are self-documenting")]
@@ -158,6 +175,14 @@ pub struct Borders {
     pub focused: Color,
     pub separator: Color,
     pub selected: Color,
+}
+
+impl Borders {
+    /// Normal-border foreground style.
+    #[must_use]
+    pub fn normal_style(&self) -> Style {
+        Style::default().fg(self.normal)
+    }
 }
 
 /// Semantic feedback and animation-state colors.
@@ -174,6 +199,14 @@ pub struct StatusColors {
     pub compacting: Color,
 }
 
+impl StatusColors {
+    /// Success-feedback foreground style.
+    #[must_use]
+    pub fn success_style(&self) -> Style {
+        Style::default().fg(self.success)
+    }
+}
+
 /// Code-block colors.
 #[derive(Debug, Clone)]
 #[expect(missing_docs, reason = "palette field names are self-documenting")]
@@ -183,12 +216,28 @@ pub struct CodeColors {
     pub lang: Color,
 }
 
+impl CodeColors {
+    /// Code-block foreground+background style.
+    #[must_use]
+    pub fn block_style(&self) -> Style {
+        Style::default().fg(self.fg).bg(self.bg)
+    }
+}
+
 /// Thinking-block colors.
 #[derive(Debug, Clone)]
 #[expect(missing_docs, reason = "palette field names are self-documenting")]
 pub struct ThinkingColors {
     pub fg: Color,
     pub border: Color,
+}
+
+impl ThinkingColors {
+    /// Thinking-block foreground style.
+    #[must_use]
+    pub fn fg_style(&self) -> Style {
+        Style::default().fg(self.fg)
+    }
 }
 
 /// Semantic color palette for the entire TUI.
@@ -549,7 +598,7 @@ impl Theme {
     /// Default foreground text style.
     #[must_use]
     pub fn style_fg(&self) -> Style {
-        Style::default().fg(self.text.fg)
+        self.text.fg_style()
     }
 
     /// Muted text style (lower contrast than `style_fg`).
@@ -567,7 +616,7 @@ impl Theme {
     /// Accent foreground style.
     #[must_use]
     pub fn style_accent(&self) -> Style {
-        Style::default().fg(self.colors.accent)
+        self.colors.accent_style()
     }
 
     /// Accent foreground with bold modifier.
@@ -581,7 +630,7 @@ impl Theme {
     /// Success-feedback foreground style.
     #[must_use]
     pub fn style_success(&self) -> Style {
-        Style::default().fg(self.status.success)
+        self.status.success_style()
     }
 
     /// Warning-feedback foreground style.
@@ -631,7 +680,7 @@ impl Theme {
     /// Code-block foreground+background style.
     #[must_use]
     pub fn style_code(&self) -> Style {
-        Style::default().fg(self.code.fg).bg(self.code.bg)
+        self.code.block_style()
     }
 
     /// Inline-code style (warning fg over code bg).
@@ -649,7 +698,7 @@ impl Theme {
     /// Normal-border foreground style.
     #[must_use]
     pub fn style_border(&self) -> Style {
-        Style::default().fg(self.borders.normal)
+        self.borders.normal_style()
     }
 
     /// Focused-border foreground style.

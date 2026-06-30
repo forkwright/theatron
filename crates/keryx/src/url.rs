@@ -30,6 +30,7 @@
 /// assert_eq!(encode_path_segment("café"), "caf%C3%A9");
 /// ```
 #[must_use]
+// kanon:ignore RUST/pub-visibility -- public endpoint-construction helper for HTTP clients
 pub fn encode_path_segment(segment: &str) -> String {
     const HEX: &[u8; 16] = b"0123456789ABCDEF";
     let mut encoded = String::with_capacity(segment.len());
@@ -81,6 +82,7 @@ pub fn encode_path_segment(segment: &str) -> String {
 /// assert_eq!(join_base_path("https://api/", ""), "https://api");
 /// ```
 #[must_use]
+// kanon:ignore RUST/pub-visibility -- public endpoint-construction helper for HTTP clients
 pub fn join_base_path(base_url: &str, path: &str) -> String {
     let base = base_url.trim_end_matches('/');
     let path = path.trim_start_matches('/');

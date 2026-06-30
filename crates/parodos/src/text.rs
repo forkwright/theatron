@@ -11,6 +11,7 @@ const ELLIPSIS: char = '…';
 /// the ellipsis is included in the `max_chars` budget. A zero budget
 /// returns an empty string.
 #[must_use]
+// kanon:ignore RUST/pub-visibility -- external TUI consumers share Unicode-safe truncation helpers
 pub fn truncate_chars_ellipsis(text: &str, max_chars: usize) -> String {
     let char_count = text.chars().count();
     if char_count <= max_chars {
@@ -32,6 +33,7 @@ pub fn truncate_chars_ellipsis(text: &str, max_chars: usize) -> String {
 /// included in the `max_cols` budget. A zero budget returns an empty
 /// string.
 #[must_use]
+// kanon:ignore RUST/pub-visibility -- external TUI consumers share Unicode-safe truncation helpers
 pub fn truncate_cols_ellipsis(text: &str, max_cols: usize) -> String {
     if UnicodeWidthStr::width(text) <= max_cols {
         return text.to_owned();
@@ -53,6 +55,7 @@ pub fn truncate_cols_ellipsis(text: &str, max_cols: usize) -> String {
 /// in the `max_cols` budget. A zero budget returns no spans unless the
 /// input already has zero width.
 #[must_use]
+// kanon:ignore RUST/pub-visibility -- external TUI consumers share styled-span truncation helpers
 pub fn truncate_spans_cols<'a>(
     spans: impl IntoIterator<Item = Span<'a>>,
     max_cols: usize,

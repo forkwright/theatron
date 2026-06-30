@@ -16,6 +16,7 @@ use crate::theme::ThemeMode;
 
 /// Lazily-loaded syntax highlighting resources.
 /// syntect's `SyntaxSet` + `ThemeSet` are expensive to build: load once.
+// kanon:ignore RUST/pub-visibility -- external TUI consumers construct themed syntax highlighters
 pub struct Highlighter {
     syntax_set: SyntaxSet,
     theme_set: ThemeSet,

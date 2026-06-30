@@ -188,6 +188,7 @@ impl LogConfig {
 ///   installed).
 #[cfg(not(test))]
 // kanon:ignore RUST/doc-promised-observability -- this function installs the tracing subscriber; emitting tracing events here would be lost (no subscriber yet).
+// kanon:ignore RUST/pub-visibility -- bathron logging initialization is a public desktop-crate API
 pub fn init(
     config: LogConfig,
 ) -> Result<tracing_appender::non_blocking::WorkerGuard, LoggingError> {
@@ -222,6 +223,7 @@ pub fn init(
 ///   installed).
 #[cfg(not(test))]
 // kanon:ignore RUST/doc-promised-observability -- this function installs the tracing subscriber; emitting tracing events here would be lost (no subscriber yet).
+// kanon:ignore RUST/pub-visibility -- bathron logging initialization is a public desktop-crate API
 pub fn init_with_stderr(
     config: LogConfig,
     also_to_stderr: bool,
@@ -480,8 +482,12 @@ mod tests {
     fn logging_error_is_send_sync() {
         // Snafu-derived errors should be both Send + Sync so they
         // cross thread / await boundaries cleanly. Compile-time check.
-        fn assert_send_sync<T: Send + Sync>() {}
-        assert_send_sync::<LoggingError>();
+        fn assert_send_sync<T: Send + Sync>(value: T) -> T {
+            value
+        }
+        let err = assert_send_sync(LoggingError::NoStateDir);
+
+        assert_eq!(err.path(), None);
     }
 
     #[test]
@@ -507,7 +513,12 @@ mod tests {
     fn logging_error_implements_std_error() {
         // Snafu-derived errors should impl std::error::Error so they
         // compose with `?` into anyhow / boxed-error chains.
-        fn assert_error<T: std::error::Error>() {}
-        assert_error::<LoggingError>();
+        let err = LoggingError::NoStateDir;
+        let as_error: &dyn std::error::Error = &err;
+
+        assert_eq!(
+            as_error.to_string(),
+            "could not determine user state directory for logs"
+        );
     }
 }
