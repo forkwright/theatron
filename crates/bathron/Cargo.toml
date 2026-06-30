@@ -29,7 +29,7 @@ snafu = { workspace = true }
 # Optional, gated behind cargo features.
 notify-rust = { version = "4", optional = true }
 rfd = { version = "0.17", optional = true }
-toml = { version = "0.8", optional = true }
+toml = { version = "0.9", optional = true }
 dirs = { version = "6", optional = true }
 tempfile = { version = "3", optional = true }
 tracing = { workspace = true, optional = true }
