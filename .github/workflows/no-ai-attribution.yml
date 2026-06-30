@@ -1,4 +1,4 @@
-name: Gate Attestation
+name: No AI Attribution
 
 on:
   pull_request:
@@ -6,11 +6,12 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  gate:
-    uses: forkwright/.github/.github/workflows/gate-attestation.yml@main
+  no-ai-attribution:
+    uses: forkwright/.github/.github/workflows/no-ai-attribution.yml@main

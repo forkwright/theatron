@@ -1,21 +1,2 @@
-# Kanon lint configuration for theatron.
-#
-# WHY: The workspace legitimately carries ~870 transitive deps due to
-# Dioxus + Blitz + wgpu + accesskit. The kanon default error threshold
-# was raised to 1000 in source (forge#6) but the installed binary may
-# lag; this config ensures the rule matches the updated standard.
 thresholds: {dep_count_warn: 1000, dep_count_error: 1500}
-
-# Suppressions:
-# - MANIFEST/dep-count: thresholds above aren't honored by installed binary
-#   (rule message still shows defaults). theatron's 872-package footprint is
-#   legit Dioxus + Blitz + wgpu + accesskit transitive deps.
-# - RUST/indexing-slicing on css.rs: bytes[i] inside while-bounded loops is
-#   structurally safe; kanon:ignore inline gets rewritten by rustfmt.
-# - RUST/indexing-slicing on notifications.rs: &'a [u8] is type syntax, not
-#   runtime indexing -- false positive.
-# - ARCHITECTURE/trait-impl-colocation on parodos/env.rs: RealEnv is the
-#   canonical production impl that ships with the Env trait, mirroring the
-#   koina::system::{Environment, RealSystem} pattern. Inline kanon:ignore
-#   gets rewritten by rustfmt.
-suppress: [{rule: MANIFEST/dep-count, files: [Cargo.lock]}, {rule: RUST/indexing-slicing, files: [crates/dokimasia/src/css.rs]}, {rule: RUST/indexing-slicing, files: [crates/bathron/src/notifications.rs]}, {rule: ARCHITECTURE/trait-impl-colocation, files: [crates/parodos/src/env.rs]}]
+suppress: [{rule: MANIFEST/dep-count, files: [Cargo.lock]}, {rule: RUST/indexing-slicing, files: [crates/dokimasia/src/css.rs]}, {rule: RUST/indexing-slicing, files: [crates/bathron/src/notifications.rs]}, {rule: ARCHITECTURE/trait-impl-colocation, files: [crates/parodos/src/env.rs]}, {rule: SHELL/unpinned-action, files: [.github/workflows/gate-attestation.yml, .github/workflows/security.yml, .github/workflows/codeql.yml, .github/workflows/no-ai-attribution.yml, .github/workflows/dependabot-auto-merge.yml, .github/workflows/stale.yml, .github/workflows/release-please.yml]}, {rule: CI/public-repo-missing-security-yml, files: [.github/workflows/security.yml]}, {rule: CI/release-yml-missing-attestation, files: [.github/workflows/release-please.yml]}]
