@@ -1,0 +1,311 @@
+[baseline]
+created = "2026-06-30"
+remove_after = "2026-09-30"
+reason = "pre-existing theatron lint debt; tracked for cleanup in separate passes. This PR adopts canonical fleet CI (fixing gate-attestation injection) and is not responsible for the pre-existing code debt."
+
+[[baseline.entry]]
+rule = "COMMENTS/deflection-without-tracking"
+file = "crates/parodos/src/sanitize.rs"
+line = 534
+hash = "881093b7deacf9eb4438e7abace847937653bfb872842643749959202e1ae1c6"
+
+[[baseline.entry]]
+rule = "COMMENTS/journal-shaped"
+file = "crates/dokimasia/src/tokens.rs"
+line = 4
+hash = "2175b8bccb4e2adcb962c8dd0d3d1fdd7316130238eb277acb9eb26f3afe42ab"
+
+[[baseline.entry]]
+rule = "COMMENTS/journal-shaped"
+file = "crates/keryx/src/error.rs"
+line = 13
+hash = "62a3edac09094805c2bbcd76e0f6ef145844dc577f7e29e3bb6adb336b3f5a65"
+
+[[baseline.entry]]
+rule = "COMMENTS/journal-shaped"
+file = "crates/parodos/src/lib.rs"
+line = 4
+hash = "be6a8ff57914162a0ee1e3a825c0e6aac5e98286b1fd1d35a80828f9d1d53662"
+
+[[baseline.entry]]
+rule = "COMMENTS/journal-shaped"
+file = "crates/skeue/src/toast.rs"
+line = 1
+hash = "50aedad457b23ec798cc29512faf58f6e2857b898868519cf63f9dd116b71309"
+
+[[baseline.entry]]
+rule = "CONTEXT/preamble-required"
+file = "AGENTS.md"
+line = 1
+hash = "204aa1e75dc7abd78c37fb0bbf9d946d41ff6f0ce819c299be2b5f903665f8d3"
+
+[[baseline.entry]]
+rule = "DOCS/stale-local-link"
+file = "_meta/INTEGRATION.md"
+line = 148
+hash = "9fb696de29a2b52bc944fa7b0f1b6a9a06491dade083c7cc36b347df4793e76f"
+
+[[baseline.entry]]
+rule = "DOCS/stale-local-link"
+file = "_meta/INTEGRATION.md"
+line = 309
+hash = "f6b3540a24fdeee36020b2101dae453857831c1af61c19901b98985c3b61dff7"
+
+[[baseline.entry]]
+rule = "DOCS/stale-local-link"
+file = "_meta/INTEGRATION.md"
+line = 313
+hash = "2c9102148574a373ab7ee13fad56505b51819ad38dd922e5e547c363907f5489"
+
+[[baseline.entry]]
+rule = "DOCS/stale-local-link"
+file = "_meta/INTEGRATION.md"
+line = 314
+hash = "c9aed212f675cc83053147422e2253108c888943567c47315a14ae7caeba4cd7"
+
+[[baseline.entry]]
+rule = "DOCS/stale-local-link"
+file = "_meta/INTEGRATION.md"
+line = 315
+hash = "f178c69aa159f1fb0199a46a1cb3c67e9b38ba321e9fa6ae3ef4b0e114761ccc"
+
+[[baseline.entry]]
+rule = "DOCS/stale-local-link"
+file = "_meta/INTEGRATION.md"
+line = 316
+hash = "e70bb67ca74a4298bf61aca9be2573f7be22d26a9483ab86e96843709f50baa3"
+
+[[baseline.entry]]
+rule = "DOCS/stale-local-link"
+file = "_meta/RELEASE.md"
+line = 95
+hash = "c1c6703569d3991ef0b4c032151b1878d08b1d0812561d1fd07d161e89cc142e"
+
+[[baseline.entry]]
+rule = "DOCS/stale-local-link"
+file = "_meta/RELEASE.md"
+line = 96
+hash = "b063a908d327a3ea60ad770a68a83dc88eeb195daad19607fcb41a5d648c92ec"
+
+[[baseline.entry]]
+rule = "DOCS/stale-local-link"
+file = "_meta/RELEASE.md"
+line = 97
+hash = "c063708d928681ba841dd2e66d997b2cf2c7c3612b731d612a84b79b6f3d0b60"
+
+[[baseline.entry]]
+rule = "NAMING/no-owner-prefix"
+file = "examples/full_app/Cargo.toml"
+line = 1
+hash = "70acf00586aa7b90c3866278505be7b81fb7ee1f7e21c17c1a22ac239be3c72a"
+
+[[baseline.entry]]
+rule = "NAMING/no-owner-prefix"
+file = "examples/minimal/Cargo.toml"
+line = 1
+hash = "70acf00586aa7b90c3866278505be7b81fb7ee1f7e21c17c1a22ac239be3c72a"
+
+[[baseline.entry]]
+rule = "NAMING/no-owner-prefix"
+file = "examples/tray_smoke/Cargo.toml"
+line = 1
+hash = "70acf00586aa7b90c3866278505be7b81fb7ee1f7e21c17c1a22ac239be3c72a"
+
+[[baseline.entry]]
+rule = "RUST/no-direct-process-command"
+file = "crates/parodos/src/clipboard.rs"
+line = 102
+hash = "dfcf90dd631f35ddfd0e0d4fdd4dae15ec01048993d7f370bfb0efe5ab9e256e"
+
+[[baseline.entry]]
+rule = "RUST/non-exhaustive-enum"
+file = "crates/parodos/src/clipboard.rs"
+line = 39
+hash = "c048ce20e4f5bed6c91afcb0a28b9e8eecc8be0485cd294872b3fb1c192a7e32"
+
+[[baseline.entry]]
+rule = "RUST/non-exhaustive-enum"
+file = "crates/parodos/src/theme.rs"
+line = 72
+hash = "59f1061ea1e18be8033a70a3252c0f16b88080a13be50d5bd7154f3d5439795a"
+
+[[baseline.entry]]
+rule = "TESTING/tautological-test"
+file = "crates/bathron/src/dialogs.rs"
+line = 186
+hash = "52b9ddee80f44f7b6fb22bb377bb32919308b0f062a73e57514f0efbbdc69c9c"
+
+[[baseline.entry]]
+rule = "TESTING/tautological-test"
+file = "crates/bathron/src/logging.rs"
+line = 480
+hash = "7530463d5843898e18aa0444647d159102d01310183aa0574f69020bac3fdfb1"
+
+[[baseline.entry]]
+rule = "TESTING/tautological-test"
+file = "crates/bathron/src/logging.rs"
+line = 507
+hash = "809fe68a0e6a1afd132c0f0d715f175728e6755e7afa0c3d6ab02cc7337d3fc5"
+
+[[baseline.entry]]
+rule = "TESTING/tautological-test"
+file = "crates/keryx/src/error.rs"
+line = 392
+hash = "25a23429733733d336e193cbb9ef0cf7925f64cfaf5450c6bf0fe49a3046b459"
+
+[[baseline.entry]]
+rule = "TESTING/tautological-test"
+file = "crates/keryx/src/error.rs"
+line = 400
+hash = "5953d5684e276ff159309ff2f3a3fbb0dace8411ddce71909008d7a442fade76"
+
+[[baseline.entry]]
+rule = "TESTING/tautological-test"
+file = "crates/mekhane/src/tray.rs"
+line = 129
+hash = "a55f2d89824c93fb3d7530ad417658ab1c72b0219ab368019fac0c4913e49c0a"
+
+[[baseline.entry]]
+rule = "TESTING/tautological-test"
+file = "crates/parodos/src/hyperlink.rs"
+line = 359
+hash = "45a4189f90df1f9b40e99519406f7da2e23a3cc4442e056fc2a448c68d0faf75"
+
+[[baseline.entry]]
+rule = "TESTING/tautological-test"
+file = "crates/parodos/src/theme_tests.rs"
+line = 125
+hash = "2acb9e6c3866b445783b6ec43f1e9b0af29867232b820e04ab38a4b9a68ebf9b"
+
+[[baseline.entry]]
+rule = "TESTING/tautological-test"
+file = "crates/parodos/src/theme_tests.rs"
+line = 157
+hash = "8e182e7c75acbf8bf85957b8d3f2851bd5e1044db0e5e0bdde57533f2e3b8a8a"
+
+[[baseline.entry]]
+rule = "TESTING/tautological-test"
+file = "crates/parodos/src/theme_tests.rs"
+line = 162
+hash = "9ad9d866ecc3cd3b963732a63a0836ed39a4be4b4ca0fe708f6ba41c514f5a55"
+
+[[baseline.entry]]
+rule = "TESTING/tautological-test"
+file = "crates/themelion/src/theme.rs"
+line = 459
+hash = "f4f5820e8f46bd7beb9e1c86aec2ccaba3fa32fa8c8e0b0d40a4be7f741d1eba"
+
+[[baseline.entry]]
+rule = "TESTING/tautological-test"
+file = "crates/themelion/src/theme.rs"
+line = 521
+hash = "69aa1bc9345456e5d37b23878002348cee131d9b8ce5b7d702c7a6e87e041b95"
+
+[[baseline.entry]]
+rule = "TOPOLOGY/shallow-struct"
+file = "crates/gramma/src/highlight.rs"
+line = 92
+hash = "045df330687d095e730605681704f2a2ecb03eb00f77b29ef591f3a09e3f7533"
+
+[[baseline.entry]]
+rule = "TOPOLOGY/shallow-struct"
+file = "crates/keryx/src/sse.rs"
+line = 11
+hash = "238ef08ac3dd4d44f38382e4300c68040be5ba3b0a0c5ff53125ead52ba35860"
+
+[[baseline.entry]]
+rule = "TOPOLOGY/shallow-struct"
+file = "crates/parodos/src/fuzzy.rs"
+line = 17
+hash = "012db8ca91a067c085de5a8cb71519da9e3d6cc41bf39197c43916a3a7451037"
+
+[[baseline.entry]]
+rule = "TOPOLOGY/shallow-struct"
+file = "crates/parodos/src/hyperlink.rs"
+line = 15
+hash = "b473ec7e75109bf8d1316997ae7cde1bfe6b7716843868c099c9cce55cde2473"
+
+[[baseline.entry]]
+rule = "TOPOLOGY/shallow-struct"
+file = "crates/parodos/src/hyperlink.rs"
+line = 28
+hash = "3eb6332ba2b4863e53489cbb8110ee30a4cce6634341d3fc01722549343b799c"
+
+[[baseline.entry]]
+rule = "TOPOLOGY/shallow-struct"
+file = "crates/parodos/src/theme.rs"
+line = 132
+hash = "cc30875b358b8c13efda0a72d9e9102cf84950d15d062640d4313dc0efbf3334"
+
+[[baseline.entry]]
+rule = "TOPOLOGY/shallow-struct"
+file = "crates/parodos/src/theme.rs"
+line = 144
+hash = "88fd27826dd3a193e5fe0e44a5c67c5eaff36a74d7519d959bfc3411c81ef608"
+
+[[baseline.entry]]
+rule = "TOPOLOGY/shallow-struct"
+file = "crates/parodos/src/theme.rs"
+line = 156
+hash = "1984246285e82b21e9f4d624bc9fac34ec4fffedfb2ba096f82ea34ab65b5cb2"
+
+[[baseline.entry]]
+rule = "TOPOLOGY/shallow-struct"
+file = "crates/parodos/src/theme.rs"
+line = 166
+hash = "a78752952aa7a220875b6c45bf980595c31b82de115654a895f62d41c322e93b"
+
+[[baseline.entry]]
+rule = "TOPOLOGY/shallow-struct"
+file = "crates/parodos/src/theme.rs"
+line = 180
+hash = "4e7f445f51b45bf56274ad67ae0a8e480406a842348bb2b41d54498940150604"
+
+[[baseline.entry]]
+rule = "TOPOLOGY/shallow-struct"
+file = "crates/parodos/src/theme.rs"
+line = 189
+hash = "3c3710b6bb845216b0b3b30c938ff2ff863b6db074777ee048191dfdf5ae96d6"
+
+[[baseline.entry]]
+rule = "TOPOLOGY/shallow-struct"
+file = "crates/skeue/src/activity_row.rs"
+line = 43
+hash = "3365d9cd49d743565eb6f643a1e4575ef17da9599ef8c9a98c6fc0cf9f74e92c"
+
+[[baseline.entry]]
+rule = "TOPOLOGY/shallow-struct"
+file = "crates/skeue/src/metric_tile.rs"
+line = 70
+hash = "0b065a5de11d900399916f2b4a79a5b540a5d80e83101f8eafea6f9b76845455"
+
+[[baseline.entry]]
+rule = "TOPOLOGY/shallow-struct"
+file = "crates/skeue/src/queue_table.rs"
+line = 33
+hash = "690bca130763c6c9145ac61d88b5761f5b8128ef842a14c3c5cce4d5dee3e1e4"
+
+[[baseline.entry]]
+rule = "TOPOLOGY/shallow-struct"
+file = "crates/skeue/src/toast.rs"
+line = 59
+hash = "2f91c4000a91c263bf481a09be0a7e7ca34779e48752c1a098341ba838d06fd4"
+
+[[baseline.entry]]
+rule = "TOPOLOGY/shallow-struct"
+file = "crates/skeue/src/toast.rs"
+line = 64
+hash = "9b771f5503ecc99892c48e03ed6408356bba06333d4d9186ac9abb142cefb477"
+
+[[baseline.entry]]
+rule = "TOPOLOGY/shallow-struct"
+file = "crates/skeue/src/toast.rs"
+line = 68
+hash = "aedaf335fa2d439faeea5d43559c1d08c5cde602bbbd33bfe1cdfbd2c321f28c"
+
+[[baseline.entry]]
+rule = "TOPOLOGY/shallow-struct"
+file = "crates/skeue/src/toast.rs"
+line = 77
+hash = "44081696295f3641e3a847819917f5f6a4cbeb7073e8aec367b23607ed2c8550"
+

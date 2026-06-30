@@ -1,12 +1,10 @@
-name: Stale
+name: Dependabot Auto-Merge
 
 on:
-  schedule:
-    - cron: "0 12 * * 0"
-  workflow_dispatch:
+  pull_request:
 
 permissions:
-  issues: write
+  contents: write
   pull-requests: write
 
 concurrency:
@@ -14,5 +12,5 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  stale:
-    uses: forkwright/.github/.github/workflows/stale.yml@main
+  dependabot-auto-merge:
+    uses: forkwright/.github/.github/workflows/dependabot-auto-merge.yml@main

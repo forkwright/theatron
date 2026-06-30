@@ -1,20 +1,23 @@
-# Workspace-wide clippy configuration.
-
+too-many-lines-threshold = 100
 too-many-arguments-threshold = 10
+type-complexity-threshold = 300
 
-# WHY: brand names and acronyms that appear unquoted in rustdoc. Merged with
-# clippy's built-in list (Anthropic, Rust, etc. are already known).
-doc-valid-idents = [
-    "OpenAI",
-    "SSE",
-    "HTTP",
-    "HTTPS",
-]
+doc-valid-idents = ["CI", "CLI", "HTTP", "HTTPS", "JSON", "OAuth", "OpenAI", "SSE", "TOML", "YAML"]
+
+
 
 [[disallowed-methods]]
 path = "std::process::exit"
+
 reason = "use snafu errors and propagate; exit() bypasses destructors"
+
+
+
+
 
 [[disallowed-types]]
 path = "std::sync::Mutex"
+
 reason = "use tokio::sync::Mutex in async code; use parking_lot::Mutex otherwise"
+
+
