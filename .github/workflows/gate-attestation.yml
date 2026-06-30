@@ -7,52 +7,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  gate-attestation:
-    name: gate-attestation
-    runs-on: ubuntu-latest
-    steps:
-      # WHY: bypass keys off the PR author login, not github.actor. The actor
-      # changes to a maintainer login whenever someone re-runs the workflow
-      # (e.g. clicking "Re-run failed jobs" on a dependabot PR), which silently
-      # re-armed the trailer check on automation PRs and started rejecting them.
-      # The PR author is the stable identity worth waiving.
-      - name: Pass trusted automation PRs
-        if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' || github.event.pull_request.user.login == 'release-please[bot]' }}
-        run: echo "Gate attestation waived for trusted automation PR author ${{ github.event.pull_request.user.login }}."
-
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-        if: ${{ github.event.pull_request.user.login != 'dependabot[bot]' && github.event.pull_request.user.login != 'release-please[bot]' }}
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Verify Gate-Passed trailer
-        if: ${{ github.event.pull_request.user.login != 'dependabot[bot]' && github.event.pull_request.user.login != 'release-please[bot]' }}
-        run: |
-          commits=$(git log --format="%H" "origin/${{ github.base_ref }}..HEAD")
-          if [ -z "$commits" ]; then
-            echo "ERROR: No commits found in PR"
-            exit 1
-          fi
-
-          found=false
-          for sha in $commits; do
-            body=$(git log -1 --format="%b" "$sha")
-            if echo "$body" | grep -q "^Gate-Passed:"; then
-              version=$(echo "$body" | grep "^Gate-Passed:" | head -1)
-              echo "Found gate attestation: $version"
-              found=true
-              break
-            fi
-          done
-
-          if [ "$found" = false ]; then
-            echo "ERROR: No Gate-Passed trailer found in any PR commit."
-            echo "Run the local gate and commit with the trailer."
-            exit 1
-          fi
+  gate:
+    uses: forkwright/.github/.github/workflows/gate-attestation.yml@main

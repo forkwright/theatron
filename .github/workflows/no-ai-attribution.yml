@@ -1,0 +1,13 @@
+name: No AI Attribution
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  no-ai-attribution:
+    uses: forkwright/.github/.github/workflows/no-ai-attribution.yml@main
