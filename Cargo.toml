@@ -69,7 +69,7 @@ dioxus-native = "=0.7.6"
 # the two `MenuEvent` types stop being interchangeable.
 tray-icon = "0.21"
 muda = "0.17"
-global-hotkey = "0.7"
+global-hotkey = "0.8"
 image = { version = "0.25", default-features = false, features = ["png"] }
 
 # Network / streaming
