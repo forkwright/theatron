@@ -42,4 +42,6 @@ ignore = [
     "RUSTSEC-2026-0185",
     # memmap2 0.9.10 unchecked pointer offset unsoundness. Transitive via fontdb -> usvg -> anyrender_svg/blitz-dom -> dioxus-native -> mekhane. theatron does not directly construct memory maps; the vector requires theatron code to call memmap2 APIs with attacker-controlled offsets, which it does not. Fixed upstream in memmap2 0.9.11; pending fontdb/usvg transitive bump.
     "RUSTSEC-2026-0186",
+    # ttf-parser unmaintained. Transitive via cosmic-text -> parodos/bathron rendering stack. No maintained fork has been adopted upstream; no fixed version available. theatron does not load attacker-controlled font files in any public API path.
+    "RUSTSEC-2026-0192",
 ]
