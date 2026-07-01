@@ -14,4 +14,4 @@ concurrency:
 
 jobs:
   no-ai-attribution:
-    uses: forkwright/.github/.github/workflows/no-ai-attribution.yml@main
+    uses: forkwright/.github/.github/workflows/no-ai-attribution.yml@66867bca65b34a464f184cf1d6d5c9ee433c4dba
