@@ -124,15 +124,15 @@ pub fn ActivityRow(
             style: "{ROW_STYLE_FMT} min-height: {height};",
             if let Some(ref glyph) = icon {
                 span {
-                    style: "{ICON_STYLE}",
+                    style: ICON_STYLE,
                     aria_hidden: "true",
-                    "{glyph}"
+                    {glyph.clone()}
                 }
             }
             div {
-                style: "{TITLE_STYLE}",
-                title: "{title}",
-                "{title}"
+                style: TITLE_STYLE,
+                title: title.clone(),
+                {title.clone()}
             }
             if let Some(ref s) = status {
                 StatusPill {
@@ -142,9 +142,9 @@ pub fn ActivityRow(
                 }
             }
             if let Some(ref meta) = metadata {
-                span { style: "{META_STYLE}", "{meta}" }
+                span { style: META_STYLE, {meta.clone()} }
             }
-            span { style: "{TIMESTAMP_STYLE}", "{timestamp}" }
+            span { style: TIMESTAMP_STYLE, {timestamp} }
         }
     }
 }

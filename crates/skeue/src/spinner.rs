@@ -116,13 +116,13 @@ pub fn Spinner(
             style: CONTAINER_STYLE,
             role: "status",
             "aria-live": "polite",
-            "aria-label": "{aria_label}",
+            "aria-label": aria_label,
             span {
-                style: "{spinner_style}",
+                style: spinner_style,
                 "aria-hidden": "true",
             }
             if let Some(label) = label {
-                span { "{label}" }
+                span { {label} }
             }
         }
     }

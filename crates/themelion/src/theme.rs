@@ -373,9 +373,9 @@ pub fn ThemeToggle(#[props(default)] on_change: EventHandler<ThemeMode>) -> Elem
             },
             title: "Theme: {label}",
             "aria-label": "Switch theme, current: {label}",
-            style: "{TOGGLE_STYLE}",
-            span { "{icon}" }
-            span { "{label}" }
+            style: TOGGLE_STYLE,
+            span { {icon} }
+            span { {label} }
         }
     }
 }

@@ -99,17 +99,17 @@ pub fn DiffLineView(line: DiffLine, language: String) -> Element {
         div {
             style: "{LINE_STYLE} background: {bg};",
             div {
-                style: "{GUTTER_STYLE}",
+                style: GUTTER_STYLE,
                 aria_hidden: "true",
-                span { style: "{GUTTER_NUM_STYLE}", "{old_no}" }
-                span { style: "{GUTTER_NUM_STYLE}", "{new_no}" }
+                span { style: GUTTER_NUM_STYLE, {old_no} }
+                span { style: GUTTER_NUM_STYLE, {new_no} }
             }
             span {
                 style: "{INDICATOR_STYLE} color: {ind_color};",
-                "{ind}"
+                {ind}
             }
             div {
-                style: "{CONTENT_STYLE}",
+                style: CONTENT_STYLE,
                 if line.word_spans.is_empty() {
                     // NOTE: No word-level diff -- render with syntax highlighting.
                     {render_highlighted_content(&line.content, &language)}
@@ -138,7 +138,7 @@ fn render_highlighted_content(content: &str, language: &str) -> Element {
             }
         }
     } else {
-        rsx! { "{content}" }
+        rsx! { {content} }
     }
 }
 

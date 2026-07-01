@@ -136,9 +136,9 @@ pub fn StatusPill(
             role: "status",
             style: "{PILL_STYLE_FMT} background: {bg}; color: {fg}; border-radius: {radius};",
             if let Some(ref glyph) = icon {
-                span { aria_hidden: "true", "{glyph}" }
+                span { aria_hidden: "true", {glyph.clone()} }
             }
-            "{label}"
+            {label}
         }
     }
 }

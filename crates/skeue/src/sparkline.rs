@@ -164,7 +164,7 @@ pub fn Sparkline(
     rsx! {
         svg {
             "aria-hidden": "true",
-            view_box: "{viewbox}",
+            view_box: viewbox,
             width: "{width}",
             height: "{height}",
             preserve_aspect_ratio: "none",
@@ -183,11 +183,11 @@ pub fn Sparkline(
                     rsx! {
                         polyline {
                             fill: "none",
-                            stroke: "{color}",
+                            stroke: color,
                             stroke_width: "1.5",
                             stroke_linecap: "round",
                             stroke_linejoin: "round",
-                            points: "{pts}",
+                            points: pts,
                         }
                     }
                 }
@@ -200,7 +200,7 @@ pub fn Sparkline(
                                 y: "{y}",
                                 width: "{w}",
                                 height: "{h}",
-                                fill: "{color}",
+                                fill: color,
                             }
                         }
                     }

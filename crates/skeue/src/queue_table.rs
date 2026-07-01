@@ -111,22 +111,22 @@ pub fn QueueTable(
     rsx! {
         div {
             role: "table",
-            style: "{TABLE_STYLE}",
+            style: TABLE_STYLE,
             div {
                 role: "row",
-                style: "{HEADER_STYLE}",
+                style: HEADER_STYLE,
                 for (i , col) in columns.iter().enumerate() {
                     span {
                         key: "{i}",
                         role: "columnheader",
                         "scope": "col",
-                        style: "{HEADER_LABEL_STYLE}",
+                        style: HEADER_LABEL_STYLE,
                         "{col.label}"
                     }
                 }
             }
             if items.is_empty() {
-                div { style: "{EMPTY_STYLE}", "{empty_msg}" }
+                div { style: EMPTY_STYLE, {empty_msg} }
             } else {
                 for (i , item) in items.into_iter().enumerate() {
                     ActivityRow {

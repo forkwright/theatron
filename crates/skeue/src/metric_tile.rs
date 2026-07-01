@@ -145,16 +145,16 @@ pub fn MetricTile(
     rsx! {
         div {
             role: "group",
-            "aria-label": "{label}",
-            style: "{TILE_STYLE}",
+            "aria-label": label.clone(),
+            style: TILE_STYLE,
             div {
-                style: "{VALUE_ROW_STYLE}",
-                span { style: "{VALUE_STYLE}", "{value}" }
+                style: VALUE_ROW_STYLE,
+                span { style: VALUE_STYLE, {value} }
                 if let Some(ref u) = unit {
-                    span { style: "{UNIT_STYLE}", "{u}" }
+                    span { style: UNIT_STYLE, {u.clone()} }
                 }
             }
-            div { style: "{LABEL_STYLE}", "{label}" }
+            div { style: LABEL_STYLE, {label.clone()} }
             if let Some(ref d) = delta {
                 div {
                     style: "{DELTA_ROW_STYLE} color: {d.tone.color_token()};",

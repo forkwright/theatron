@@ -79,14 +79,14 @@ pub fn ConnectionIndicator(
     rsx! {
         div {
             role: "status",
-            style: "{INDICATOR_STYLE}",
-            title: "{title}",
+            style: INDICATOR_STYLE,
+            title: title,
             span {
                 aria_hidden: "true",
                 style: "color: {color}; font-size: var(--text-xs);",
                 "\u{25CF}"
             }
-            span { "{label}" }
+            span { {label} }
         }
     }
 }

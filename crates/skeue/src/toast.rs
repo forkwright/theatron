@@ -191,26 +191,26 @@ pub fn ToastItem(
     };
     rsx! {
         div {
-            role: "{role}",
-            aria_live: "{aria_live}",
+            role: role,
+            aria_live: aria_live,
             aria_atomic: "true",
             style: "{TOAST_STYLE} background: {bg}; border-color: {color}; color: var(--text-primary);",
             button {
-                style: "{DISMISS_STYLE}",
+                style: DISMISS_STYLE,
                 aria_label: "Dismiss notification",
                 onclick: move |_| on_dismiss.call(toast_id),
                 "\u{2715}"
             }
-            div { style: "{TITLE_STYLE}", "{toast.title}" }
+            div { style: TITLE_STYLE, "{toast.title}" }
             if let Some(ref body) = toast.body {
-                div { style: "{BODY_STYLE}", "{body}" }
+                div { style: BODY_STYLE, {body.clone()} }
             }
             if let Some(ref action) = toast.action {
                 {
                     let action_clone = action.clone();
                     rsx! {
                         button {
-                            style: "{ACTION_STYLE}",
+                            style: ACTION_STYLE,
                             onclick: move |_| {
                                 on_action.call(action_clone.clone());
                                 on_dismiss.call(toast_id);
