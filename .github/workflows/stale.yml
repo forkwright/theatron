@@ -15,4 +15,4 @@ concurrency:
 
 jobs:
   stale:
-    uses: forkwright/.github/.github/workflows/stale.yml@main
+    uses: forkwright/.github/.github/workflows/stale.yml@66867bca65b34a464f184cf1d6d5c9ee433c4dba
