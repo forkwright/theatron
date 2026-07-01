@@ -35,8 +35,6 @@ tokio = { workspace = true, features = ["sync"] }
 tracing = { workspace = true }
 snafu = { workspace = true }
 
-muda = { workspace = true, optional = true }
-global-hotkey = { workspace = true, optional = true }
 image = { workspace = true, optional = true }
 
 [target.'cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))'.dependencies]
