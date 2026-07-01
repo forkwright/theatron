@@ -88,7 +88,7 @@ pub fn MdTable(
                                     color: var(--text-primary);
                                     font-weight: var(--weight-semibold);
                                 ",
-                                "{header}"
+                                {header.clone()}
                             }
                         }
                     }
@@ -109,7 +109,7 @@ pub fn MdTable(
                                         text-align: {alignment_css(alignments.get(col_idx).copied())};
                                         color: var(--text-secondary);
                                     ",
-                                    "{cell}"
+                                    {cell.clone()}
                                 }
                             }
                         }

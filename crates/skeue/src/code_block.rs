@@ -81,11 +81,11 @@ pub fn CodeBlock(code: String, language: String) -> Element {
         div {
             class: "code-block",
             role: "region",
-            aria_label: "{aria_label}",
-            style: "{BLOCK_STYLE}",
+            aria_label: aria_label,
+            style: BLOCK_STYLE,
             div {
-                style: "{HEADER_STYLE}",
-                span { "{lang_display}" }
+                style: HEADER_STYLE,
+                span { {lang_display.clone()} }
                 button {
                     aria_label: "Copy {lang_display} code to clipboard",
                     onclick: {
@@ -99,16 +99,16 @@ pub fn CodeBlock(code: String, language: String) -> Element {
                             document::eval(&js);
                         }
                     },
-                    style: "{COPY_BUTTON_STYLE}",
+                    style: COPY_BUTTON_STYLE,
                     "copy"
                 }
             }
             div {
-                style: "{CODE_BODY_STYLE}",
+                style: CODE_BODY_STYLE,
                 for (i , line_spans) in highlighted.iter().enumerate() {
                     div {
                         key: "{i}",
-                        style: "{LINE_STYLE}",
+                        style: LINE_STYLE,
                         span {
                             style: "
                                 display: inline-block;
@@ -122,7 +122,7 @@ pub fn CodeBlock(code: String, language: String) -> Element {
                             "{i + 1}"
                         }
                         span {
-                            style: "{CONTENT_STYLE}",
+                            style: CONTENT_STYLE,
                             for (j , span) in line_spans.iter().enumerate() {
                                 {render_span(j, span)}
                             }
@@ -150,8 +150,8 @@ fn render_span(key: usize, span: &HighlightedSpan) -> Element {
     rsx! {
         span {
             key: "{key}",
-            style: "{style}",
-            "{text}"
+            style: style,
+            {text}
         }
     }
 }

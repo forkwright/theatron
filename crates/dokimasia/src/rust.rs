@@ -129,8 +129,7 @@ fn has_cfg_test(attrs: &[syn::Attribute]) -> bool {
             return false;
         }
         attr.parse_args::<syn::Meta>()
-            .ok()
-            .is_some_and(|meta| meta_contains_test(&meta))
+            .is_ok_and(|meta| meta_contains_test(&meta))
     })
 }
 

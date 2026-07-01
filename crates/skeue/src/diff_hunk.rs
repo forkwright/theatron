@@ -66,8 +66,8 @@ pub fn DiffHunkView(hunk: DiffHunk, language: String, mode: DiffViewMode) -> Ele
     rsx! {
         div {
             role: "region",
-            aria_label: "{aria_label}",
-            div { style: "{HUNK_HEADER_STYLE}", "{header}" }
+            aria_label: aria_label,
+            div { style: HUNK_HEADER_STYLE, {header} }
             match mode {
                 DiffViewMode::Unified => rsx! {
                     {render_unified_lines(&hunk.lines, &language)}
@@ -104,10 +104,10 @@ fn render_side_by_side(hunk: &DiffHunk, language: &str) -> Element {
         for (i , row) in rows.iter().enumerate() {
             div {
                 key: "{i}",
-                style: "{SBS_ROW_STYLE}",
+                style: SBS_ROW_STYLE,
                 // Left side (old)
                 {render_sbs_half(row.left.as_ref(), ChangeType::Remove, language)}
-                div { style: "{SBS_DIVIDER_STYLE}" }
+                div { style: SBS_DIVIDER_STYLE }
                 // Right side (new)
                 {render_sbs_half(row.right.as_ref(), ChangeType::Add, language)}
             }
@@ -138,14 +138,14 @@ fn render_sbs_half(line: Option<&DiffLine>, side: ChangeType, _language: &str) -
     rsx! {
         div {
             style: "display: flex; flex: 1; background: {bg};",
-            span { style: "{SBS_GUTTER_STYLE}", "{line_no_str}" }
+            span { style: SBS_GUTTER_STYLE, {line_no_str} }
             div {
-                style: "{SBS_CONTENT_STYLE}",
+                style: SBS_CONTENT_STYLE,
                 if let Some(l) = line {
                     if !l.word_spans.is_empty() {
                         {render_sbs_word_spans(&l.word_spans, l.change_type)}
                     } else {
-                        "{content}"
+                        {content}
                     }
                 } else {
                     ""

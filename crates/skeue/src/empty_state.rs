@@ -92,22 +92,22 @@ pub fn EmptyState(
         div {
             style: EMPTY_STATE_STYLE,
             role: "status",
-            "aria-label": "{title}",
+            "aria-label": title.clone(),
             if let Some(icon) = icon {
                 div {
                     style: ICON_STYLE,
                     "aria-hidden": "true",
-                    "{icon}"
+                    {icon}
                 }
             }
             h2 {
                 style: TITLE_STYLE,
-                "{title}"
+                {title.clone()}
             }
             if let Some(msg) = message {
                 p {
                     style: MESSAGE_STYLE,
-                    "{msg}"
+                    {msg}
                 }
             }
             if let Some(action) = action {

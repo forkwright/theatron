@@ -105,20 +105,20 @@ pub fn ErrorState(
             style: ERROR_STATE_STYLE,
             role: "alert",
             "aria-live": "assertive",
-            "aria-label": "{title}",
+            "aria-label": title.clone(),
             div {
                 style: ICON_STYLE,
                 "aria-hidden": "true",
-                "{icon_text}"
+                {icon_text}
             }
             h2 {
                 style: TITLE_STYLE,
-                "{title}"
+                {title.clone()}
             }
             if let Some(msg) = message {
                 p {
                     style: MESSAGE_STYLE,
-                    "{msg}"
+                    {msg}
                 }
             }
             if let Some(action) = action {
