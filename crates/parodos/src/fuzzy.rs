@@ -64,6 +64,7 @@ pub fn fuzzy_match(candidate: &str, pattern: &str) -> Option<MatchResult> {
 /// Calculate a score for a match based on heuristics.
 fn calculate_score(candidate: &str, indices: &[usize]) -> i64 {
     let mut score: i64 = 100; // Base score
+    let chars_by_byte: Vec<(usize, char)> = candidate.char_indices().collect();
 
     // Bonus for matching at the start
     if let Some(&first) = indices.first()
@@ -76,8 +77,8 @@ fn calculate_score(candidate: &str, indices: &[usize]) -> i64 {
     // slices; destructuring rather than indexing keeps the lint clean.
     for window in indices.windows(2) {
         let &[prev, curr] = window else { continue };
-        let prev_char = candidate.chars().nth(prev);
-        let curr_char = candidate.chars().nth(curr);
+        let prev_char = char_at_byte_offset(&chars_by_byte, prev);
+        let curr_char = char_at_byte_offset(&chars_by_byte, curr);
 
         if let (Some(p), Some(c)) = (prev_char, curr_char) {
             // Consecutive character bonus
@@ -95,7 +96,7 @@ fn calculate_score(candidate: &str, indices: &[usize]) -> i64 {
     // Penalty for length (shorter is better). Saturate at i64::MAX for
     // the impossible >2^63 string case; the lint-clean path matters more
     // than the unreachable branch.
-    let candidate_len = i64::try_from(candidate.chars().count()).unwrap_or(i64::MAX);
+    let candidate_len = i64::try_from(chars_by_byte.len()).unwrap_or(i64::MAX);
     score -= candidate_len * 2;
 
     // Bonus for matching more of the pattern.
@@ -103,6 +104,14 @@ fn calculate_score(candidate: &str, indices: &[usize]) -> i64 {
     score += match_count * 10;
 
     score
+}
+
+fn char_at_byte_offset(chars_by_byte: &[(usize, char)], byte_offset: usize) -> Option<char> {
+    chars_by_byte
+        .binary_search_by_key(&byte_offset, |entry| entry.0)
+        .ok()
+        .and_then(|position| chars_by_byte.get(position))
+        .map(|(_, ch)| *ch)
 }
 
 /// Check if a character is a word boundary.
@@ -189,5 +198,23 @@ mod tests {
     fn unicode_handling() {
         let result = fuzzy_match("héllo world", "hw").unwrap();
         assert_eq!(result.indices, vec![0, 7]);
+    }
+
+    #[test]
+    fn consecutive_bonus_uses_byte_offsets_for_multibyte_candidates() {
+        let unicode = fuzzy_match("éab", "ab").unwrap();
+        let ascii = fuzzy_match("xab", "ab").unwrap();
+
+        assert_eq!(unicode.indices, vec![2, 3]);
+        assert_eq!(unicode.score, ascii.score);
+    }
+
+    #[test]
+    fn word_boundary_bonus_uses_byte_offsets_for_multibyte_candidates() {
+        let unicode = fuzzy_match("é-c", "-c").unwrap();
+        let ascii = fuzzy_match("x-c", "-c").unwrap();
+
+        assert_eq!(unicode.indices, vec![2, 3]);
+        assert_eq!(unicode.score, ascii.score);
     }
 }
