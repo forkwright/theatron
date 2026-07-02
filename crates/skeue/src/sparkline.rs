@@ -81,11 +81,7 @@ pub fn polyline_points(values: &[f64], width: f64, height: f64) -> String {
     // WHY: SVG coordinates must be finite. NaN/+Inf/-Inf samples would
     // otherwise silently produce an invalid `points` attribute that browsers
     // discard entirely, making the sparkline vanish without error.
-    let values: Vec<f64> = values
-        .iter()
-        .copied()
-        .filter(|v| v.is_finite())
-        .collect();
+    let values: Vec<f64> = values.iter().copied().filter(|v| v.is_finite()).collect();
     if values.is_empty() {
         return String::new();
     }
@@ -121,11 +117,7 @@ pub fn bar_positions(values: &[f64], width: f64, height: f64) -> Vec<(f64, f64, 
     }
     // WHY: Bar heights derive from a finite normalization divisor. Non-finite
     // samples would otherwise turn into NaN heights and render as zero.
-    let values: Vec<f64> = values
-        .iter()
-        .copied()
-        .filter(|v| v.is_finite())
-        .collect();
+    let values: Vec<f64> = values.iter().copied().filter(|v| v.is_finite()).collect();
     if values.is_empty() {
         return Vec::new();
     }
