@@ -192,7 +192,7 @@ impl Settings {
             Err(e) => {
                 return Err(e).context(ReadFileSnafu {
                     path: self.file.clone(),
-                })
+                });
             }
         };
         if text.trim().is_empty() {
