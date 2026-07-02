@@ -78,6 +78,13 @@ pub fn polyline_points(values: &[f64], width: f64, height: f64) -> String {
     if values.is_empty() || width <= 0.0 || height <= 0.0 {
         return String::new();
     }
+    // WHY: SVG coordinates must be finite. NaN/+Inf/-Inf samples would
+    // otherwise silently produce an invalid `points` attribute that browsers
+    // discard entirely, making the sparkline vanish without error.
+    let values: Vec<f64> = values.iter().copied().filter(|v| v.is_finite()).collect();
+    if values.is_empty() {
+        return String::new();
+    }
     let min = values.iter().copied().fold(f64::INFINITY, f64::min);
     let max = values.iter().copied().fold(f64::NEG_INFINITY, f64::max);
     let range = (max - min).max(f64::EPSILON);
@@ -106,6 +113,12 @@ pub fn polyline_points(values: &[f64], width: f64, height: f64) -> String {
 #[must_use]
 pub fn bar_positions(values: &[f64], width: f64, height: f64) -> Vec<(f64, f64, f64, f64)> {
     if values.is_empty() || width <= 0.0 || height <= 0.0 {
+        return Vec::new();
+    }
+    // WHY: Bar heights derive from a finite normalization divisor. Non-finite
+    // samples would otherwise turn into NaN heights and render as zero.
+    let values: Vec<f64> = values.iter().copied().filter(|v| v.is_finite()).collect();
+    if values.is_empty() {
         return Vec::new();
     }
     let max = values
@@ -434,6 +447,83 @@ mod tests {
         assert!(
             last_x > 10.0,
             "last bar x ({last_x}) should exceed viewport width"
+        );
+    }
+
+    #[test]
+    fn polyline_points_returns_empty_for_all_nan() {
+        assert_eq!(polyline_points(&[f64::NAN, f64::NAN], 100.0, 20.0), "");
+    }
+
+    #[test]
+    fn polyline_points_returns_empty_for_all_inf() {
+        assert_eq!(
+            polyline_points(&[f64::INFINITY, f64::NEG_INFINITY], 100.0, 20.0),
+            ""
+        );
+    }
+
+    #[test]
+    fn polyline_points_filters_nan_and_preserves_finite_points() {
+        let s = polyline_points(&[f64::NAN, 0.0, 10.0, f64::NAN], 100.0, 20.0);
+        assert!(!s.contains("NaN"), "output must not contain NaN: {s:?}");
+        assert!(s.contains("0.00,"), "finite low point preserved: {s:?}");
+        assert!(s.contains("100.00,"), "finite high point preserved: {s:?}");
+    }
+
+    #[test]
+    fn polyline_points_filters_positive_inf() {
+        let s = polyline_points(&[f64::INFINITY, 5.0, 15.0], 50.0, 20.0);
+        assert!(!s.contains("NaN"), "output must not contain NaN: {s:?}");
+        assert!(s.contains("0.00,"), "finite point preserved: {s:?}");
+        assert!(s.contains("50.00,"), "finite point preserved: {s:?}");
+    }
+
+    #[test]
+    fn polyline_points_filters_negative_inf() {
+        let s = polyline_points(&[f64::NEG_INFINITY, 5.0, 15.0], 50.0, 20.0);
+        assert!(!s.contains("NaN"), "output must not contain NaN: {s:?}");
+        assert!(s.contains("0.00,"), "finite point preserved: {s:?}");
+        assert!(s.contains("50.00,"), "finite point preserved: {s:?}");
+    }
+
+    #[test]
+    fn bar_positions_returns_empty_for_all_nan() {
+        assert!(bar_positions(&[f64::NAN, f64::NAN], 100.0, 20.0).is_empty());
+    }
+
+    #[test]
+    fn bar_positions_returns_empty_for_all_inf() {
+        assert!(bar_positions(&[f64::INFINITY, f64::NEG_INFINITY], 100.0, 20.0).is_empty());
+    }
+
+    #[test]
+    fn bar_positions_filters_nan_and_preserves_finite_bars() {
+        let bars = bar_positions(&[f64::NAN, 0.0, 10.0, f64::NAN], 100.0, 20.0);
+        assert_eq!(bars.len(), 2, "only finite values produce bars");
+        assert!(
+            bars.iter().all(|b| b.3.is_finite()),
+            "all bar heights must be finite: {bars:?}"
+        );
+    }
+
+    #[test]
+    fn bar_positions_filters_positive_inf() {
+        let bars = bar_positions(&[f64::INFINITY, 5.0, 15.0], 60.0, 20.0);
+        assert_eq!(bars.len(), 2, "only finite values produce bars");
+        assert!(
+            bars.iter().all(|b| b.3.is_finite()),
+            "all bar heights must be finite: {bars:?}"
+        );
+    }
+
+    #[test]
+    fn bar_positions_filters_negative_inf() {
+        let bars = bar_positions(&[f64::NEG_INFINITY, 5.0, 15.0], 60.0, 20.0);
+        assert_eq!(bars.len(), 2, "only finite values produce bars");
+        assert!(
+            bars.iter().all(|b| b.3.is_finite()),
+            "all bar heights must be finite: {bars:?}"
         );
     }
 }
