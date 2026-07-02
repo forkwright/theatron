@@ -471,3 +471,34 @@ fn error_lookup_key_returns_some_only_for_deserialize_value() {
     };
     assert_eq!(read_file.lookup_key(), None);
 }
+
+#[test]
+fn read_doc_handles_concurrent_delete() {
+    // Concurrent-delete simulation for the TOCTOU fix in #70.
+    // A deleter thread races with read_doc() calls. Any
+    // io::ErrorKind::NotFound must be collapsed to an empty table,
+    // never surfaced as SettingsError::ReadFile.
+    let tmp = tempfile::tempdir().unwrap();
+    let s = Settings::open_at(tmp.path()).unwrap();
+    s.set("k", &"v".to_string()).unwrap();
+    let file = s.file().to_path_buf();
+
+    std::thread::scope(|scope| {
+        scope.spawn(|| {
+            for _ in 0..128 {
+                // WHY: ignore errors here — the file may already be
+                // absent from a prior iteration, and the reader is the
+                // side whose behaviour we are verifying.
+                let _ = std::fs::remove_file(&file);
+            }
+        });
+
+        for _ in 0..128 {
+            let doc = s.read_doc();
+            assert!(
+                doc.is_ok(),
+                "concurrent delete must not produce a ReadFile error: {doc:?}"
+            );
+        }
+    });
+}
