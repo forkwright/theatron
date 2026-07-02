@@ -40,10 +40,26 @@ pub struct OscLink {
 
 /// Format an OSC 8 hyperlink **opening** sequence.
 ///
-/// Format: `ESC ] 8 ;; URL BEL`
+/// Format: `ESC ] 8 ;; URL BEL`.
+///
+/// If `url` contains any C0 control character (0x00–0x1F), DEL (0x7F), or C1
+/// control character (0x80–0x9F, including the 8-bit ST at 0x9C), the URL is
+/// rejected and returned unchanged for plain-text rendering instead of emitting
+/// a malformed OSC sequence.
 #[must_use]
 pub fn osc8_open(url: &str) -> String {
-    format!("\x1b]8;;{url}\x07")
+    if is_osc8_url_safe(url) {
+        format!("\x1b]8;;{url}\x07")
+    } else {
+        url.to_string()
+    }
+}
+
+/// Returns `true` if `url` contains no bytes that can terminate or alter an
+/// OSC 8 sequence.
+fn is_osc8_url_safe(url: &str) -> bool {
+    !url.bytes()
+        .any(|b| matches!(b, 0x00..=0x1F | 0x7F | 0x80..=0x9F))
 }
 
 /// OSC 8 hyperlink **closing** sequence: `ESC ] 8 ;; BEL`
@@ -129,7 +145,8 @@ pub fn detect_urls(text: &str) -> Vec<(usize, usize, &str)> {
         reason = "regex is a compile-time string literal and is always valid"
     )]
     static URL_RE: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r#"https?://[^\s<>{}|\\^`\[\]'"]+"#).expect("hyperlink URL regex is valid")
+        Regex::new(r#"https?://[^\s<>{}|\\^`\[\]'"\x00-\x1F\x7F\x80-\x9F]+"#)
+            .expect("hyperlink URL regex is valid")
     });
 
     let mut out = Vec::new();
@@ -356,9 +373,11 @@ mod tests {
     }
 
     #[test]
-    fn supports_hyperlinks_returns_bool() {
-        // NOTE: function must not panic regardless of environment
-        let _ = supports_hyperlinks();
+    fn supports_hyperlinks_does_not_panic() {
+        assert!(
+            std::panic::catch_unwind(supports_hyperlinks).is_ok(),
+            "supports_hyperlinks should probe/cache terminal support without panicking"
+        );
     }
 
     #[test]
@@ -654,5 +673,115 @@ mod tests {
         let paths = detect_file_paths("./src/lib.rs");
         assert_eq!(paths.len(), 1);
         assert!(paths[0].3.starts_with("file://src/lib.rs"));
+    }
+
+    // --- OSC 8 control-character rejection ---
+
+    #[test]
+    fn osc8_open_rejects_url_with_bel() {
+        let url = "https://example.com\x07injected";
+        let out = osc8_open(url);
+        assert!(
+            !out.starts_with('\x1b'),
+            "BEL in URL must abort OSC 8 hyperlink emission"
+        );
+        assert!(
+            !out.contains("\x1b]8;;"),
+            "must not emit a malformed OSC 8 open"
+        );
+        assert_eq!(out, url, "rejected URL must render as plain text");
+    }
+
+    #[test]
+    fn osc8_open_rejects_url_with_esc() {
+        let url = "https://example.com\x1binjected";
+        let out = osc8_open(url);
+        assert!(
+            !out.starts_with('\x1b'),
+            "ESC in URL must abort OSC 8 hyperlink emission"
+        );
+        assert!(
+            !out.contains("\x1b]8;;"),
+            "must not emit a malformed OSC 8 open"
+        );
+        assert_eq!(out, url, "rejected URL must render as plain text");
+    }
+
+    #[test]
+    fn osc8_open_rejects_url_with_8bit_st() {
+        // U+009C (8-bit ST) encoded as UTF-8
+        let url = "https://example.com\u{009C}injected";
+        let out = osc8_open(url);
+        assert!(
+            !out.starts_with('\x1b'),
+            "8-bit ST in URL must abort OSC 8 hyperlink emission"
+        );
+        assert!(
+            !out.contains("\x1b]8;;"),
+            "must not emit a malformed OSC 8 open"
+        );
+        assert_eq!(out, url, "rejected URL must render as plain text");
+    }
+
+    #[test]
+    fn osc8_open_clean_url_unchanged() {
+        let seq = osc8_open("https://example.com");
+        assert_eq!(seq, "\x1b]8;;https://example.com\x07");
+    }
+
+    #[test]
+    fn osc8_open_rejects_all_forbidden_control_bytes() {
+        for b in 0x00_u32..=0x1F {
+            let ch = char::from_u32(b).expect("C0 range is valid Unicode");
+            let url = format!("https://x.com/{ch}tail");
+            let out = osc8_open(&url);
+            assert!(
+                !out.starts_with('\x1b'),
+                "C0 byte 0x{b:02X} must abort OSC 8 hyperlink emission"
+            );
+            assert!(
+                !out.contains("\x1b]8;;"),
+                "C0 byte 0x{b:02X} must not appear inside an OSC 8 payload"
+            );
+        }
+
+        // DEL
+        let del_url = format!("https://x.com/{}tail", '\x7F');
+        let del_out = osc8_open(&del_url);
+        assert!(
+            !del_out.starts_with('\x1b'),
+            "DEL (0x7F) must abort OSC 8 hyperlink emission"
+        );
+        assert!(
+            !del_out.contains("\x1b]8;;"),
+            "DEL (0x7F) must not appear inside an OSC 8 payload"
+        );
+
+        // C1 controls (0x80–0x9F)
+        for b in 0x80_u32..=0x9F {
+            let ch = char::from_u32(b).expect("C1 range is valid Unicode");
+            let url = format!("https://x.com/{ch}tail");
+            let out = osc8_open(&url);
+            assert!(
+                !out.starts_with('\x1b'),
+                "C1 byte 0x{b:02X} must abort OSC 8 hyperlink emission"
+            );
+            assert!(
+                !out.contains("\x1b]8;;"),
+                "C1 byte 0x{b:02X} must not appear inside an OSC 8 payload"
+            );
+        }
+    }
+
+    #[test]
+    fn detect_urls_excludes_control_characters() {
+        let urls = detect_urls("see https://evil.com/\x07bad");
+        assert!(
+            urls.iter().all(|(_, _, url)| {
+                !url.bytes()
+                    .any(|b| matches!(b, 0x00..=0x1F | 0x7F | 0x80..=0x9F))
+            }),
+            "detected URLs must not contain OSC-terminating control bytes"
+        );
     }
 }
