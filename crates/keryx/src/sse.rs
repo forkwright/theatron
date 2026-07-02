@@ -27,6 +27,7 @@ pub struct SseEvent {
 pub struct SseStream<S> {
     stream: S,
     buf: String,
+    discard_next_lf: bool,
     done: bool,
 
     current_event: Option<String>,
@@ -46,6 +47,7 @@ where
         Self {
             stream,
             buf: String::new(),
+            discard_next_lf: false,
             done: false,
             current_event: None,
             current_data: String::new(),
@@ -121,6 +123,24 @@ where
         None
     }
 
+    fn push_chunk(&mut self, chunk: &str) {
+        for ch in chunk.chars() {
+            if self.discard_next_lf {
+                self.discard_next_lf = false;
+                if ch == '\n' {
+                    continue;
+                }
+            }
+
+            if ch == '\r' {
+                self.buf.push('\n');
+                self.discard_next_lf = true;
+            } else {
+                self.buf.push(ch);
+            }
+        }
+    }
+
     /// Await the next event with a deadline.
     ///
     /// Returns:
@@ -171,13 +191,7 @@ where
         loop {
             // Process any complete lines already in the buffer.
             while let Some(pos) = this.buf.find('\n') {
-                // SAFETY: `pos` from `find('\n')` is always a valid UTF-8 boundary,
-                // and '\r' is a single-byte ASCII char, so `pos - 1` is also safe when checked.
-                let line = if pos > 0 && this.buf.as_bytes().get(pos - 1).copied() == Some(b'\r') {
-                    this.buf.get(..pos - 1).unwrap_or_default().to_string()
-                } else {
-                    this.buf.get(..pos).unwrap_or_default().to_string()
-                };
+                let line = this.buf.get(..pos).unwrap_or_default().to_string();
                 this.buf.drain(..=pos);
 
                 if let Some(event) = this.process_line(&line) {
@@ -210,7 +224,7 @@ where
                 Poll::Ready(Some(Ok(bytes))) => {
                     // SAFETY: SSE is a text protocol; invalid UTF-8 is
                     // replaced rather than causing a hard failure.
-                    this.buf.push_str(&String::from_utf8_lossy(&bytes));
+                    this.push_chunk(&String::from_utf8_lossy(&bytes));
                 }
                 Poll::Ready(Some(Err(_)) | None) => {
                     this.done = true;
@@ -378,6 +392,20 @@ mod tests {
         let events = collect_events(vec!["data: hello\r\n\r\n"]);
         assert_eq!(events.len(), 1, "expected exactly one event");
         assert_eq!(events[0].data, "hello");
+    }
+
+    #[test]
+    fn cr_line_endings() {
+        let events = collect_events(vec!["data: hello\r\r"]);
+        assert_eq!(events.len(), 1, "expected exactly one event");
+        assert_eq!(events[0].data, "hello");
+    }
+
+    #[test]
+    fn crlf_line_endings_split_across_chunks() {
+        let events = collect_events(vec!["data: one\r", "\ndata: two\r", "\n\r", "\n"]);
+        assert_eq!(events.len(), 1, "expected exactly one event");
+        assert_eq!(events[0].data, "one\ntwo");
     }
 
     #[test]
