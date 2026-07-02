@@ -30,12 +30,6 @@ ignore = [
     "RUSTSEC-2024-0429",
     # bincode 1.x unmaintained — transitive via dioxus/blitz storage paths; bincode 2.x is a breaking-change rewrite and direct deps have not migrated.
     "RUSTSEC-2025-0141",
-    # openssl 0.10.78 UB in X509Ref::ocsp_responders for non-UTF-8 OCSP URLs (CVE-2026-42327). Transitive via native-tls -> reqwest -> blitz-net -> dioxus-native -> mekhane. theatron does not call X509Ref::ocsp_responders; the vector requires parsing attacker-controlled X509 certificates with non-UTF-8 OCSP URLs. Fixed upstream in openssl 0.10.79; pending blitz-net/reqwest pin bump.
-    "GHSA-xp3w-r5p5-63rr",
-    # openssl 0.10.78 potential OOB write in CipherCtxRef::cipher_update_inplace for AES-KW-PAD ciphers (CVE-2026-45784). Transitive via native-tls -> reqwest -> blitz-net -> dioxus-native -> mekhane. theatron does not use AES key-wrap-with-padding ciphers. Fixed upstream in openssl 0.10.80; pending blitz-net/reqwest pin bump.
-    "GHSA-phqj-4mhp-q6mq",
-    # openssl 0.10.78 heap buffer overflow when encrypting with AES key-wrap-with-padding (CVE-2026-44662). Transitive via native-tls -> reqwest -> blitz-net -> dioxus-native -> mekhane. Same AES-KW-PAD chain as GHSA-phqj-4mhp-q6mq; theatron does not use these cipher modes. Fixed upstream in openssl 0.10.79; pending blitz-net/reqwest pin bump.
-    "GHSA-xv59-967r-8726",
     # smallbitvec 2.6.0 integer overflow in safe API leading to heap buffer overflow (CVE-2026-44983). Transitive via stylo -> blitz-dom -> dioxus-native -> mekhane. theatron does not directly construct SmallBitVec values; the vector requires large attacker-controlled inputs to the CSS layout engine. No fixed version available; pending upstream stylo/blitz-dom migration.
     "GHSA-97wc-2hqc-cjgr",
     # quinn-proto 0.11.14 remote memory exhaustion from unbounded out-of-order stream reassembly (GHSA-4w2j-m93h-cj5j). Transitive via reqwest 0.13.3 -> blitz-net -> dioxus-native -> mekhane. theatron does not directly control QUIC stream reassembly; the vector requires an adversarial server sending pathological out-of-order stream data. Fixed upstream in quinn-proto 0.11.15; pending reqwest/blitz-net pin bump.
@@ -44,4 +38,7 @@ ignore = [
     "RUSTSEC-2026-0186",
     # ttf-parser unmaintained — transitive via cosmic-text -> vello_shaders/blitz-dom -> dioxus-native -> mekhane. No maintained fork adopted upstream; pending blitz-dom/cosmic-text migration.
     "RUSTSEC-2026-0192",
+    # quick-xml <0.41 DoS advisories (0194 dup-attr quadratic, 0195 NsReader alloc). Remaining paths below fixed range; pending upstream. Mirrors deny.toml. Added: 2026-07-02.
+    "RUSTSEC-2026-0194",
+    "RUSTSEC-2026-0195",
 ]

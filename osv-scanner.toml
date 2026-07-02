@@ -59,19 +59,7 @@ id = "RUSTSEC-2025-0141"
 reason = "bincode 1.x unmaintained — transitive via dioxus/blitz storage paths; bincode 2.x is a breaking-change rewrite and direct deps have not migrated."
 
 
-[[IgnoredVulns]]
-id = "GHSA-xp3w-r5p5-63rr"
-reason = "openssl 0.10.78 UB in X509Ref::ocsp_responders for non-UTF-8 OCSP URLs (CVE-2026-42327). Transitive via native-tls -> reqwest -> blitz-net -> dioxus-native -> mekhane. theatron does not call X509Ref::ocsp_responders; the vector requires parsing attacker-controlled X509 certificates with non-UTF-8 OCSP URLs. Fixed upstream in openssl 0.10.79; pending blitz-net/reqwest pin bump."
 
-
-[[IgnoredVulns]]
-id = "GHSA-phqj-4mhp-q6mq"
-reason = "openssl 0.10.78 potential OOB write in CipherCtxRef::cipher_update_inplace for AES-KW-PAD ciphers (CVE-2026-45784). Transitive via native-tls -> reqwest -> blitz-net -> dioxus-native -> mekhane. theatron does not use AES key-wrap-with-padding ciphers. Fixed upstream in openssl 0.10.80; pending blitz-net/reqwest pin bump."
-
-
-[[IgnoredVulns]]
-id = "GHSA-xv59-967r-8726"
-reason = "openssl 0.10.78 heap buffer overflow when encrypting with AES key-wrap-with-padding (CVE-2026-44662). Transitive via native-tls -> reqwest -> blitz-net -> dioxus-native -> mekhane. Same AES-KW-PAD chain as GHSA-phqj-4mhp-q6mq; theatron does not use these cipher modes. Fixed upstream in openssl 0.10.79; pending blitz-net/reqwest pin bump."
 
 
 [[IgnoredVulns]]
@@ -93,3 +81,11 @@ reason = "memmap2 0.9.10 unchecked pointer offset unsoundness. Transitive via fo
 id = "RUSTSEC-2026-0192"
 reason = "ttf-parser unmaintained — transitive via cosmic-text -> vello_shaders/blitz-dom -> dioxus-native -> mekhane. No maintained fork adopted by upstream; pending blitz-dom/cosmic-text migration."
 
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0194"
+reason = "quick-xml <0.41 dup-attribute quadratic DoS. Remaining transitive paths (zbus_xml/atspi -> 0.30, wayland-scanner -> 0.39) below fixed range; pending upstream releases. Mirrors deny.toml. Added: 2026-07-02."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0195"
+reason = "quick-xml <0.41 NsReader namespace-allocation DoS. Same paths as RUSTSEC-2026-0194. Mirrors deny.toml. Added: 2026-07-02."
