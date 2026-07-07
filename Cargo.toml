@@ -56,7 +56,7 @@ dokimasia = { version = "1.3.0", path = "crates/dokimasia" }
 # uses the same exact pin.
 dioxus = "=0.7.6"
 dioxus-core = "=0.7.9"
-dioxus-hooks = "=0.7.6"
+dioxus-hooks = "=0.7.9"
 dioxus-native = "=0.7.6"
 
 # OS integration crates (used by mekhane).
