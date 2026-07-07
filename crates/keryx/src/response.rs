@@ -153,6 +153,7 @@ mod tests {
     }
 
     async fn get(addr: SocketAddr) -> reqwest::Response {
+        crate::install_test_crypto_provider();
         reqwest::Client::new()
             .get(format!("http://{addr}/"))
             .send()

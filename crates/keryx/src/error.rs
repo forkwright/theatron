@@ -687,6 +687,7 @@ mod tests {
     /// pre-network at `build()` time and returns a real
     /// `reqwest::Error`.
     fn build_dummy_reqwest_error() -> reqwest::Error {
+        crate::install_test_crypto_provider();
         reqwest::Client::new().get("not a url").build().unwrap_err()
     }
 }

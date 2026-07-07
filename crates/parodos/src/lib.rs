@@ -12,11 +12,14 @@
 //! - [`fuzzy`] -- subsequence fuzzy matcher for command palette / slash
 //!   completion. Pure-logic, no external state.
 //! - [`theme`] -- terminal palette + color-depth detection. Provides
-//!   [`Theme`](theme::Theme), [`ThemeMode`],
-//!   [`ColorDepth`], and detection helpers that
-//!   read terminal capability env vars (COLORTERM, TERM, COLORFGBG).
+//!   [`Theme`](theme::Theme), [`ColorDepth`], and detection helpers
+//!   that read terminal capability env vars (COLORTERM, TERM,
+//!   COLORFGBG). Re-exports the canonical theme vocabulary from
+//!   `themelion`: [`ThemeMode`] (Dark/Light/System preference) and
+//!   [`ResolvedTheme`] (concrete brightness driving the palette).
 //! - [`highlight`] -- syntect-backed code-block syntax highlighting
-//!   that returns ratatui `Line`s tinted to the active [`ThemeMode`].
+//!   that returns ratatui `Line`s tinted to the active
+//!   [`ResolvedTheme`].
 //! - [`sanitize`] -- strip dangerous escape sequences (CSI/OSC/DCS/
 //!   APC/SOS/PM) and replace C0/C1 control bytes with safe alternates
 //!   for terminal display of untrusted text.
@@ -46,7 +49,7 @@ pub mod widgets;
 
 pub use env::{Env, RealEnv};
 pub use fuzzy::{MatchResult, fuzzy_match};
-pub use theme::{ColorDepth, ThemeMode};
+pub use theme::{ColorDepth, ResolvedTheme, ThemeMode};
 
 /// Returns the parodos crate version.
 #[must_use]

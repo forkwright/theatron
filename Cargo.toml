@@ -34,7 +34,9 @@ authors = ["forkwright"]
 # props/equipment; gramma = γράμμα, written character; keryx = κῆρυξ,
 # herald/messenger; bathron = βάθρον, pedestal; parodos = πάροδος,
 # stage entrance; dokimasia = δοκιμασία, examination).
-themelion = { version = "1.3.0", path = "crates/themelion" }
+#
+# themelion is declared as an expanded table at the end of this section
+# (default-features = false — see the WHY there).
 bathron = { version = "1.3.0", path = "crates/bathron" }
 keryx = { version = "1.3.0", path = "crates/keryx" }
 skeue = { version = "1.3.0", path = "crates/skeue" }
@@ -78,9 +80,23 @@ base64 = "0.22"
 unicode-width = "0.2"
 
 # Network / streaming
+#
+# WHY rustls-no-provider: the canonical fleet TLS provider is ring,
+# installed once by the application (`rustls::crypto::ring::default_provider()
+# .install_default()`), never linked implicitly by a library. The plain
+# `rustls` feature would pull aws-lc-rs as a second provider into
+# consumer graphs that already install ring (aletheia/proskenion) —
+# the ARCH/substrate-feature-conflict class. Same stanza as
+# aletheia Cargo.toml + proskenion.
 reqwest = { version = "0.13", default-features = false, features = [
-    "rustls",
+    "rustls-no-provider",
     "stream",
+] }
+rustls = { version = "0.23", default-features = false, features = [
+    "ring",
+    "std",
+    "logging",
+    "tls12",
 ] }
 bytes = "1"
 futures-core = "0.3"
@@ -127,6 +143,16 @@ toml = { version = "0.9", default-features = false, features = [
     "parse",
     "serde",
 ] }
+
+# WHY default-features = false: themelion is the canonical owner of the
+# fleet theme vocabulary (ThemeMode / ResolvedTheme) consumed by the
+# terminal substrate (parodos) without the Dioxus stack. GUI consumers
+# opt back in with `features = ["dioxus"]`. Expanded table (not inline)
+# per TOML/inline-table-too-long.
+[workspace.dependencies.themelion]
+version = "1.3.0"
+path = "crates/themelion"
+default-features = false
 
 [profile.release]
 lto = "thin"

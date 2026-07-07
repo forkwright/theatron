@@ -9,5 +9,13 @@ repository.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 
+[features]
+# WHY: parodos (terminal substrate) consumes the canonical ThemeMode /
+# ResolvedTheme vocabulary without pulling the Dioxus GUI stack. The
+# provider components (ThemeProvider, ThemeToggle) are gated; the pure
+# theme types are always available.
+default = ["dioxus"]
+dioxus = ["dep:dioxus"]
+
 [dependencies]
-dioxus = { workspace = true }
+dioxus = { workspace = true, optional = true }

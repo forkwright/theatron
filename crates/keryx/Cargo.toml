@@ -18,3 +18,9 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 snafu = { workspace = true }
 tokio = { workspace = true }
+
+[dev-dependencies]
+# WHY: reqwest is built with rustls-no-provider (canonical fleet TLS
+# stanza) — Client construction panics without an installed provider,
+# so tests install ring the way applications do.
+rustls = { workspace = true }

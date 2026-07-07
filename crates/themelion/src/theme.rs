@@ -1,9 +1,11 @@
-//! Theme state management for the Dioxus desktop app.
+//! Canonical fleet theme vocabulary + OS preference detection.
 //!
-//! Provides `ThemeProvider` (wraps root, applies `data-theme`) and a
-//! `Signal<ThemeMode>` context so any descendant can read or switch themes.
-
-use dioxus::prelude::*;
+//! Owns the fleet-wide theme types: [`ThemeMode`] (user preference,
+//! Dark/Light/System) and [`ResolvedTheme`] (concrete brightness after
+//! resolving `System`). Terminal consumers (`parodos`) re-export these
+//! with default features off; the Dioxus components (`ThemeProvider`,
+//! `ThemeToggle`) live in `crate::provider` behind the `dioxus`
+//! feature.
 
 /// User-selected theme preference.
 #[non_exhaustive]
@@ -29,7 +31,8 @@ pub enum ResolvedTheme {
 
 impl ResolvedTheme {
     /// Returns `"dark"` or `"light"` — matches the `[data-theme="…"]`
-    /// CSS selector value applied by [`ThemeProvider`].
+    /// CSS selector value applied by `ThemeProvider` (available with
+    /// the `dioxus` feature).
     #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
@@ -58,7 +61,7 @@ impl ResolvedTheme {
 
     /// Parse a `ResolvedTheme` from its [`as_str`](Self::as_str) value
     /// — i.e. the lowercase `[data-theme="…"]` attribute value that
-    /// [`ThemeProvider`] applies to the DOM.
+    /// `ThemeProvider` applies to the DOM.
     ///
     /// Recognises `"dark"` and `"light"` (case-sensitive — they
     /// match the canonical attribute lowercase). Returns `None`
@@ -183,26 +186,55 @@ impl ThemeMode {
     /// settings-storage layer that persists the human-readable
     /// label (e.g. `bathron::settings`).
     ///
-    /// Recognized labels (case-sensitive): `"Dark"`, `"Light"`,
-    /// `"System"`. The match is case-sensitive so consumer code
-    /// that wants a forgiving round-trip should normalize before
-    /// calling.
+    /// Recognized labels (case-insensitive): `"Dark"`, `"Light"`,
+    /// `"System"`. This is the forgiving human-input channel — it
+    /// accepts any casing so hand-edited settings files and legacy
+    /// lowercase stores parse without pre-normalization. For a strict
+    /// wire format use [`slug`](Self::slug) / [`from_slug`](Self::from_slug).
     ///
     /// # Examples
     ///
     /// ```
     /// use themelion::ThemeMode;
     /// assert_eq!(ThemeMode::from_label("Dark"), Some(ThemeMode::Dark));
-    /// assert_eq!(ThemeMode::from_label("dark"), None); // case-sensitive
+    /// assert_eq!(ThemeMode::from_label("dark"), Some(ThemeMode::Dark));
+    /// assert_eq!(ThemeMode::from_label("SYSTEM"), Some(ThemeMode::System));
     /// assert_eq!(ThemeMode::from_label("garbage"), None);
     /// ```
     #[must_use]
     pub fn from_label(label: &str) -> Option<Self> {
-        match label {
-            "Dark" => Some(Self::Dark),
-            "Light" => Some(Self::Light),
-            "System" => Some(Self::System),
+        match label.to_ascii_lowercase().as_str() {
+            "dark" => Some(Self::Dark),
+            "light" => Some(Self::Light),
+            "system" => Some(Self::System),
             _ => None,
+        }
+    }
+
+    /// The concrete theme this preference forces, or `None` when it
+    /// defers to the environment (`System`).
+    ///
+    /// Bridge for consumers with their own environment-detection seam:
+    /// [`resolve`](Self::resolve) consults the *desktop* environment
+    /// (`GTK_THEME` / `COLORFGBG`) for `System`, which is the wrong
+    /// probe for a terminal app. `parodos::Theme::for_mode(mode.forced())`
+    /// instead lets the terminal substrate run its own detection when
+    /// the preference is `System`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use themelion::{ResolvedTheme, ThemeMode};
+    /// assert_eq!(ThemeMode::Dark.forced(), Some(ResolvedTheme::Dark));
+    /// assert_eq!(ThemeMode::Light.forced(), Some(ResolvedTheme::Light));
+    /// assert_eq!(ThemeMode::System.forced(), None);
+    /// ```
+    #[must_use]
+    pub const fn forced(self) -> Option<ResolvedTheme> {
+        match self {
+            Self::Dark => Some(ResolvedTheme::Dark),
+            Self::Light => Some(ResolvedTheme::Light),
+            Self::System => None,
         }
     }
 
@@ -323,78 +355,6 @@ fn detect_system_preference_from(env: impl Fn(&str) -> Option<String>) -> Resolv
     }
 
     ResolvedTheme::Dark
-}
-
-/// Root theme provider.
-///
-/// Wraps the component tree with a `div[data-theme]` so CSS custom properties
-/// in `themes.css` activate. Provides `Signal<ThemeMode>` as context for
-/// descendant components (including `ThemeToggle`).
-#[component]
-pub fn ThemeProvider(children: Element, initial_mode: Option<ThemeMode>) -> Element {
-    let mode = use_signal(|| initial_mode.unwrap_or(ThemeMode::System));
-    use_context_provider(|| mode);
-    let resolved = use_memo(move || mode().resolve());
-
-    rsx! {
-        div {
-            "data-theme": resolved().as_str(),
-            style: "display: contents",
-            {children}
-        }
-    }
-}
-
-const TOGGLE_STYLE: &str = "\
-    display: inline-flex; \
-    align-items: center; \
-    gap: var(--space-2); \
-    padding: var(--space-1) var(--space-3); \
-    border: 1px solid var(--border); \
-    border-radius: var(--radius-md); \
-    background: var(--bg-surface); \
-    color: var(--text-secondary); \
-    font-family: var(--font-body); \
-    font-size: var(--text-sm); \
-    cursor: pointer; \
-    transition: \
-        border-color var(--transition-quick), \
-        color var(--transition-quick), \
-        background-color var(--transition-quick);\
-";
-
-/// A button that cycles through theme modes (Dark → Light → System → Dark).
-///
-/// Reads `Signal<ThemeMode>` from context (provided by [`ThemeProvider`])
-/// and advances to the next mode on click. After the mode is advanced,
-/// fires `on_change` with the new mode — consumers wire this to their own
-/// persistence layer (proskenion writes to settings.toml; chalkeion to
-/// its own state dir).
-///
-/// The callback is optional — pass `EventHandler::default()` (or omit
-/// in shorthand form) for surfaces that don't persist.
-#[component]
-pub fn ThemeToggle(#[props(default)] on_change: EventHandler<ThemeMode>) -> Element {
-    let mut mode = use_context::<Signal<ThemeMode>>();
-    let current = mode();
-    let icon = current.icon();
-    let label = current.label();
-
-    rsx! {
-        button {
-            r#type: "button",
-            onclick: move |_| {
-                let next = mode().next();
-                mode.set(next);
-                on_change.call(next);
-            },
-            title: "Theme: {label}",
-            "aria-label": "Switch theme, current: {label}",
-            style: TOGGLE_STYLE,
-            span { {icon} }
-            span { {label} }
-        }
-    }
 }
 
 #[cfg(test)]
@@ -610,10 +570,30 @@ mod tests {
     }
 
     #[test]
-    fn from_label_is_case_sensitive() {
-        assert_eq!(ThemeMode::from_label("dark"), None);
-        assert_eq!(ThemeMode::from_label("DARK"), None);
+    fn from_label_is_case_insensitive() {
+        // Unified semantics (#129): from_label is the forgiving
+        // human-input channel; from_slug is the strict wire format.
+        assert_eq!(ThemeMode::from_label("dark"), Some(ThemeMode::Dark));
+        assert_eq!(ThemeMode::from_label("DARK"), Some(ThemeMode::Dark));
         assert_eq!(ThemeMode::from_label("Dark"), Some(ThemeMode::Dark));
+        assert_eq!(ThemeMode::from_label("system"), Some(ThemeMode::System));
+        assert_eq!(ThemeMode::from_label("LIGHT"), Some(ThemeMode::Light));
+    }
+
+    #[test]
+    fn forced_maps_fixed_preferences_and_defers_system() {
+        assert_eq!(ThemeMode::Dark.forced(), Some(ResolvedTheme::Dark));
+        assert_eq!(ThemeMode::Light.forced(), Some(ResolvedTheme::Light));
+        assert_eq!(ThemeMode::System.forced(), None);
+    }
+
+    #[test]
+    fn forced_agrees_with_resolve_for_fixed_preferences() {
+        // For Dark/Light the two paths must never diverge; System is
+        // exactly the case where forced() defers and resolve() probes.
+        for mode in [ThemeMode::Dark, ThemeMode::Light] {
+            assert_eq!(mode.forced(), Some(mode.resolve()));
+        }
     }
 
     #[test]
@@ -621,6 +601,7 @@ mod tests {
         assert_eq!(ThemeMode::from_label(""), None);
         assert_eq!(ThemeMode::from_label("Auto"), None);
         assert_eq!(ThemeMode::from_label("garbage"), None);
+        assert_eq!(ThemeMode::from_label("dark "), None);
     }
 
     #[test]

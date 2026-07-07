@@ -4,54 +4,54 @@ use super::*;
 fn truecolor_palette_has_correct_depth() {
     let theme = Theme::truecolor();
     assert_eq!(theme.depth, ColorDepth::TrueColor);
-    assert_eq!(theme.mode, ThemeMode::Dark);
+    assert_eq!(theme.mode, ResolvedTheme::Dark);
 }
 
 #[test]
 fn color256_palette_has_correct_depth() {
     let theme = Theme::color256();
     assert_eq!(theme.depth, ColorDepth::Color256);
-    assert_eq!(theme.mode, ThemeMode::Dark);
+    assert_eq!(theme.mode, ResolvedTheme::Dark);
 }
 
 #[test]
 fn basic_palette_has_correct_depth() {
     let theme = Theme::basic();
     assert_eq!(theme.depth, ColorDepth::Basic);
-    assert_eq!(theme.mode, ThemeMode::Dark);
+    assert_eq!(theme.mode, ResolvedTheme::Dark);
 }
 
 #[test]
 fn truecolor_light_palette_has_correct_mode() {
     let theme = Theme::truecolor_light();
     assert_eq!(theme.depth, ColorDepth::TrueColor);
-    assert_eq!(theme.mode, ThemeMode::Light);
+    assert_eq!(theme.mode, ResolvedTheme::Light);
 }
 
 #[test]
 fn color256_light_palette_has_correct_mode() {
     let theme = Theme::color256_light();
     assert_eq!(theme.depth, ColorDepth::Color256);
-    assert_eq!(theme.mode, ThemeMode::Light);
+    assert_eq!(theme.mode, ResolvedTheme::Light);
 }
 
 #[test]
 fn basic_light_palette_has_correct_mode() {
     let theme = Theme::basic_light();
     assert_eq!(theme.depth, ColorDepth::Basic);
-    assert_eq!(theme.mode, ThemeMode::Light);
+    assert_eq!(theme.mode, ResolvedTheme::Light);
 }
 
 #[test]
 fn for_mode_dark_returns_dark() {
-    let theme = Theme::for_mode(Some(ThemeMode::Dark));
-    assert_eq!(theme.mode, ThemeMode::Dark);
+    let theme = Theme::for_mode(Some(ResolvedTheme::Dark));
+    assert_eq!(theme.mode, ResolvedTheme::Dark);
 }
 
 #[test]
 fn for_mode_light_returns_light() {
-    let theme = Theme::for_mode(Some(ThemeMode::Light));
-    assert_eq!(theme.mode, ThemeMode::Light);
+    let theme = Theme::for_mode(Some(ResolvedTheme::Light));
+    assert_eq!(theme.mode, ResolvedTheme::Light);
 }
 
 #[test]
@@ -200,46 +200,46 @@ fn tmux_detects_color256_depth() {
 fn empty_env_detects_basic_depth_and_dark_background() {
     let env = TestEnv::new(&[]);
     assert_eq!(detect_color_depth(&env), ColorDepth::Basic);
-    assert_eq!(detect_background(&env), ThemeMode::Dark);
+    assert_eq!(detect_background(&env), ResolvedTheme::Dark);
 }
 
 #[test]
 fn colorfgbg_light_background_detected() {
     let env = TestEnv::new(&[("COLORFGBG", "0;15")]);
-    assert_eq!(detect_background(&env), ThemeMode::Light);
+    assert_eq!(detect_background(&env), ResolvedTheme::Light);
 }
 
 #[test]
 fn colorfgbg_dark_background_detected() {
     let env = TestEnv::new(&[("COLORFGBG", "15;0")]);
-    assert_eq!(detect_background(&env), ThemeMode::Dark);
+    assert_eq!(detect_background(&env), ResolvedTheme::Dark);
 }
 
 #[test]
 fn colorfgbg_three_component_uses_last_value() {
     let env = TestEnv::new(&[("COLORFGBG", "15;0;0")]);
-    assert_eq!(detect_background(&env), ThemeMode::Dark);
+    assert_eq!(detect_background(&env), ResolvedTheme::Dark);
 }
 
 #[test]
 fn colorfgbg_garbage_defaults_to_dark() {
     let env = TestEnv::new(&[("COLORFGBG", "default;default")]);
-    assert_eq!(detect_background(&env), ThemeMode::Dark);
+    assert_eq!(detect_background(&env), ResolvedTheme::Dark);
 }
 
 #[test]
 fn for_mode_with_env_auto_detects_light_truecolor() {
     let env = TestEnv::new(&[("COLORTERM", "truecolor"), ("COLORFGBG", "0;15")]);
     let theme = Theme::for_mode_with_env(None, &env);
-    assert_eq!(theme.mode, ThemeMode::Light);
+    assert_eq!(theme.mode, ResolvedTheme::Light);
     assert_eq!(theme.depth, ColorDepth::TrueColor);
 }
 
 #[test]
 fn for_mode_with_env_explicit_mode_overrides_detection() {
     let env = TestEnv::new(&[("COLORTERM", "truecolor"), ("COLORFGBG", "0;15")]);
-    let theme = Theme::for_mode_with_env(Some(ThemeMode::Dark), &env);
-    assert_eq!(theme.mode, ThemeMode::Dark);
+    let theme = Theme::for_mode_with_env(Some(ResolvedTheme::Dark), &env);
+    assert_eq!(theme.mode, ResolvedTheme::Dark);
     assert_eq!(theme.depth, ColorDepth::TrueColor);
 }
 
@@ -312,64 +312,52 @@ fn color_depth_has_256_returns_true_for_truecolor_and_256() {
 }
 
 #[test]
-fn theme_mode_is_dark_returns_true_only_for_dark() {
-    assert!(ThemeMode::Dark.is_dark());
-    assert!(!ThemeMode::Light.is_dark());
-}
-
-#[test]
-fn theme_mode_is_light_returns_true_only_for_light() {
-    assert!(ThemeMode::Light.is_light());
-    assert!(!ThemeMode::Dark.is_light());
-}
-
-#[test]
-fn theme_mode_predicates_are_mutually_exclusive() {
-    for mode in [ThemeMode::Dark, ThemeMode::Light] {
+fn resolved_theme_predicates_are_mutually_exclusive() {
+    for mode in ResolvedTheme::all() {
         assert_ne!(mode.is_dark(), mode.is_light());
     }
 }
 
 #[test]
-fn theme_mode_from_label_recognizes_canonical_lowercase() {
+fn reexported_from_label_recognizes_lowercase_config_strings() {
+    // The pre-#129 parodos parser accepted lowercase "dark"/"light";
+    // the unified themelion::ThemeMode::from_label must keep that.
     assert_eq!(ThemeMode::from_label("dark"), Some(ThemeMode::Dark));
     assert_eq!(ThemeMode::from_label("light"), Some(ThemeMode::Light));
-}
-
-#[test]
-fn theme_mode_from_label_is_case_insensitive() {
-    assert_eq!(ThemeMode::from_label("Dark"), Some(ThemeMode::Dark));
     assert_eq!(ThemeMode::from_label("DARK"), Some(ThemeMode::Dark));
-    assert_eq!(ThemeMode::from_label("Light"), Some(ThemeMode::Light));
     assert_eq!(ThemeMode::from_label("LIGHT"), Some(ThemeMode::Light));
-}
-
-#[test]
-fn theme_mode_from_label_returns_none_for_unrecognized_labels() {
     assert_eq!(ThemeMode::from_label(""), None);
-    assert_eq!(ThemeMode::from_label("system"), None);
     assert_eq!(ThemeMode::from_label("auto"), None);
-    assert_eq!(ThemeMode::from_label("nope"), None);
     assert_eq!(ThemeMode::from_label("dark "), None);
 }
 
 #[test]
-fn theme_mode_all_returns_every_variant() {
-    let variants = ThemeMode::all();
+fn resolved_theme_all_covers_the_terminal_palette_domain() {
+    let variants = ResolvedTheme::all();
     assert_eq!(variants.len(), 2);
-    assert!(variants.contains(&ThemeMode::Dark));
-    assert!(variants.contains(&ThemeMode::Light));
+    assert!(variants.contains(&ResolvedTheme::Dark));
+    assert!(variants.contains(&ResolvedTheme::Light));
 }
 
 #[test]
-fn theme_mode_all_round_trips_through_from_label_and_display() {
-    for mode in ThemeMode::all() {
-        let label = match mode {
-            ThemeMode::Dark => "dark",
-            ThemeMode::Light => "light",
-        };
-        assert_eq!(ThemeMode::from_label(label), Some(mode));
-    }
+fn forced_bridges_preference_to_terminal_palette() {
+    // The canonical round-trip for a TUI consumer: parse a stored
+    // preference, then let System fall back to terminal detection.
+    let env = TestEnv::new(&[("COLORTERM", "truecolor"), ("COLORFGBG", "0;15")]);
+
+    let dark = ThemeMode::from_label("dark").and_then(ThemeMode::forced);
+    assert_eq!(
+        Theme::for_mode_with_env(dark, &env).mode,
+        ResolvedTheme::Dark
+    );
+
+    let system = ThemeMode::from_label("system").and_then(ThemeMode::forced);
+    assert_eq!(system, None);
+    // System defers to the terminal environment (light COLORFGBG here).
+    assert_eq!(
+        Theme::for_mode_with_env(system, &env).mode,
+        ResolvedTheme::Light
+    );
 }
 
 #[test]

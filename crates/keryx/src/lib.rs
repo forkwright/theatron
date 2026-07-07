@@ -21,6 +21,20 @@
 //! - [`url`] — URL helpers ([`encode_path_segment`](url::encode_path_segment))
 //!   for endpoint construction. RFC 3986 unreserved-character
 //!   passthrough, `%XX` uppercase-hex for everything else.
+//!
+//! ## TLS
+//!
+//! keryx builds reqwest with `rustls-no-provider` (the canonical fleet
+//! TLS stanza): no crypto provider is linked implicitly. Applications
+//! must install one before the first TLS connection, exactly once:
+//!
+//! ```ignore
+//! let _ = rustls::crypto::ring::default_provider().install_default();
+//! ```
+//!
+//! Plain-`http` connections need no provider. Skipping the install and
+//! then dialing an `https` endpoint panics inside rustls at connection
+//! time.
 
 #![deny(missing_docs, clippy::all, clippy::pedantic)]
 
@@ -31,6 +45,16 @@ pub mod url;
 
 pub use error::{ApiError, Result};
 pub use sse::{SseError, SseEvent, SseStream};
+
+/// Install the ring `CryptoProvider` for tests that build a
+/// `reqwest::Client` — under `rustls-no-provider`, construction panics
+/// without one. `install_default` returns `Err` when a provider is
+/// already installed (any test may run first); that is the desired
+/// idempotence, not a failure.
+#[cfg(test)]
+pub(crate) fn install_test_crypto_provider() {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+}
 
 #[cfg(test)]
 mod smoke_tests {
@@ -75,6 +99,7 @@ mod smoke_tests {
                 .await;
             let _ = stream.shutdown().await;
         });
+        crate::install_test_crypto_provider();
         let resp = reqwest::Client::new()
             .get(format!("http://{addr}/"))
             .send()

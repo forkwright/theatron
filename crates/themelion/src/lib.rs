@@ -6,16 +6,30 @@
 //!
 //! ## Modules
 //!
-//! - [`theme`] — `ThemeMode` enum (Dark/Light/System), `ThemeProvider`
-//!   component with `data-theme` attribute binding, OS preference
-//!   detection (`GTK_THEME` + `COLORFGBG` heuristics).
+//! - [`theme`] — canonical fleet theme vocabulary: `ThemeMode`
+//!   (Dark/Light/System preference), `ResolvedTheme` (concrete
+//!   brightness), OS preference detection (`GTK_THEME` + `COLORFGBG`
+//!   heuristics).
+//! - `provider` — `ThemeProvider` component with `data-theme`
+//!   attribute binding + `ThemeToggle`, behind the `dioxus` feature
+//!   (default).
+//!
+//! ## Features
+//!
+//! - `dioxus` (default) — `ThemeProvider` / `ThemeToggle` components.
+//!   Non-GUI consumers (`parodos`) disable default features to take
+//!   only the theme vocabulary.
 
 #![deny(missing_docs)]
 #![warn(clippy::all, clippy::pedantic)]
 
+#[cfg(feature = "dioxus")]
+pub mod provider;
 pub mod theme;
 
-pub use theme::{ResolvedTheme, ThemeMode, ThemeProvider, ThemeToggle};
+#[cfg(feature = "dioxus")]
+pub use provider::{ThemeProvider, ThemeToggle};
+pub use theme::{ResolvedTheme, ThemeMode};
 
 /// Crate version for telemetry / version-gate use.
 #[must_use]

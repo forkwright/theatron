@@ -1,9 +1,10 @@
 //! syntect-backed code-block syntax highlighting for ratatui.
 //!
 //! Loads syntect's bundled syntaxes + themes once on construction. Picks
-//! `base16-ocean.{dark,light}` based on the active [`ThemeMode`]. Returns
-//! ratatui [`Line`]s with foreground colours, bold, and italic font styles.
-//! Falls back to plain text when the language is unrecognized.
+//! `base16-ocean.{dark,light}` based on the active [`ResolvedTheme`].
+//! Returns ratatui [`Line`]s with foreground colours, bold, and italic
+//! font styles. Falls back to plain text when the language is
+//! unrecognized.
 
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
@@ -12,7 +13,7 @@ use syntect::highlighting::{FontStyle, ThemeSet};
 use syntect::parsing::SyntaxSet;
 use syntect::util::LinesWithEndings;
 
-use crate::theme::ThemeMode;
+use crate::theme::ResolvedTheme;
 
 /// Lazily-loaded syntax highlighting resources.
 /// syntect's `SyntaxSet` + `ThemeSet` are expensive to build: load once.
@@ -24,12 +25,16 @@ pub struct Highlighter {
 
 impl Highlighter {
     /// Build a highlighter that uses syntect's `base16-ocean.{dark,light}`
-    /// theme matching the supplied [`ThemeMode`].
+    /// theme matching the supplied [`ResolvedTheme`].
     #[must_use]
-    pub fn new(mode: ThemeMode) -> Self {
-        let theme_name = match mode {
-            ThemeMode::Light => "base16-ocean.light",
-            ThemeMode::Dark => "base16-ocean.dark",
+    pub fn new(mode: ResolvedTheme) -> Self {
+        // WHY predicate instead of match: ResolvedTheme is
+        // #[non_exhaustive] in themelion; is_light keeps the dispatch
+        // total without a silent wildcard arm.
+        let theme_name = if mode.is_light() {
+            "base16-ocean.light"
+        } else {
+            "base16-ocean.dark"
         };
         Self {
             syntax_set: SyntaxSet::load_defaults_newlines(),
@@ -101,14 +106,14 @@ mod tests {
 
     #[test]
     fn highlight_rust_produces_lines() {
-        let hl = Highlighter::new(ThemeMode::Dark);
+        let hl = Highlighter::new(ResolvedTheme::Dark);
         let lines = hl.highlight("let x = 42;", "rust");
         assert!(!lines.is_empty());
     }
 
     #[test]
     fn highlight_unknown_language_falls_back() {
-        let hl = Highlighter::new(ThemeMode::Dark);
+        let hl = Highlighter::new(ResolvedTheme::Dark);
         let lines = hl.highlight("some text", "nonexistent_language_xyz");
         assert!(!lines.is_empty());
         let text: String = lines[0].spans.iter().map(|s| s.content.as_ref()).collect();
@@ -117,14 +122,14 @@ mod tests {
 
     #[test]
     fn highlight_empty_string() {
-        let hl = Highlighter::new(ThemeMode::Dark);
+        let hl = Highlighter::new(ResolvedTheme::Dark);
         let lines = hl.highlight("", "rust");
         assert!(lines.len() <= 1);
     }
 
     #[test]
     fn highlight_multiline_code() {
-        let hl = Highlighter::new(ThemeMode::Dark);
+        let hl = Highlighter::new(ResolvedTheme::Dark);
         let code = "fn main() {\n    println!(\"hello\");\n}";
         let lines = hl.highlight(code, "rust");
         assert!(lines.len() >= 3);
@@ -132,21 +137,21 @@ mod tests {
 
     #[test]
     fn highlight_python() {
-        let hl = Highlighter::new(ThemeMode::Dark);
+        let hl = Highlighter::new(ResolvedTheme::Dark);
         let lines = hl.highlight("def hello():\n    pass", "python");
         assert!(!lines.is_empty());
     }
 
     #[test]
     fn highlight_bold_italic_styles() {
-        let hl = Highlighter::new(ThemeMode::Dark);
+        let hl = Highlighter::new(ResolvedTheme::Dark);
         let lines = hl.highlight("// comment\nlet x = 1;", "rust");
         assert!(lines.len() >= 2);
     }
 
     #[test]
     fn highlight_light_theme_produces_lines() {
-        let hl = Highlighter::new(ThemeMode::Light);
+        let hl = Highlighter::new(ResolvedTheme::Light);
         let lines = hl.highlight("let x = 42;", "rust");
         assert!(!lines.is_empty());
     }

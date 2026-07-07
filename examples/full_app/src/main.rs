@@ -161,16 +161,21 @@ async fn stub_sse_watch() -> Result<(), ApiError> {
 }
 
 fn main() {
+    // WHY: reqwest is built with rustls-no-provider (canonical fleet TLS
+    // stanza) — the application installs the ring CryptoProvider exactly
+    // once, before any TLS connection.
+    // kanon:ignore RUST/no-silent-result-swallow -- install_default returns Err when a provider is already installed (e.g. by a dependency); harmless
+    let _ = rustls::crypto::ring::default_provider().install_default();
+
     // Load the persisted theme before the Dioxus runtime starts.
     // Blocking I/O here keeps the app component free of side effects.
+    // from_label is the canonical parser (#128) — an unrecognized or
+    // absent stored label yields None, and ThemeProvider defaults to
+    // ThemeMode::System.
     let initial_theme = Settings::open("theatron-full-app")
         .ok()
         .and_then(|s| s.get::<String>("theme").ok().flatten())
-        .map(|label| match label.as_str() {
-            "Dark" => ThemeMode::Dark,
-            "Light" => ThemeMode::Light,
-            _ => ThemeMode::System,
-        });
+        .and_then(|label| ThemeMode::from_label(&label));
 
     let props = AppProps { initial_theme };
 

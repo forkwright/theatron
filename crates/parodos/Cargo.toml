@@ -25,6 +25,10 @@ path = "benches/sanitize.rs"
 harness = false
 
 [dependencies]
+# WHY themelion: canonical owner of the fleet theme vocabulary
+# (ThemeMode / ResolvedTheme). Workspace default-features = false, so
+# no Dioxus stack enters the terminal substrate.
+themelion = { workspace = true }
 ratatui = { workspace = true }
 crossterm = { workspace = true }
 serde = { workspace = true }
