@@ -69,7 +69,7 @@ dioxus-native = "=0.7.6"
 # under consumers. Match the version `tray-icon 0.21` resolves to -
 # bumping muda independently produces a duplicate-version graph and
 # the two `MenuEvent` types stop being interchangeable.
-tray-icon = "0.21"
+tray-icon = "0.24"
 muda = "0.17"
 global-hotkey = "0.8"
 image = { version = "0.25", default-features = false, features = ["png"] }
