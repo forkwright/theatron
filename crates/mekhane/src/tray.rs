@@ -126,12 +126,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn default_tray_icon_returns_menu() {
-        // Constructs the default tray menu without panicking.
-        // We don't assert on the populated state — the OS may reject
-        // PredefinedMenuItem::quit on a CI environment without a
-        // session bus — but the function must not panic.
-        let _ = default_tray_icon();
+    fn default_tray_icon_returns_menu_with_at_most_quit_item() {
+        // Documented contract: a menu containing the single Quit item,
+        // or an empty menu when the OS rejects the append (headless CI
+        // without a session bus). Anything else is a regression.
+        let menu = default_tray_icon();
+        let items = menu.items();
+        assert!(
+            items.len() <= 1,
+            "default menu must hold at most the Quit item, got {} items",
+            items.len()
+        );
     }
 
     #[cfg(feature = "default-icon")]

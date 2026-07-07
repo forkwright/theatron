@@ -42,7 +42,9 @@ use mekhane::use_app_menu_event_handler;
 #[cfg(feature = "global-hotkeys")]
 use mekhane::hotkey::GlobalHotKeyEvent;
 #[cfg(feature = "global-hotkeys")]
-use mekhane::use_global_hotkey_event_handler;
+use mekhane::hotkey::hotkey::{Code, HotKey, Modifiers};
+#[cfg(feature = "global-hotkeys")]
+use mekhane::{use_global_hotkey_event_handler, use_global_hotkey_manager};
 
 // keryx
 use keryx::{ApiError, SseStream};
@@ -87,6 +89,21 @@ fn app(props: AppProps) -> Element {
     use_app_menu_event_handler(|event: &AppMenuEvent| {
         tracing::info!("app menu event: {event:?}");
     });
+
+    // Register a demo hotkey (Ctrl+Shift+K) through the manager the
+    // launcher provides as dioxus context. Registration runs once per
+    // component instance; failure is non-fatal (another app may own
+    // the combination, or the session is headless).
+    #[cfg(feature = "global-hotkeys")]
+    {
+        let manager = use_global_hotkey_manager();
+        use_hook(move || {
+            let hotkey = HotKey::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyK);
+            if let Err(e) = manager.register(hotkey) {
+                tracing::warn!("hotkey registration failed (expected in headless): {e}");
+            }
+        });
+    }
 
     // Subscribe to global hotkeys. On trigger, send a desktop notification
     // to demonstrate bathron's notifications surface.
@@ -135,7 +152,10 @@ async fn stub_sse_watch() -> Result<(), ApiError> {
     let mut sse = SseStream::new(resp.bytes_stream());
     use futures_util::StreamExt;
     while let Some(event) = sse.next().await {
-        tracing::info!("sse event: {} = {}", event.event, event.data);
+        match event {
+            Ok(event) => tracing::info!("sse event: {} = {}", event.event, event.data),
+            Err(e) => tracing::warn!("sse decode error: {e}"),
+        }
     }
     Ok(())
 }
