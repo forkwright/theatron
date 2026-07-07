@@ -25,6 +25,7 @@ pub trait Env: Send + Sync {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct RealEnv;
 
+// kanon:ignore ARCHITECTURE/trait-impl-colocation -- deliberate: the trait is the crate's test seam (module doc above); consumers inject their own impls, moving it downstream would invert the theatron-upstream-of-aletheia layering
 impl Env for RealEnv {
     fn var(&self, name: &str) -> Option<String> {
         std::env::var(name).ok()

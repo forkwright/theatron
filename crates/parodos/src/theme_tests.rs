@@ -121,10 +121,126 @@ fn spinner_frame_all_braille() {
     }
 }
 
+/// In-memory [`Env`] for detection tests.
+struct TestEnv {
+    vars: std::collections::HashMap<String, String>,
+}
+
+impl TestEnv {
+    fn new(pairs: &[(&str, &str)]) -> Self {
+        Self {
+            vars: pairs
+                .iter()
+                .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
+                .collect(),
+        }
+    }
+}
+
+impl Env for TestEnv {
+    fn var(&self, name: &str) -> Option<String> {
+        self.vars.get(name).cloned()
+    }
+}
+
 #[test]
-fn detect_returns_valid_depth() {
-    let theme = Theme::detect();
-    let _ = theme.depth;
+fn colorterm_truecolor_detects_truecolor_depth() {
+    let env = TestEnv::new(&[("COLORTERM", "truecolor")]);
+    assert_eq!(detect_color_depth(&env), ColorDepth::TrueColor);
+}
+
+#[test]
+fn colorterm_24bit_detects_truecolor_depth() {
+    let env = TestEnv::new(&[("COLORTERM", "24bit")]);
+    assert_eq!(detect_color_depth(&env), ColorDepth::TrueColor);
+}
+
+#[test]
+fn term_program_kitty_detects_truecolor_depth() {
+    let env = TestEnv::new(&[("TERM_PROGRAM", "kitty")]);
+    assert_eq!(detect_color_depth(&env), ColorDepth::TrueColor);
+}
+
+#[test]
+fn vte_version_at_or_above_3600_detects_truecolor() {
+    let env = TestEnv::new(&[("VTE_VERSION", "3600")]);
+    assert_eq!(detect_color_depth(&env), ColorDepth::TrueColor);
+    let env = TestEnv::new(&[("VTE_VERSION", "7800")]);
+    assert_eq!(detect_color_depth(&env), ColorDepth::TrueColor);
+}
+
+#[test]
+fn vte_version_below_3600_is_not_truecolor() {
+    // VTE 0.28 (GNOME Terminal pre-3.12) predates TrueColor support.
+    let env = TestEnv::new(&[("VTE_VERSION", "2800"), ("TERM", "xterm-256color")]);
+    assert_eq!(detect_color_depth(&env), ColorDepth::Color256);
+    let env = TestEnv::new(&[("VTE_VERSION", "0001")]);
+    assert_eq!(detect_color_depth(&env), ColorDepth::Basic);
+}
+
+#[test]
+fn vte_version_non_numeric_is_ignored() {
+    let env = TestEnv::new(&[("VTE_VERSION", "not-a-version")]);
+    assert_eq!(detect_color_depth(&env), ColorDepth::Basic);
+}
+
+#[test]
+fn term_256color_detects_color256_depth() {
+    let env = TestEnv::new(&[("TERM", "xterm-256color")]);
+    assert_eq!(detect_color_depth(&env), ColorDepth::Color256);
+}
+
+#[test]
+fn tmux_detects_color256_depth() {
+    let env = TestEnv::new(&[("TMUX", "/tmp/tmux-1000/default,1234,0")]);
+    assert_eq!(detect_color_depth(&env), ColorDepth::Color256);
+}
+
+#[test]
+fn empty_env_detects_basic_depth_and_dark_background() {
+    let env = TestEnv::new(&[]);
+    assert_eq!(detect_color_depth(&env), ColorDepth::Basic);
+    assert_eq!(detect_background(&env), ThemeMode::Dark);
+}
+
+#[test]
+fn colorfgbg_light_background_detected() {
+    let env = TestEnv::new(&[("COLORFGBG", "0;15")]);
+    assert_eq!(detect_background(&env), ThemeMode::Light);
+}
+
+#[test]
+fn colorfgbg_dark_background_detected() {
+    let env = TestEnv::new(&[("COLORFGBG", "15;0")]);
+    assert_eq!(detect_background(&env), ThemeMode::Dark);
+}
+
+#[test]
+fn colorfgbg_three_component_uses_last_value() {
+    let env = TestEnv::new(&[("COLORFGBG", "15;0;0")]);
+    assert_eq!(detect_background(&env), ThemeMode::Dark);
+}
+
+#[test]
+fn colorfgbg_garbage_defaults_to_dark() {
+    let env = TestEnv::new(&[("COLORFGBG", "default;default")]);
+    assert_eq!(detect_background(&env), ThemeMode::Dark);
+}
+
+#[test]
+fn for_mode_with_env_auto_detects_light_truecolor() {
+    let env = TestEnv::new(&[("COLORTERM", "truecolor"), ("COLORFGBG", "0;15")]);
+    let theme = Theme::for_mode_with_env(None, &env);
+    assert_eq!(theme.mode, ThemeMode::Light);
+    assert_eq!(theme.depth, ColorDepth::TrueColor);
+}
+
+#[test]
+fn for_mode_with_env_explicit_mode_overrides_detection() {
+    let env = TestEnv::new(&[("COLORTERM", "truecolor"), ("COLORFGBG", "0;15")]);
+    let theme = Theme::for_mode_with_env(Some(ThemeMode::Dark), &env);
+    assert_eq!(theme.mode, ThemeMode::Dark);
+    assert_eq!(theme.depth, ColorDepth::TrueColor);
 }
 
 #[test]
@@ -154,19 +270,17 @@ fn light_palettes_have_dark_text() {
 }
 
 #[test]
-fn theme_static_is_accessible() {
-    let _ = THEME.depth;
-}
-
-#[test]
-fn struct_of_structs_groups_are_populated() {
-    let theme = Theme::truecolor();
-    let _ = theme.colors.accent;
-    let _ = theme.text.fg;
-    let _ = theme.borders.normal;
-    let _ = theme.status.success;
-    let _ = theme.code.fg;
-    let _ = theme.thinking.fg;
+fn palette_groups_swap_as_a_unit_between_modes() {
+    // WHY: the grouped-struct design exists so a mode change replaces every
+    // group at once -- assert the groups genuinely differ across modes.
+    let dark = Theme::truecolor();
+    let light = Theme::truecolor_light();
+    assert_ne!(dark.text.fg, light.text.fg);
+    assert_ne!(dark.colors.accent, light.colors.accent);
+    assert_ne!(dark.borders.normal, light.borders.normal);
+    assert_ne!(dark.status.error, light.status.error);
+    assert_ne!(dark.code.bg, light.code.bg);
+    assert_ne!(dark.thinking.fg, light.thinking.fg);
 }
 
 #[test]

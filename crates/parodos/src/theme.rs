@@ -64,11 +64,11 @@ impl ColorDepth {
 
 /// Background brightness: drives palette selection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[non_exhaustive]
 #[expect(
     missing_docs,
     reason = "Dark/Light variant names are self-documenting; from_label and is_* methods carry the prose"
 )]
+#[non_exhaustive]
 pub enum ThemeMode {
     Dark,
     Light,
@@ -129,6 +129,7 @@ impl ThemeMode {
 /// Background and accent colors.
 #[derive(Debug, Clone)]
 #[expect(missing_docs, reason = "palette field names are self-documenting")]
+// kanon:ignore TOPOLOGY/shallow-struct -- semantic palette group: pure color data by design, swapped as a unit; behavior lives in Theme's style_* methods
 pub struct Colors {
     pub bg: Color,
     pub surface: Color,
@@ -141,6 +142,7 @@ pub struct Colors {
 /// Foreground text and role-speaker colors.
 #[derive(Debug, Clone)]
 #[expect(missing_docs, reason = "palette field names are self-documenting")]
+// kanon:ignore TOPOLOGY/shallow-struct -- semantic palette group: pure color data by design, swapped as a unit; behavior lives in Theme's style_* methods
 pub struct TextColors {
     pub fg: Color,
     pub fg_muted: Color,
@@ -153,6 +155,7 @@ pub struct TextColors {
 /// Structural border and selection colors.
 #[derive(Debug, Clone)]
 #[expect(missing_docs, reason = "palette field names are self-documenting")]
+// kanon:ignore TOPOLOGY/shallow-struct -- semantic palette group: pure color data by design, swapped as a unit; behavior lives in Theme's style_* methods
 pub struct Borders {
     pub normal: Color,
     pub focused: Color,
@@ -163,6 +166,7 @@ pub struct Borders {
 /// Semantic feedback and animation-state colors.
 #[derive(Debug, Clone)]
 #[expect(missing_docs, reason = "palette field names are self-documenting")]
+// kanon:ignore TOPOLOGY/shallow-struct -- semantic palette group: pure color data by design, swapped as a unit; behavior lives in Theme's style_* methods
 pub struct StatusColors {
     pub success: Color,
     pub warning: Color,
@@ -177,6 +181,7 @@ pub struct StatusColors {
 /// Code-block colors.
 #[derive(Debug, Clone)]
 #[expect(missing_docs, reason = "palette field names are self-documenting")]
+// kanon:ignore TOPOLOGY/shallow-struct -- semantic palette group: pure color data by design, swapped as a unit; behavior lives in Theme's style_* methods
 pub struct CodeColors {
     pub fg: Color,
     pub bg: Color,
@@ -186,6 +191,7 @@ pub struct CodeColors {
 /// Thinking-block colors.
 #[derive(Debug, Clone)]
 #[expect(missing_docs, reason = "palette field names are self-documenting")]
+// kanon:ignore TOPOLOGY/shallow-struct -- semantic palette group: pure color data by design, swapped as a unit; behavior lives in Theme's style_* methods
 pub struct ThinkingColors {
     pub fg: Color,
     pub border: Color,
@@ -214,11 +220,6 @@ pub struct Theme {
     pub mode: ThemeMode,
 }
 
-/// Auto-detected theme from the terminal environment.
-/// Used as the default when no config override is set.
-#[cfg(test)]
-pub static THEME: std::sync::LazyLock<Theme> = std::sync::LazyLock::new(Theme::default);
-
 impl Default for Theme {
     fn default() -> Self {
         Self::detect()
@@ -233,9 +234,22 @@ impl Theme {
     }
 
     /// Create theme for a specific mode. `None` means auto-detect from the terminal.
+    #[must_use]
     pub fn for_mode(mode: Option<ThemeMode>) -> Self {
-        let resolved = mode.unwrap_or_else(detect_background);
-        let depth = detect_color_depth();
+        Self::for_mode_with_env(mode, &RealEnv)
+    }
+
+    /// Create theme for a specific mode, reading terminal capabilities from
+    /// `env`. `None` means auto-detect background brightness from `env`.
+    ///
+    /// This is the injectable inner implementation of [`Theme::for_mode`],
+    /// matching the probe pattern used by `clipboard` and `hyperlink`:
+    /// tests supply a deterministic [`Env`] instead of racing on
+    /// `std::env::set_var`.
+    #[must_use]
+    pub fn for_mode_with_env(mode: Option<ThemeMode>, env: &impl Env) -> Self {
+        let resolved = mode.unwrap_or_else(|| detect_background(env));
+        let depth = detect_color_depth(env);
         match (resolved, depth) {
             (ThemeMode::Light, ColorDepth::TrueColor) => Self::truecolor_light(),
             (ThemeMode::Light, ColorDepth::Color256) => Self::color256_light(),
@@ -663,8 +677,8 @@ impl Theme {
 ///
 /// Format: `fg;bg` or `fg;X;bg` where values are ANSI color indices.
 /// Indices 0-6 are dark colors, 7+ are light. Defaults to dark when unset.
-fn detect_background() -> ThemeMode {
-    if let Some(val) = RealEnv.var("COLORFGBG") {
+fn detect_background(env: &impl Env) -> ThemeMode {
+    if let Some(val) = env.var("COLORFGBG") {
         // WHY: Some terminals emit three values (e.g., "15;0;0"). The background
         // is always the last component.
         if let Some(bg_str) = val.rsplit(';').next()
@@ -681,28 +695,33 @@ fn detect_background() -> ThemeMode {
 }
 
 /// Detect terminal color capability from environment variables.
-fn detect_color_depth() -> ColorDepth {
-    let env = RealEnv;
-
+fn detect_color_depth(env: &impl Env) -> ColorDepth {
     // WHY: COLORTERM is the most reliable indicator: check it before TERM.
     if let Some(ct) = env.var("COLORTERM") {
         match ct.as_str() {
             "truecolor" | "24bit" => return ColorDepth::TrueColor,
-            // NOTE: unrecognized COLORTERM value, check other env vars
-            _ => {}
+            _ => {
+                // NOTE: unrecognized COLORTERM value, check other env vars
+            }
         }
     }
 
     if let Some(tp) = env.var("TERM_PROGRAM") {
         match tp.as_str() {
             "iTerm.app" | "WezTerm" | "Alacritty" | "kitty" => return ColorDepth::TrueColor,
-            // NOTE: unrecognized terminal program, continue probing
-            _ => {}
+            _ => {
+                // NOTE: unrecognized terminal program, continue probing
+            }
         }
     }
 
-    // NOTE: GNOME Terminal sets COLORTERM=truecolor, but VTE_VERSION is a reliable backup.
-    if env.var("VTE_VERSION").is_some() {
+    // NOTE: GNOME Terminal sets COLORTERM=truecolor, but VTE_VERSION is a backup signal.
+    // WHY: VTE gained TrueColor in 0.36.0 (VTE_VERSION=3600); older VTE
+    // terminals set the variable too, so presence alone over-promotes them.
+    if let Some(vte) = env.var("VTE_VERSION")
+        && let Ok(version) = vte.parse::<u32>()
+        && version >= 3600
+    {
         return ColorDepth::TrueColor;
     }
 
@@ -723,17 +742,14 @@ fn detect_color_depth() -> ColorDepth {
 pub const BRAILLE_SPINNER: &[char] = &['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
 /// Get the current braille spinner frame based on tick count.
-#[expect(
-    clippy::indexing_slicing,
-    reason = "index is computed as expr % BRAILLE_SPINNER.len(), which is always a valid index"
-)]
 #[must_use]
 pub fn spinner_frame(tick: u64) -> char {
     // WHY: mod by BRAILLE_SPINNER.len() in u64 space first, then try_from;
     // the result is < 10, so usize conversion cannot fail on any platform.
     let len = u64::try_from(BRAILLE_SPINNER.len()).unwrap_or(1).max(1);
     let idx = usize::try_from((tick / 3) % len).unwrap_or(0);
-    BRAILLE_SPINNER[idx]
+    // NOTE: idx < len by construction; the fallback frame is unreachable.
+    BRAILLE_SPINNER.get(idx).copied().unwrap_or('⠋')
 }
 
 #[cfg(test)]

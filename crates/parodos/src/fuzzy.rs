@@ -1,11 +1,5 @@
 //! Simple subsequence fuzzy matcher for command palette and slash completion.
 //!
-//! This is the first beat of the koilon → parodos extraction wave (kanon
-//! Task #82). It is a verbatim move of `aletheia/koilon/src/fuzzy.rs`
-//! into the new generic `parodos` substrate, with visibility widened
-//! from `pub(crate)` to `pub` so external consumers (aletheia, future
-//! theatron-resident TUI apps) can re-export it. No behavioural changes.
-//!
 //! Scores are calculated based on:
 //! - Consecutive matches (bonus)
 //! - Word boundary matches (bonus)
@@ -14,6 +8,7 @@
 
 /// Result of a fuzzy match, containing the score and match positions.
 #[derive(Debug, Clone, PartialEq, Eq)]
+// kanon:ignore TOPOLOGY/shallow-struct -- public result value of fuzzy_match; consumed cross-repo by aletheia koilon (command palette + slash completion)
 pub struct MatchResult {
     /// Match score (higher is better).
     pub score: i64,
@@ -51,8 +46,10 @@ pub fn fuzzy_match(candidate: &str, pattern: &str) -> Option<MatchResult> {
         }
     }
 
-    // Pattern not fully matched
-    if indices.len() != pattern.len() {
+    // WHY: compare char counts, not byte length -- a multibyte pattern
+    // (accented Latin, Cyrillic, CJK, emoji) has more bytes than chars,
+    // and `indices` holds one entry per matched pattern char.
+    if indices.len() != pattern_lower.chars().count() {
         return None;
     }
 
@@ -198,6 +195,28 @@ mod tests {
     fn unicode_handling() {
         let result = fuzzy_match("héllo world", "hw").unwrap();
         assert_eq!(result.indices, vec![0, 7]);
+    }
+
+    #[test]
+    fn multibyte_pattern_matches_identical_candidate() {
+        let result = fuzzy_match("café", "café").unwrap();
+        assert_eq!(result.indices, vec![0, 1, 2, 3]);
+    }
+
+    #[test]
+    fn multibyte_pattern_matches_within_candidate() {
+        let result = fuzzy_match("naïve approach", "naïve").unwrap();
+        assert_eq!(result.indices, vec![0, 1, 2, 4, 5]);
+    }
+
+    #[test]
+    fn cyrillic_pattern_subsequence_matches() {
+        assert!(fuzzy_match("привет мир", "прм").is_some());
+    }
+
+    #[test]
+    fn emoji_pattern_matches() {
+        assert!(fuzzy_match("deploy 🚀 now", "🚀").is_some());
     }
 
     #[test]

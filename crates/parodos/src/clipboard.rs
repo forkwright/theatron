@@ -31,11 +31,11 @@ pub fn copy_to_clipboard(text: &str) -> Result<(), String> {
 }
 
 /// Content read from the system clipboard.
-#[non_exhaustive]
 #[expect(
     missing_docs,
     reason = "ClipboardContent variants and image-payload fields are self-evident from naming"
 )]
+#[non_exhaustive]
 pub enum ClipboardContent {
     Text(String),
     Image {
@@ -68,14 +68,30 @@ pub fn read_from_clipboard() -> ClipboardContent {
                     };
                 }
             }
-            match clipboard.get_text() {
-                Ok(text) if !text.is_empty() => ClipboardContent::Text(text),
-                _ => ClipboardContent::Empty,
-            }
+            resolve_text_read(clipboard.get_text(), read_system_clipboard_text)
         }
         Err(e) => {
             tracing::warn!("clipboard read failed: {e}, trying system tools");
             read_system_clipboard_text()
+        }
+    }
+}
+
+/// Resolve a native clipboard text read.
+///
+/// Non-empty text passes through; empty text is a legitimately empty
+/// clipboard. A backend read error invokes `fallback` (the system-tool
+/// chain) so a post-init failure is never silently reported as `Empty`.
+fn resolve_text_read(
+    result: Result<String, arboard::Error>,
+    fallback: impl FnOnce() -> ClipboardContent,
+) -> ClipboardContent {
+    match result {
+        Ok(text) if !text.is_empty() => ClipboardContent::Text(text),
+        Ok(_) => ClipboardContent::Empty,
+        Err(e) => {
+            tracing::warn!("native clipboard text read failed: {e}, trying system tools");
+            fallback()
         }
     }
 }
@@ -99,6 +115,7 @@ fn read_system_clipboard_text() -> ClipboardContent {
         ("pbpaste", &[]),
     ];
     for (cmd, args) in tools {
+        // kanon:ignore RUST/no-direct-process-command -- parodos is a leaf substrate crate with no process-wrapper layer; spawning the platform clipboard CLIs directly is the fallback's entire purpose
         if let Ok(output) = std::process::Command::new(cmd).args(*args).output()
             && output.status.success()
         {
@@ -307,8 +324,31 @@ mod tests {
     }
 
     #[test]
-    fn clipboard_content_empty_is_empty() {
-        assert!(matches!(ClipboardContent::Empty, ClipboardContent::Empty));
+    fn text_read_error_falls_back_to_system_tools() {
+        // WHY: a backend failure after successful init must be
+        // distinguishable from an empty clipboard -- the fallback chain
+        // runs instead of returning Empty.
+        let out = resolve_text_read(Err(arboard::Error::ContentNotAvailable), || {
+            ClipboardContent::Text("from-system-tools".to_string())
+        });
+        assert!(
+            matches!(out, ClipboardContent::Text(ref s) if s == "from-system-tools"),
+            "a get_text error must invoke the system-tool fallback, not report Empty"
+        );
+    }
+
+    #[test]
+    fn empty_text_read_is_empty_without_fallback() {
+        let out = resolve_text_read(Ok(String::new()), || {
+            ClipboardContent::Text("fallback must not run".to_string())
+        });
+        assert!(matches!(out, ClipboardContent::Empty));
+    }
+
+    #[test]
+    fn nonempty_text_read_passes_through() {
+        let out = resolve_text_read(Ok("hello".to_string()), || ClipboardContent::Empty);
+        assert!(matches!(out, ClipboardContent::Text(ref s) if s == "hello"));
     }
 
     /// In-memory `Env` for terminal-detection tests.

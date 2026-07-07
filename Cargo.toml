@@ -72,6 +72,11 @@ muda = "0.17"
 global-hotkey = "0.8"
 image = { version = "0.25", default-features = false, features = ["png"] }
 
+# Terminal substrate (parodos)
+arboard = "3"
+base64 = "0.22"
+unicode-width = "0.2"
+
 # Network / streaming
 reqwest = { version = "0.13", default-features = false, features = [
     "rustls",
