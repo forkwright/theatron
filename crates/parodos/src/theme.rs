@@ -643,7 +643,10 @@ fn detect_background(env: &impl Env) -> ResolvedTheme {
         if let Some(bg_str) = val.rsplit(';').next()
             && let Ok(bg) = bg_str.parse::<u8>()
         {
-            return if bg >= 8 {
+            // WHY: doc-declared boundary is "0-6 dark, 7+ light" (#183) --
+            // index 7 (white/light gray) is the conventional COLORFGBG light
+            // signal, so the cutoff is `>= 7`, not `>= 8`.
+            return if bg >= 7 {
                 ResolvedTheme::Light
             } else {
                 ResolvedTheme::Dark

@@ -66,11 +66,23 @@ pub fn osc8_open(url: &str) -> String {
     }
 }
 
-/// Returns `true` if `url` contains no bytes that can terminate or alter an
-/// OSC 8 sequence.
+/// Returns `true` if `url` contains no characters that can terminate or alter
+/// an OSC 8 sequence.
+///
+/// WHY chars, not bytes (#183): checking raw UTF-8 *bytes* against the C1
+/// range (0x80-0x9F) misfires on ordinary multi-byte characters -- e.g. 'À'
+/// (U+00C0) encodes to `0xC2 0x80`, and that continuation byte alone used to
+/// blanket-reject the whole URL even though U+00C0 is not a control
+/// character. Matching on decoded `char`s targets only the actual C0/DEL/C1
+/// control code points, so international URLs render while #172's rejection
+/// of real control characters still holds.
 fn is_osc8_url_safe(url: &str) -> bool {
-    !url.bytes()
-        .any(|b| matches!(b, 0x00..=0x1F | 0x7F | 0x80..=0x9F))
+    !url.chars().any(|ch| {
+        matches!(
+            ch,
+            '\u{0000}'..='\u{001F}' | '\u{007F}' | '\u{0080}'..='\u{009F}'
+        )
+    })
 }
 
 /// OSC 8 hyperlink **closing** sequence: `ESC ] 8 ;; BEL`

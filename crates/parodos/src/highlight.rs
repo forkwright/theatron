@@ -45,12 +45,19 @@ impl Highlighter {
 
     /// Highlight a code block, returning ratatui Lines.
     /// Falls back to plain text if the language isn't recognized.
+    ///
+    /// WHY sanitize here (#183): `code` is LLM-produced text rendered
+    /// verbatim into the terminal. Without stripping escape sequences and
+    /// control bytes at this boundary, a code block is a clean bypass of
+    /// `sanitize_for_display`'s declared security boundary for
+    /// attacker-influenced text.
     #[expect(
         clippy::indexing_slicing,
         reason = "theme_name is set in new() to a string constant guaranteed to exist in the default ThemeSet; key absence would be a programming error"
     )]
     pub fn highlight(&self, code: &str, lang: &str) -> Vec<Line<'static>> {
         let theme = &self.theme_set.themes[self.theme_name];
+        let sanitized = crate::sanitize::sanitize_for_display(code);
 
         let syntax = self
             .syntax_set
@@ -61,7 +68,7 @@ impl Highlighter {
         let mut h = HighlightLines::new(syntax, theme);
         let mut lines = Vec::new();
 
-        for line_str in LinesWithEndings::from(code) {
+        for line_str in LinesWithEndings::from(sanitized.as_ref()) {
             match h.highlight_line(line_str, &self.syntax_set) {
                 Ok(ranges) => {
                     let spans: Vec<Span<'static>> = ranges
@@ -154,5 +161,28 @@ mod tests {
         let hl = Highlighter::new(ResolvedTheme::Light);
         let lines = hl.highlight("let x = 42;", "rust");
         assert!(!lines.is_empty());
+    }
+
+    #[test]
+    fn highlight_sanitizes_control_characters_and_escape_sequences() {
+        // #183: an LLM-produced code block carrying a raw ANSI escape or C0
+        // control byte must not reach the terminal unsanitized.
+        let hl = Highlighter::new(ResolvedTheme::Dark);
+        let code = "let x = 1;\x07\x1b[31mrm -rf /\x1b[0m";
+        let lines = hl.highlight(code, "rust");
+        let text: String = lines
+            .iter()
+            .flat_map(|l| l.spans.iter())
+            .map(|s| s.content.as_ref())
+            .collect();
+        assert!(
+            !text.contains('\x1b'),
+            "escape sequences must be stripped from highlighted code"
+        );
+        assert!(
+            !text.contains('\x07'),
+            "BEL must be replaced with a control picture, not rendered raw"
+        );
+        assert!(text.contains("rm -rf /"), "surrounding text must survive");
     }
 }

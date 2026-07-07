@@ -93,6 +93,20 @@ fn atomic_write_no_partial_file() {
 }
 
 #[test]
+fn write_doc_still_succeeds_with_parent_dir_fsync() {
+    // Regression test for #185.4: write_doc() now fsyncs the parent
+    // directory after persist() (unix) so the rename survives a
+    // power loss, not just the tempfile's contents. That extra step
+    // must not break the write path itself.
+    let tmp = tempfile::tempdir().unwrap();
+    let s = Settings::open_at(tmp.path()).unwrap();
+    s.set("k", &"v".to_string()).unwrap();
+    assert_eq!(s.get::<String>("k").unwrap(), Some("v".to_string()));
+    assert!(s.remove("k").unwrap());
+    assert_eq!(s.get::<String>("k").unwrap(), None);
+}
+
+#[test]
 fn persists_across_settings_handles() {
     let tmp = tempfile::tempdir().unwrap();
     {

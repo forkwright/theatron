@@ -507,8 +507,8 @@ fn parse_hunk_header(line: &str) -> Option<HunkHeader> {
     let new_part = rest.get(..end_idx).unwrap_or("");
     let context_label = rest.get(end_idx + 3..).unwrap_or("").trim().to_string();
 
-    let (old_start, old_count) = parse_range(old_part);
-    let (new_start, new_count) = parse_range(new_part);
+    let (old_start, old_count) = parse_range(old_part)?;
+    let (new_start, new_count) = parse_range(new_part)?;
 
     Some(HunkHeader {
         old_start,
@@ -520,11 +520,16 @@ fn parse_hunk_header(line: &str) -> Option<HunkHeader> {
 }
 
 /// Parse `start,count` or `start` (count defaults to 1).
-fn parse_range(s: &str) -> (u32, u32) {
+///
+/// Returns `None` if `start` or an explicit `count` fails to parse as
+/// `u32`. A malformed hunk header must be rejected by the caller
+/// rather than silently defaulted to line 1 — that would corrupt
+/// line-number attribution for every line in the hunk (#181).
+fn parse_range(s: &str) -> Option<(u32, u32)> {
     if let Some((start, count)) = s.split_once(',') {
-        (start.parse().unwrap_or(1), count.parse().unwrap_or(1))
+        Some((start.parse().ok()?, count.parse().ok()?))
     } else {
-        (s.parse().unwrap_or(1), 1)
+        Some((s.parse().ok()?, 1))
     }
 }
 

@@ -256,14 +256,32 @@ fn control_picture(byte: u8) -> char {
 }
 
 /// Decode a single UTF-8 character from a byte slice, returning the char and its byte length.
-#[expect(
-    clippy::indexing_slicing,
-    reason = "start is always a valid index: callers only call this after the outer loop has verified i < len"
-)]
+///
+/// PERF: bounds the validated window to at most 4 bytes (the maximum length
+/// of any UTF-8 scalar value) instead of re-validating the entire remaining
+/// suffix on every call. The unbounded form (`str::from_utf8(&bytes[start..])`)
+/// made `sanitize_for_display` quadratic: once sanitization was triggered, this
+/// function ran once per remaining byte, each call re-scanning up to the whole
+/// rest of the string (#178).
 fn decode_utf8_char(bytes: &[u8], start: usize) -> Option<(char, usize)> {
-    let remaining = &bytes[start..];
-    let s = std::str::from_utf8(remaining).ok()?;
-    let ch = s.chars().next()?;
+    let window_end = (start.checked_add(4)?).min(bytes.len());
+    let window = bytes.get(start..window_end)?;
+
+    let valid_prefix = match std::str::from_utf8(window) {
+        Ok(s) => s,
+        Err(err) => {
+            // NOTE: the 4-byte cap can truncate the character *after* the one
+            // we want (e.g. an ASCII byte followed by an unfinished 4-byte
+            // sequence). `valid_up_to` isolates the genuinely-decodable
+            // prefix; zero means `start` itself is not a valid char start.
+            let valid_up_to = err.valid_up_to();
+            if valid_up_to == 0 {
+                return None;
+            }
+            std::str::from_utf8(window.get(..valid_up_to)?).ok()?
+        }
+    };
+    let ch = valid_prefix.chars().next()?;
     Some((ch, ch.len_utf8()))
 }
 
@@ -687,5 +705,65 @@ mod tests {
     fn sanitize_strips_unterminated_osc_with_embedded_esc() {
         let input = "before\x1b]0;title\x1bwithout_terminator";
         assert_eq!(sanitize_for_display(input), "before");
+    }
+
+    // --- #178: bounded-window decode_utf8_char regression coverage ---
+
+    #[test]
+    fn decode_utf8_char_bounded_window_handles_short_then_long_char() {
+        // WHY: a 1-byte char immediately followed by a 4-byte char means the
+        // 4-byte decode window truncates the *second* character's sequence.
+        // The bounded decoder must still recover the first char via
+        // `valid_up_to`, not treat the truncated tail as making `start` invalid.
+        let bytes = "a\u{1F600}".as_bytes();
+        assert_eq!(decode_utf8_char(bytes, 0), Some(('a', 1)));
+    }
+
+    #[test]
+    fn decode_utf8_char_bounded_window_decodes_full_four_byte_char() {
+        let bytes = "\u{1F600}".as_bytes();
+        assert_eq!(decode_utf8_char(bytes, 0), Some(('\u{1F600}', 4)));
+    }
+
+    #[test]
+    fn multibyte_content_around_control_bytes_decodes_correctly() {
+        // Correctness check for the bounded-window rewrite: control bytes
+        // interleaved with multi-byte UTF-8 text must sanitize identically
+        // to the pre-#178 unbounded implementation.
+        let input = "caf\u{00E9}\x01\u{1F600}world\u{4F60}\u{597D}\x1b[31mred\x1b[0m";
+        assert_eq!(
+            sanitize_for_display(input),
+            "caf\u{00E9}\u{2401}\u{1F600}world\u{4F60}\u{597D}red"
+        );
+    }
+
+    #[test]
+    fn sanitize_large_string_completes_in_linear_time() {
+        // WHY: regression guard for #178 -- decode_utf8_char used to
+        // re-validate the entire remaining suffix on every call, making
+        // sanitize_for_display quadratic once a single control byte tripped
+        // needs_sanitization. Under the old O(n^2) behavior this 2MB input
+        // would take on the order of hours; under O(n) decoding it completes
+        // in milliseconds. The 10s bound is generous margin, not a tight
+        // timing assertion.
+        let mut input = String::with_capacity(2 * 1024 * 1024 + 64);
+        input.push('\x01'); // trip needs_sanitization on the very first byte
+        while input.len() < 2 * 1024 * 1024 {
+            input.push('a');
+            if input.len() % 97 == 0 {
+                input.push('\u{00E9}');
+            }
+        }
+
+        let start = std::time::Instant::now();
+        let result = sanitize_for_display(&input);
+        let elapsed = start.elapsed();
+
+        assert!(result.starts_with('\u{2401}'));
+        assert!(
+            elapsed < std::time::Duration::from_secs(10),
+            "sanitize_for_display took {elapsed:?} on a 2MB string; \
+             expected sub-second completion under O(n) decoding"
+        );
     }
 }

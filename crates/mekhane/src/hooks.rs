@@ -34,18 +34,76 @@ use dioxus_core::{consume_context, spawn, use_hook};
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 type TrayIconSender = tokio::sync::broadcast::Sender<tray_icon::TrayIconEvent>;
 
-/// Type alias for the tray-menu broadcast sender installed in
+/// Distinct wrapper around the tray-menu broadcast sender installed in
 /// [`crate::launch_cfg_with_props`].
+///
+/// WHY: `tray_icon::menu::MenuEvent` is a re-export of `muda::MenuEvent`
+/// (see the crate-level "Menu-event global handler sharing" doc), so a
+/// bare `type` alias to `broadcast::Sender<tray_icon::menu::MenuEvent>`
+/// is the identical Rust type as a `broadcast::Sender<muda::MenuEvent>`
+/// alias — both monomorphize to the same `TypeId`. dioxus's
+/// `consume_context`/`provide_context` resolve by `TypeId` against a
+/// per-scope `Vec<Box<dyn Any>>`; `provide_context` overwrites the
+/// first entry whose *concrete type* matches, so providing both
+/// aliased senders would leave only one entry, and both
+/// `use_tray_menu_event_handler` and `use_app_menu_event_handler` would
+/// silently resolve to the same channel. This newtype gives the
+/// tray-menu channel its own `TypeId`, distinct from [`AppMenuSender`].
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
-type TrayMenuSender = tokio::sync::broadcast::Sender<tray_icon::menu::MenuEvent>;
+#[derive(Clone, Debug)]
+pub(crate) struct TrayMenuSender(tokio::sync::broadcast::Sender<tray_icon::menu::MenuEvent>);
 
-/// Type alias for the app-menu broadcast sender installed in
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
+impl TrayMenuSender {
+    /// Wrap a tray-menu broadcast sender for type-distinct context storage.
+    pub(crate) fn new(tx: tokio::sync::broadcast::Sender<tray_icon::menu::MenuEvent>) -> Self {
+        Self(tx)
+    }
+}
+
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
+impl std::ops::Deref for TrayMenuSender {
+    type Target = tokio::sync::broadcast::Sender<tray_icon::menu::MenuEvent>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+/// Distinct wrapper around the app-menu broadcast sender installed in
 /// [`crate::launch_cfg_with_props_and_menu`].
+///
+/// See [`TrayMenuSender`] for why this must be a distinct type rather
+/// than a `type` alias to `broadcast::Sender<muda::MenuEvent>`.
 #[cfg(all(
     feature = "menus",
     any(target_os = "windows", target_os = "linux", target_os = "macos")
 ))]
-type AppMenuSender = tokio::sync::broadcast::Sender<muda::MenuEvent>;
+#[derive(Clone, Debug)]
+pub(crate) struct AppMenuSender(tokio::sync::broadcast::Sender<muda::MenuEvent>);
+
+#[cfg(all(
+    feature = "menus",
+    any(target_os = "windows", target_os = "linux", target_os = "macos")
+))]
+impl AppMenuSender {
+    /// Wrap an app-menu broadcast sender for type-distinct context storage.
+    pub(crate) fn new(tx: tokio::sync::broadcast::Sender<muda::MenuEvent>) -> Self {
+        Self(tx)
+    }
+}
+
+#[cfg(all(
+    feature = "menus",
+    any(target_os = "windows", target_os = "linux", target_os = "macos")
+))]
+impl std::ops::Deref for AppMenuSender {
+    type Target = tokio::sync::broadcast::Sender<muda::MenuEvent>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 /// Type alias for the global-hotkey broadcast sender installed in
 /// [`crate::launch_cfg_with_props`].
@@ -297,6 +355,68 @@ mod tests {
             CALLS.load(Ordering::SeqCst),
             1,
             "use_hook initializer must run once on mount, not on re-render"
+        );
+    }
+
+    /// Regression test for the `TrayMenuSender`/`AppMenuSender` type
+    /// collision (see the WHY on [`super::TrayMenuSender`]).
+    ///
+    /// Providing both as root contexts and then consuming each by type
+    /// must resolve each to its OWN underlying channel. Before the
+    /// newtype fix, both were bare aliases to the identical
+    /// `broadcast::Sender<muda::MenuEvent>` monomorphization; dioxus's
+    /// `provide_context` overwrites the first context entry whose
+    /// concrete type matches, so the second `with_root_context` call
+    /// would have silently replaced the first — both
+    /// `consume_context::<TrayMenuSender>()` and
+    /// `consume_context::<AppMenuSender>()` would then resolve to the
+    /// SAME (app-menu) channel.
+    #[cfg(feature = "menus")]
+    #[test]
+    fn tray_menu_and_app_menu_contexts_resolve_independently() {
+        use std::cell::RefCell;
+
+        use super::{AppMenuSender, TrayMenuSender, consume_context};
+
+        thread_local! {
+            static RESOLVED: RefCell<Option<(TrayMenuSender, AppMenuSender)>> =
+                const { RefCell::new(None) };
+        }
+
+        fn app() -> dioxus_core::Element {
+            let tray_menu = consume_context::<TrayMenuSender>();
+            let app_menu = consume_context::<AppMenuSender>();
+            RESOLVED.with(|cell| *cell.borrow_mut() = Some((tray_menu, app_menu)));
+            dioxus_core::VNode::empty()
+        }
+
+        let (tray_tx, _) = tokio::sync::broadcast::channel::<tray_icon::menu::MenuEvent>(4);
+        let (app_tx, _) = tokio::sync::broadcast::channel::<muda::MenuEvent>(4);
+
+        let mut vdom = dioxus_core::VirtualDom::new(app)
+            .with_root_context(TrayMenuSender::new(tray_tx.clone()))
+            .with_root_context(AppMenuSender::new(app_tx.clone()));
+        vdom.rebuild_in_place();
+
+        let (resolved_tray, resolved_app) = RESOLVED
+            .with(|cell| cell.borrow_mut().take())
+            .expect("component must run and resolve both contexts on first render");
+
+        assert!(
+            resolved_tray.same_channel(&tray_tx),
+            "TrayMenuSender context must resolve to the tray-menu channel"
+        );
+        assert!(
+            !resolved_tray.same_channel(&app_tx),
+            "TrayMenuSender context must not collide with the app-menu channel"
+        );
+        assert!(
+            resolved_app.same_channel(&app_tx),
+            "AppMenuSender context must resolve to the app-menu channel"
+        );
+        assert!(
+            !resolved_app.same_channel(&tray_tx),
+            "AppMenuSender context must not collide with the tray-menu channel"
         );
     }
 }

@@ -93,38 +93,28 @@ pub fn VirtualScrollContainer(
     pad_top: f64,
     pad_bottom: f64,
     on_scroll: EventHandler<(f64, f64)>,
-    /// Optional `data-*` attribute used to target this element in eval.
+    /// ARIA label naming the scrolled content region (e.g. `"chat-messages"`).
     scroll_key: &'static str,
     children: Element,
 ) -> Element {
-    let key = scroll_key;
     rsx! {
         div {
             style: "flex: 1; overflow-y: auto; position: relative;",
             role: "region",
-            "aria-label": key,
-            "data-vscroll": key,
-            onscroll: move |_| {
-                let js = format!(
-                    r#"(function(){{
-                        var el = document.querySelector('[data-vscroll="{key}"]');
-                        if (el) return JSON.stringify({{top: el.scrollTop, h: el.clientHeight}});
-                        return '{{}}'
-                    }})()"#
-                );
-                spawn(async move {
-                    if let Ok(val) = document::eval(&js).await {
-                        let raw = val.to_string();
-                        let cleaned = raw.trim_matches('"').replace("\\\"", "\"");
-                        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&cleaned) {
-                            let top = parsed.get("top").and_then(|v| v.as_f64()).unwrap_or(0.0);
-                            let h = parsed.get("h").and_then(|v| v.as_f64()).unwrap_or(0.0);
-                            if h > 0.0 {
-                                on_scroll.call((top, h));
-                            }
-                        }
-                    }
-                });
+            "aria-label": scroll_key,
+            onscroll: move |evt: Event<ScrollData>| {
+                // WHY: ScrollData reads scrollTop/clientHeight off the
+                // element that dispatched THIS event, not a page-global
+                // `document.querySelector` lookup -- the prior
+                // implementation always resolved the FIRST DOM match for a
+                // selector, which broke with multiple
+                // VirtualScrollContainer instances mounted at once
+                // (issue #184.3).
+                let top = evt.scroll_top();
+                let height = f64::from(evt.client_height());
+                if height > 0.0 {
+                    on_scroll.call((top, height));
+                }
             },
 
             // Top spacer -- represents off-screen items above viewport
@@ -147,6 +137,52 @@ pub fn VirtualScrollContainer(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Regression test for issue #184.3: the prior onscroll handler resolved
+    /// its target element via a page-global `document.querySelector`, which
+    /// always returns the FIRST DOM match regardless of which instance
+    /// fired the event. Two instances with distinct `scroll_key`s must
+    /// render independent `aria-label`s and carry no shared selector target
+    /// for a future regression to collide on.
+    #[test]
+    fn two_instances_render_independent_labels_without_shared_selector() {
+        #[component]
+        fn Wrapper() -> Element {
+            rsx! {
+                div {
+                    VirtualScrollContainer {
+                        pad_top: 0.0,
+                        pad_bottom: 0.0,
+                        on_scroll: |_| {},
+                        scroll_key: "chat-messages",
+                        div { "chat item" }
+                    }
+                    VirtualScrollContainer {
+                        pad_top: 0.0,
+                        pad_bottom: 0.0,
+                        on_scroll: |_| {},
+                        scroll_key: "session-list",
+                        div { "session item" }
+                    }
+                }
+            }
+        }
+        let mut dom = VirtualDom::new(Wrapper);
+        dom.rebuild_in_place();
+        let html = dioxus_ssr::render(&dom);
+        assert!(
+            html.contains(r#"aria-label="chat-messages""#),
+            "expected first instance's aria-label in {html}"
+        );
+        assert!(
+            html.contains(r#"aria-label="session-list""#),
+            "expected second instance's aria-label in {html}"
+        );
+        assert!(
+            !html.contains("data-vscroll"),
+            "no page-global scroll-selector target should remain: {html}"
+        );
+    }
 
     #[test]
     fn visible_range_empty_list() {

@@ -8,7 +8,10 @@
 //!
 //! Writes go through [`tempfile::NamedTempFile`] in the same
 //! directory then [`persist`] (rename) onto the target path so a
-//! crash mid-write cannot leave a half-flushed `settings.toml`.
+//! crash mid-write cannot leave a half-flushed `settings.toml`. The
+//! tempfile is fsynced before rename (data durability) and, on unix,
+//! the parent directory is fsynced after rename (so the rename
+//! itself survives a power loss, not just the file's contents).
 //!
 //! Mutations ([`Settings::set`], [`Settings::remove`]) hold an
 //! exclusive advisory lock on a sibling `settings.toml.lock` file for
@@ -257,6 +260,19 @@ impl Settings {
         tmp.persist(&self.file).context(PersistFileSnafu {
             path: self.file.clone(),
         })?;
+        // WHY: rename is only durable once the directory entry itself
+        // is flushed. Without this, a power loss right after persist()
+        // can revert the rename on some filesystems even though
+        // sync_all() above already flushed the tempfile's data —
+        // fsyncing the tempfile covers data durability, fsyncing the
+        // parent directory covers the rename itself. Not meaningful on
+        // Windows (no directory-as-file open), hence unix-only.
+        #[cfg(unix)]
+        std::fs::File::open(parent)
+            .and_then(|dir| dir.sync_all())
+            .context(WriteFileSnafu {
+                path: self.file.clone(),
+            })?;
         Ok(())
     }
 

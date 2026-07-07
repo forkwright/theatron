@@ -216,6 +216,21 @@ fn colorfgbg_dark_background_detected() {
 }
 
 #[test]
+fn colorfgbg_bg_index_7_is_light() {
+    // WHY (#183): the documented boundary is "indices 0-6 dark, 7+ light";
+    // bg=7 previously fell through to Dark due to an off-by-one `>= 8` check.
+    let env = TestEnv::new(&[("COLORFGBG", "0;7")]);
+    assert_eq!(detect_background(&env), ResolvedTheme::Light);
+}
+
+#[test]
+fn colorfgbg_bg_index_6_is_dark() {
+    // Boundary companion to the bg==7 case above: 6 stays on the dark side.
+    let env = TestEnv::new(&[("COLORFGBG", "0;6")]);
+    assert_eq!(detect_background(&env), ResolvedTheme::Dark);
+}
+
+#[test]
 fn colorfgbg_three_component_uses_last_value() {
     let env = TestEnv::new(&[("COLORFGBG", "15;0;0")]);
     assert_eq!(detect_background(&env), ResolvedTheme::Dark);

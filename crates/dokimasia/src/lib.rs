@@ -25,6 +25,7 @@
 #![deny(missing_docs, clippy::all, clippy::pedantic)]
 #![forbid(unsafe_code)]
 
+pub mod cli;
 mod css;
 mod diagnostic;
 mod linter;

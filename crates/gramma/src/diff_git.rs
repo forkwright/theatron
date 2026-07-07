@@ -64,6 +64,10 @@ fn git_diff_section_path(section: &[&str]) -> Option<String> {
 }
 
 fn diff_git_path(header: &str) -> Option<String> {
+    if let Some(path) = diff_git_shared_path(header) {
+        return Some(path);
+    }
+
     let mut paths = diff_git_path_tokens(header);
     let old_path = paths.next().and_then(normalize_diff_path);
     let new_path = paths.next().and_then(normalize_diff_path);
@@ -71,23 +75,41 @@ fn diff_git_path(header: &str) -> Option<String> {
     new_path.or(old_path)
 }
 
+/// Resolve `a/<path> b/<path>` when `<path>` is byte-identical on
+/// both sides — the common non-rename case. Git emits this form
+/// unquoted whenever the path has no bytes requiring C-quoting, so a
+/// naive whitespace split truncates a space-containing name at its
+/// first space. Anchoring on the literal `" b/"` separator and
+/// requiring both halves to match after stripping the `a/` prefix
+/// recovers the full path without depending on `---`/`+++` lines
+/// (the caller, `git_diff_section_path`, has already tried those and
+/// found none — this fallback only runs for binary/mode-only
+/// sections).
+fn diff_git_shared_path(header: &str) -> Option<String> {
+    let after_a = header.strip_prefix("a/")?;
+    let sep = " b/";
+    let sep_idx = after_a.find(sep)?;
+    let old = after_a.get(..sep_idx)?;
+    let new = after_a.get(sep_idx + sep.len()..)?;
+    (old == new).then(|| old.to_string())
+}
+
 fn diff_git_path_tokens(header: &str) -> impl Iterator<Item = &str> {
     let mut tokens = Vec::new();
     let mut rest = header.trim_start();
 
     while !rest.is_empty() {
-        if let Some(quoted) = rest.strip_prefix('"') {
-            if let Some(end) = quoted.find('"') {
-                if let (Some(token), Some(remainder)) = (rest.get(..end + 2), quoted.get(end + 1..))
-                {
+        if rest.starts_with('"') {
+            match quoted_token_end(rest) {
+                Some(end) => {
+                    let token = rest.get(..=end).unwrap_or(rest);
                     tokens.push(token);
-                    rest = remainder.trim_start();
-                } else {
-                    break;
+                    rest = rest.get(end + 1..).unwrap_or("").trim_start();
                 }
-            } else {
-                tokens.push(rest);
-                break;
+                // WHY: unterminated quote — stop rather than emit a
+                // truncated token that still carries the stray
+                // opening `"`.
+                None => break,
             }
         } else if let Some((token, remainder)) = rest.split_once(char::is_whitespace) {
             tokens.push(token);
@@ -99,6 +121,24 @@ fn diff_git_path_tokens(header: &str) -> impl Iterator<Item = &str> {
     }
 
     tokens.into_iter()
+}
+
+/// Byte index of the closing `"` for a quoted token starting at byte
+/// 0 of `s` (`s` must start with `"`). Honors backslash escapes so an
+/// escaped quote (`\"`) inside the path does not terminate the token
+/// early — git's C-quoting can carry both simple escapes and `\NNN`
+/// octal byte escapes ahead of the closing quote.
+fn quoted_token_end(s: &str) -> Option<usize> {
+    let bytes = s.as_bytes();
+    let mut i = 1; // skip opening quote
+    while let Some(&b) = bytes.get(i) {
+        match b {
+            b'\\' => i += 2,
+            b'"' => return Some(i),
+            _ => i += 1,
+        }
+    }
+    None
 }
 
 fn normalize_diff_path(path: &str) -> Option<String> {
@@ -291,5 +331,86 @@ mod tests {
     fn decode_git_quoted_rejects_out_of_range_octal_as_literal() {
         // NOTE: `\777` = 511 exceeds a byte; kept verbatim, not wrapped.
         assert_eq!(decode_git_quoted("a\\777b"), "a\\777b");
+    }
+
+    #[test]
+    fn parse_git_diff_decodes_escaped_quote_inside_quoted_diff_git_header_path() {
+        // WHY: An escaped quote (`\"`) inside a C-quoted path must not
+        // terminate the token early — the closing `"` is the first
+        // *unescaped* quote, not the first raw `"` byte (#181).
+        let raw =
+            "diff --git \"a/say \\\"hi\\\".txt\" \"b/say \\\"hi\\\".txt\"\nBinary files differ\n";
+
+        let files = parse_git_diff(raw);
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(
+            files.first().map(|f| f.path.as_str()),
+            Some("say \"hi\".txt")
+        );
+    }
+
+    #[test]
+    fn parse_git_diff_ignores_unterminated_quoted_diff_git_header_path() {
+        // WHY: An opening `"` with no closing quote must not be
+        // mis-parsed into a path that still carries the stray quote
+        // (#181).
+        let raw = "diff --git \"a/broken.txt b/broken.txt\nBinary files differ\n";
+
+        let files = parse_git_diff(raw);
+
+        assert!(files.is_empty());
+    }
+
+    #[test]
+    fn parse_git_diff_resolves_unquoted_diff_git_header_path_containing_space() {
+        // WHY: `diff --git a/my file.txt b/my file.txt` is unquoted
+        // (git only C-quotes on special bytes) but the filename has a
+        // space, ambiguous under a naive whitespace split. The
+        // `a/X b/X` same-path heuristic recovers the full name when
+        // no `---`/`+++` lines are present to arbitrate (#181).
+        let raw = "diff --git a/my file.txt b/my file.txt\nold mode 100644\nnew mode 100755\n";
+
+        let files = parse_git_diff(raw);
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "my file.txt");
+        assert!(files[0].hunks.is_empty());
+    }
+
+    #[test]
+    fn normalize_diff_path_strips_tab_separated_timestamp() {
+        // WHY: `---`/`+++` headers may carry a tab-separated timestamp
+        // suffix (`path\t<timestamp>`); it must be stripped rather
+        // than folded into the reported path (#181).
+        let result = normalize_diff_path("a/src/lib.rs\t2024-01-01 00:00:00.000000000 +0000");
+        assert_eq!(result, Some("src/lib.rs".to_string()));
+    }
+
+    #[test]
+    fn parse_git_diff_strips_tab_separated_timestamp_from_diff_headers() {
+        let raw = "--- a/src/lib.rs\t2024-01-01 00:00:00.000000000 +0000\n+++ b/src/lib.rs\t2024-01-02 00:00:00.000000000 +0000\n@@ -1,1 +1,1 @@\n-old\n+new\n";
+
+        let files = parse_git_diff(raw);
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "src/lib.rs");
+    }
+
+    #[test]
+    fn parse_git_diff_resolves_new_path_for_rename_with_modification() {
+        // WHY: A rename-with-content-change diff carries two distinct,
+        // both-real paths (old_name.rs / new_name.rs, neither
+        // /dev/null) via the `diff --git` header, `rename from`/`rename
+        // to`, and `---`/`+++`. The `+++` header must win, resolving to
+        // the new path (#181).
+        let raw = "diff --git a/old_name.rs b/new_name.rs\nsimilarity index 87%\nrename from old_name.rs\nrename to new_name.rs\nindex abc123..def456 100644\n--- a/old_name.rs\n+++ b/new_name.rs\n@@ -1,2 +1,2 @@\n context\n-old content\n+new content\n";
+
+        let files = parse_git_diff(raw);
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "new_name.rs");
+        assert_eq!(files[0].additions, 1);
+        assert_eq!(files[0].deletions, 1);
     }
 }

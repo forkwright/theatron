@@ -199,9 +199,15 @@ fn launch_inner<P: Clone + 'static, M: 'static>(
             tokio::sync::broadcast::channel::<tray_icon::TrayIconEvent>(CHANNEL_CAPACITY);
         let (menu_tx, _) =
             tokio::sync::broadcast::channel::<tray_icon::menu::MenuEvent>(CHANNEL_CAPACITY);
+        // WHY: wrapped in a newtype so dioxus's TypeId-keyed context
+        // lookup cannot conflate this channel with app_menu_tx below —
+        // see hooks::TrayMenuSender for the collision this prevents.
+        let menu_tx = hooks::TrayMenuSender::new(menu_tx);
 
         #[cfg(feature = "menus")]
         let (app_menu_tx, _) = tokio::sync::broadcast::channel::<muda::MenuEvent>(CHANNEL_CAPACITY);
+        #[cfg(feature = "menus")]
+        let app_menu_tx = hooks::AppMenuSender::new(app_menu_tx);
 
         let tx = tray_tx.clone();
         tray_icon::TrayIconEvent::set_event_handler(Some(move |t| {

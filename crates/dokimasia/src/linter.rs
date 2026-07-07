@@ -268,6 +268,47 @@ mod tests {
         assert_eq!(diags[0].code, "file-read-error");
     }
 
+    // ---- Walker-level Err arm in lint_path (documented past regression,
+    // QA #186.2 — this arm previously had no direct test) ---
+
+    #[cfg(unix)]
+    #[test]
+    fn walker_error_produces_warning_diagnostic_and_walk_continues() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempdir();
+        let good = dir.join("good.css");
+        std::fs::write(&good, "div { color: var(--alsobad); }").unwrap();
+
+        let blocked = dir.join("blocked");
+        std::fs::create_dir(&blocked).unwrap();
+        std::fs::write(blocked.join("a.css"), "div { color: var(--bad); }").unwrap();
+        // Strip all permissions so `ignore::Walk` cannot read the
+        // directory's contents and yields an `Err` entry for it.
+        std::fs::set_permissions(&blocked, std::fs::Permissions::from_mode(0o000)).unwrap();
+
+        let linter = Linter::new(registry());
+        let diags = linter.lint_path(&dir);
+
+        // Restore permissions unconditionally so a failed assertion below
+        // doesn't leave a permission-locked directory behind.
+        std::fs::set_permissions(&blocked, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == "file-read-error" && d.message.contains("walker error")),
+            "expected a walker-error diagnostic, got: {diags:?}"
+        );
+        // The walk must continue past the blocked directory: the
+        // sibling file's finding still surfaces.
+        let tokens: Vec<_> = diags.iter().filter_map(|d| d.token.clone()).collect();
+        assert!(
+            tokens.contains(&"--alsobad".to_string()),
+            "walk must continue past a walker error: {tokens:?}"
+        );
+    }
+
     fn tempdir() -> std::path::PathBuf {
         let base = std::env::temp_dir().join(format!("dokimasia-test-{}", std::process::id()));
         let dir = base.join(format!(

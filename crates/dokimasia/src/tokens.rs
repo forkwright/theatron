@@ -109,6 +109,52 @@ fn collect(source: &str, sink: &mut HashSet<String>) {
 mod tests {
     use super::*;
 
+    // ---- from_design_tokens_md (the crate's only disk-reading entry
+    // point) — QA #186.4 ---
+
+    #[test]
+    fn from_design_tokens_md_reads_and_parses_a_real_file() {
+        let dir = tempdir();
+        let path = dir.join("DESIGN-TOKENS.md");
+        std::fs::write(
+            &path,
+            "| Token | Role |\n|---|---|\n| `--bg` | Page base |\n| `--accent` | Brass gold |\n",
+        )
+        .unwrap();
+
+        let registry = TokenRegistry::from_design_tokens_md(&path).expect("read + parse");
+        assert!(registry.contains("--bg"));
+        assert!(registry.contains("--accent"));
+        assert_eq!(registry.len(), 2);
+    }
+
+    #[test]
+    fn from_design_tokens_md_reports_io_error_for_missing_file() {
+        let dir = tempdir();
+        let absent = dir.join("does-not-exist.md");
+
+        let err =
+            TokenRegistry::from_design_tokens_md(&absent).expect_err("missing file must error");
+        match err {
+            Error::Io { path, .. } => assert_eq!(path, absent),
+            other => panic!("expected Error::Io, got: {other:?}"),
+        }
+    }
+
+    fn tempdir() -> std::path::PathBuf {
+        let base =
+            std::env::temp_dir().join(format!("dokimasia-tokens-test-{}", std::process::id()));
+        let dir = base.join(format!(
+            "{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
     #[test]
     fn extracts_from_inline_code_in_markdown_table() {
         let md = "\

@@ -19,3 +19,6 @@ dioxus = ["dep:dioxus"]
 
 [dependencies]
 dioxus = { workspace = true, optional = true }
+
+[dev-dependencies]
+dioxus-ssr = "=0.7.6"

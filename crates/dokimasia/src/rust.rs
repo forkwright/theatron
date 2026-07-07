@@ -95,6 +95,91 @@ impl<'ast> Visit<'ast> for LitVisitor<'_> {
         // `#[link_name = "…"]`, etc.) are metadata, not source CSS, so the
         // same blanket skip applies.
     }
+
+    // `#[cfg(test)]` is legal on every AST layer below, not just top-level
+    // `syn::Item` nodes: an associated fn/const inside a non-test `impl`
+    // block, a trait's default method, an enum variant, a struct field, or
+    // a `let` statement can each carry it independently of their enclosing
+    // item. Each override below applies the same `has_cfg_test` check
+    // before falling through to the default (recursing) visit — mirroring
+    // `visit_item` above. (Caught by QA #176.)
+
+    fn visit_impl_item_fn(&mut self, node: &'ast syn::ImplItemFn) {
+        if has_cfg_test(&node.attrs) {
+            return;
+        }
+        syn::visit::visit_impl_item_fn(self, node);
+    }
+
+    fn visit_impl_item_const(&mut self, node: &'ast syn::ImplItemConst) {
+        if has_cfg_test(&node.attrs) {
+            return;
+        }
+        syn::visit::visit_impl_item_const(self, node);
+    }
+
+    fn visit_impl_item_type(&mut self, node: &'ast syn::ImplItemType) {
+        if has_cfg_test(&node.attrs) {
+            return;
+        }
+        syn::visit::visit_impl_item_type(self, node);
+    }
+
+    fn visit_impl_item_macro(&mut self, node: &'ast syn::ImplItemMacro) {
+        if has_cfg_test(&node.attrs) {
+            return;
+        }
+        syn::visit::visit_impl_item_macro(self, node);
+    }
+
+    fn visit_trait_item_fn(&mut self, node: &'ast syn::TraitItemFn) {
+        if has_cfg_test(&node.attrs) {
+            return;
+        }
+        syn::visit::visit_trait_item_fn(self, node);
+    }
+
+    fn visit_trait_item_const(&mut self, node: &'ast syn::TraitItemConst) {
+        if has_cfg_test(&node.attrs) {
+            return;
+        }
+        syn::visit::visit_trait_item_const(self, node);
+    }
+
+    fn visit_trait_item_type(&mut self, node: &'ast syn::TraitItemType) {
+        if has_cfg_test(&node.attrs) {
+            return;
+        }
+        syn::visit::visit_trait_item_type(self, node);
+    }
+
+    fn visit_trait_item_macro(&mut self, node: &'ast syn::TraitItemMacro) {
+        if has_cfg_test(&node.attrs) {
+            return;
+        }
+        syn::visit::visit_trait_item_macro(self, node);
+    }
+
+    fn visit_local(&mut self, node: &'ast syn::Local) {
+        if has_cfg_test(&node.attrs) {
+            return;
+        }
+        syn::visit::visit_local(self, node);
+    }
+
+    fn visit_variant(&mut self, node: &'ast syn::Variant) {
+        if has_cfg_test(&node.attrs) {
+            return;
+        }
+        syn::visit::visit_variant(self, node);
+    }
+
+    fn visit_field(&mut self, node: &'ast syn::Field) {
+        if has_cfg_test(&node.attrs) {
+            return;
+        }
+        syn::visit::visit_field(self, node);
+    }
 }
 
 /// Best-effort attribute extraction from any `syn::Item` variant.
@@ -412,6 +497,116 @@ const BOGUS: &str = "color: var(--bogus-const);";
 "#;
         let diags = lint_rust(&registry(), src, Path::new("a.rs"));
         assert!(diags.is_empty());
+    }
+
+    // ---- cfg(test) on non-Item AST layers (QA #176) ---
+
+    #[test]
+    fn cfg_test_on_impl_item_fn_is_skipped() {
+        // The method carries #[cfg(test)], but the surrounding `impl` block
+        // is ordinary production code — only `visit_item` used to be
+        // checked, so this leaked through before.
+        let src = r#"
+struct Widget;
+
+impl Widget {
+    #[cfg(test)]
+    fn test_helper() -> &'static str {
+        "color: var(--bogus-impl-fn);"
+    }
+}
+"#;
+        let diags = lint_rust(&registry(), src, Path::new("a.rs"));
+        assert!(
+            diags.is_empty(),
+            "cfg(test) impl-item fn must be skipped, got: {diags:?}"
+        );
+    }
+
+    #[test]
+    fn cfg_test_on_impl_item_const_is_skipped() {
+        let src = r#"
+struct Widget;
+
+impl Widget {
+    #[cfg(test)]
+    const BOGUS: &str = "color: var(--bogus-impl-const);";
+}
+"#;
+        let diags = lint_rust(&registry(), src, Path::new("a.rs"));
+        assert!(diags.is_empty());
+    }
+
+    #[test]
+    fn cfg_test_on_trait_default_method_is_skipped() {
+        // Default trait methods carry a body directly on the trait item,
+        // reached via `visit_trait_item_fn` rather than `visit_item`.
+        let src = r#"
+trait Widget {
+    #[cfg(test)]
+    fn test_helper() -> &'static str {
+        "color: var(--bogus-trait-fn);"
+    }
+}
+"#;
+        let diags = lint_rust(&registry(), src, Path::new("a.rs"));
+        assert!(
+            diags.is_empty(),
+            "cfg(test) trait default method must be skipped, got: {diags:?}"
+        );
+    }
+
+    #[test]
+    fn cfg_test_on_local_statement_is_skipped() {
+        let src = r#"
+fn render() {
+    #[cfg(test)]
+    let _bogus = "color: var(--bogus-local);";
+}
+"#;
+        let diags = lint_rust(&registry(), src, Path::new("a.rs"));
+        assert!(
+            diags.is_empty(),
+            "cfg(test) local `let` statement must be skipped, got: {diags:?}"
+        );
+    }
+
+    #[test]
+    fn cfg_test_on_enum_variant_is_skipped() {
+        // Enum discriminants parse as an arbitrary `Expr` — syn is purely
+        // syntactic and does not enforce that a discriminant be a constant
+        // integer expression — so a string literal here is a legitimate
+        // way to prove the variant's own #[cfg(test)] gate is honored
+        // before the visitor descends into it.
+        let src = r#"
+enum Kind {
+    #[cfg(test)]
+    Bogus = "color: var(--bogus-variant)",
+}
+"#;
+        let diags = lint_rust(&registry(), src, Path::new("a.rs"));
+        assert!(
+            diags.is_empty(),
+            "cfg(test) enum variant must be skipped, got: {diags:?}"
+        );
+    }
+
+    #[test]
+    fn cfg_test_on_struct_field_is_skipped() {
+        // Field types support const-generic braced expressions
+        // (`Foo<{ EXPR }>`), so a string literal there proves the field's
+        // own #[cfg(test)] gate is honored before descending into its type.
+        let src = r#"
+struct Widget {
+    #[cfg(test)]
+    bogus: Foo<{ "color: var(--bogus-field)" }>,
+}
+"#;
+        let diags = lint_rust(&registry(), src, Path::new("a.rs"));
+        assert!(
+            diags.is_empty(),
+            "cfg(test) struct field must be skipped, got: {diags:?}"
+        );
     }
 
     // ---- Masking inside string literal contents (caught by QA swarm A01) ---

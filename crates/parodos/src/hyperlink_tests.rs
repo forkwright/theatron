@@ -556,6 +556,22 @@ fn osc8_open_rejects_all_forbidden_control_bytes() {
 }
 
 #[test]
+fn osc8_open_allows_international_url() {
+    // WHY (#183): 'À' (U+00C0) UTF-8-encodes to 0xC2 0x80 -- the old
+    // byte-range check treated the 0x80 continuation byte as a C1 control
+    // and rejected the whole URL even though U+00C0 is an ordinary letter.
+    // Also covers CJK ('é' composed forms) to confirm no multi-byte
+    // character trips the safety check.
+    let url = "https://example.com/caf\u{00E9}/\u{00C0}/\u{4F60}\u{597D}";
+    let out = osc8_open(url);
+    assert_eq!(
+        out,
+        format!("\x1b]8;;{url}\x07"),
+        "international URL must not be rejected as unsafe"
+    );
+}
+
+#[test]
 fn detect_urls_excludes_control_characters() {
     let urls = detect_urls("see https://evil.com/\x07bad");
     assert!(

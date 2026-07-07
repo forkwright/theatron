@@ -603,13 +603,136 @@ fn parse_hunk_header_returns_none_for_random_line() {
 }
 
 #[test]
-fn parse_range_defaults_to_one_for_non_numeric_input() {
-    assert_eq!(parse_range("abc"), (1, 1));
+fn parse_range_returns_none_for_non_numeric_start() {
+    // WHY: A malformed start must reject the range rather than
+    // silently defaulting to line 1 and corrupting line-number
+    // attribution (#181).
+    assert_eq!(parse_range("abc"), None);
 }
 
 #[test]
-fn parse_range_defaults_both_parts_for_non_numeric_pair() {
-    assert_eq!(parse_range("abc,def"), (1, 1));
+fn parse_range_returns_none_for_non_numeric_pair() {
+    assert_eq!(parse_range("abc,def"), None);
+}
+
+#[test]
+fn parse_range_returns_none_when_only_count_is_non_numeric() {
+    assert_eq!(parse_range("5,def"), None);
+}
+
+#[test]
+fn parse_range_parses_valid_start_and_count() {
+    assert_eq!(parse_range("5,3"), Some((5, 3)));
+}
+
+#[test]
+fn parse_range_defaults_count_to_one_when_absent() {
+    assert_eq!(parse_range("7"), Some((7, 1)));
+}
+
+#[test]
+fn parse_unified_diff_rejects_hunk_with_non_numeric_start() {
+    // WHY: A malformed `@@` header must reject the hunk instead of
+    // silently attributing every line to line 1 (#181).
+    let raw = "@@ -abc,3 +1,3 @@\n context\n-old\n+new\n";
+    let diff = parse_unified_diff("file.rs", raw);
+    assert!(
+        diff.hunks.is_empty(),
+        "malformed hunk header must not produce a hunk"
+    );
+}
+
+#[test]
+fn parse_hunk_header_returns_none_for_non_numeric_old_start() {
+    assert!(parse_hunk_header("@@ -abc,3 +1,3 @@").is_none());
+}
+
+#[test]
+fn diff_line_new_maps_fields_directly() {
+    let spans = vec![WordSpan::new("content", true)];
+    let line = DiffLine::new(ChangeType::Add, None, Some(5), "content", spans);
+    assert_eq!(line.change_type, ChangeType::Add);
+    assert_eq!(line.old_line_no, None);
+    assert_eq!(line.new_line_no, Some(5));
+    assert_eq!(line.content, "content");
+    assert_eq!(line.word_spans.len(), 1);
+    assert!(line.word_spans[0].changed);
+}
+
+#[test]
+fn diff_hunk_new_maps_fields_directly() {
+    let lines = vec![DiffLine {
+        change_type: ChangeType::Context,
+        old_line_no: Some(1),
+        new_line_no: Some(1),
+        content: "ctx".to_string(),
+        word_spans: vec![],
+    }];
+    let hunk = DiffHunk::new(1, 2, 3, 4, "fn main()", lines.clone());
+    assert_eq!(hunk.old_start, 1);
+    assert_eq!(hunk.old_count, 2);
+    assert_eq!(hunk.new_start, 3);
+    assert_eq!(hunk.new_count, 4);
+    assert_eq!(hunk.context_label, "fn main()");
+    assert_eq!(hunk.lines, lines);
+}
+
+#[test]
+fn compute_word_diffs_populates_spans_when_token_count_is_within_limit() {
+    let mut lines = vec![
+        DiffLine {
+            change_type: ChangeType::Remove,
+            old_line_no: Some(1),
+            new_line_no: None,
+            content: "let y = 2;".to_string(),
+            word_spans: vec![],
+        },
+        DiffLine {
+            change_type: ChangeType::Add,
+            old_line_no: None,
+            new_line_no: Some(1),
+            content: "let y = 3;".to_string(),
+            word_spans: vec![],
+        },
+    ];
+    compute_word_diffs(&mut lines);
+    assert!(!lines[0].word_spans.is_empty());
+    assert!(!lines[1].word_spans.is_empty());
+}
+
+#[test]
+fn compute_word_diffs_skips_word_level_diff_when_token_count_exceeds_limit() {
+    // WORD_DIFF_TOKEN_LIMIT = 500; combined old+new token count here
+    // exceeds it, so the guard must fall back to whole-line (no
+    // word_spans) rather than paying for an O(n*m) LCS table on an
+    // adversarially long line pair (#181).
+    let long_old = "word ".repeat(300);
+    let long_new = "term ".repeat(300);
+    let mut lines = vec![
+        DiffLine {
+            change_type: ChangeType::Remove,
+            old_line_no: Some(1),
+            new_line_no: None,
+            content: long_old,
+            word_spans: vec![],
+        },
+        DiffLine {
+            change_type: ChangeType::Add,
+            old_line_no: None,
+            new_line_no: Some(1),
+            content: long_new,
+            word_spans: vec![],
+        },
+    ];
+    compute_word_diffs(&mut lines);
+    assert!(
+        lines[0].word_spans.is_empty(),
+        "over-limit pair must fall back to no word spans"
+    );
+    assert!(
+        lines[1].word_spans.is_empty(),
+        "over-limit pair must fall back to no word spans"
+    );
 }
 
 #[test]

@@ -6,14 +6,61 @@
 //!
 //! These helpers make the [`ApiError`] variants
 //! ([`Auth`](ApiError::Auth), [`RateLimited`](ApiError::RateLimited),
-//! [`Server`](ApiError::Server), [`BadResponse`](ApiError::BadResponse))
-//! reachable from normal `reqwest::Client::send` call sites without
-//! per-consumer status-table boilerplate.
+//! [`Server`](ApiError::Server), [`BadResponse`](ApiError::BadResponse),
+//! [`BodyTooLarge`](ApiError::BodyTooLarge)) reachable from normal
+//! `reqwest::Client::send` call sites without per-consumer
+//! status-table boilerplate.
 
+use futures_util::StreamExt;
 use serde::de::DeserializeOwned;
 use snafu::ResultExt;
 
-use crate::error::{ApiError, BadResponseSnafu, HttpSnafu, RateLimitedSnafu, Result, ServerSnafu};
+use crate::error::{
+    ApiError, BadResponseSnafu, BodyTooLargeSnafu, HttpSnafu, RateLimitedSnafu, Result, ServerSnafu,
+};
+
+/// Maximum response body size keryx buffers into memory, in bytes.
+///
+/// Guards [`ensure_success`]'s error-message extraction and
+/// [`decode_json`] against an unbounded response body — without a
+/// cap, accumulating `bytes_stream()` chunks grows without limit. 10
+/// `MiB` comfortably covers any JSON API response consumed by fleet
+/// HTTP clients; SSE feeds use [`crate::sse::SseStream`] instead,
+/// which processes chunks incrementally and never buffers a full
+/// body.
+const MAX_BODY_BYTES: usize = 10 * 1024 * 1024;
+
+/// Read a response body incrementally, aborting with
+/// [`ApiError::BodyTooLarge`] as soon as the accumulated size exceeds
+/// `limit` — the oversized remainder of the body is never buffered.
+///
+/// Non-UTF-8 bytes are replaced lossily, matching the best-effort
+/// decode behavior `reqwest::Response::text()` had before this
+/// helper replaced it.
+async fn read_body_capped_with_limit(
+    response: reqwest::Response,
+    operation: &'static str,
+    limit: usize,
+) -> Result<String> {
+    let mut body = Vec::new();
+    let mut stream = response.bytes_stream();
+
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.context(HttpSnafu { operation })?;
+        if body.len().saturating_add(chunk.len()) > limit {
+            return BodyTooLargeSnafu { operation, limit }.fail();
+        }
+        body.extend_from_slice(&chunk);
+    }
+
+    Ok(String::from_utf8_lossy(&body).into_owned())
+}
+
+/// Read a response body up to [`MAX_BODY_BYTES`]. See
+/// [`read_body_capped_with_limit`].
+async fn read_body_capped(response: reqwest::Response, operation: &'static str) -> Result<String> {
+    read_body_capped_with_limit(response, operation, MAX_BODY_BYTES).await
+}
 
 /// Classify a [`reqwest::Response`] by status, returning `Ok(response)`
 /// for any 2xx and mapping non-2xx to the appropriate [`ApiError`]
@@ -79,7 +126,7 @@ pub async fn ensure_success(
     let reason = status.canonical_reason().unwrap_or("");
     let fallback = format!("{status_code} {reason}").trim().to_string();
 
-    let message = match response.text().await {
+    let message = match read_body_capped(response, operation).await {
         Ok(body) => extract_body_message(&body).unwrap_or(fallback),
         Err(_) => fallback,
     };
@@ -102,6 +149,8 @@ pub async fn ensure_success(
 /// # Errors
 ///
 /// - [`ApiError::Http`] if the body read fails.
+/// - [`ApiError::BodyTooLarge`] if the body exceeds the configured
+///   maximum size before it can be fully buffered.
 /// - [`ApiError::BadResponse`] if the body cannot be deserialized
 ///   into `T` (server schema drift, wrong content type, malformed
 ///   JSON, etc.).
@@ -109,7 +158,7 @@ pub async fn decode_json<T>(response: reqwest::Response, operation: &'static str
 where
     T: DeserializeOwned,
 {
-    let body = response.text().await.context(HttpSnafu { operation })?;
+    let body = read_body_capped(response, operation).await?;
     serde_json::from_str(&body).context(BadResponseSnafu { operation })
 }
 
@@ -300,6 +349,66 @@ mod tests {
         match err {
             ApiError::BadResponse { operation, .. } => assert_eq!(operation, "op"),
             other => panic!("expected BadResponse, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn read_body_capped_aborts_when_body_exceeds_limit() {
+        // Regression for #182.3: the response body has no size cap.
+        // Use a tiny `limit` so the test doesn't need to move
+        // megabytes over the loopback socket.
+        let addr =
+            one_shot(b"HTTP/1.1 200 OK\r\nContent-Length: 20\r\n\r\n01234567890123456789").await;
+        let resp = get(addr).await;
+        let err = read_body_capped_with_limit(resp, "op", 10)
+            .await
+            .expect_err("oversized body must fail");
+        match err {
+            ApiError::BodyTooLarge { operation, limit } => {
+                assert_eq!(operation, "op");
+                assert_eq!(limit, 10);
+            }
+            other => panic!("expected BodyTooLarge, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn read_body_capped_allows_body_within_limit() {
+        let addr = one_shot(b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello").await;
+        let resp = get(addr).await;
+        let body = read_body_capped_with_limit(resp, "op", 10)
+            .await
+            .expect("within-limit body must succeed");
+        assert_eq!(body, "hello");
+    }
+
+    #[tokio::test]
+    async fn ensure_success_falls_back_on_oversized_error_body() {
+        // ensure_success's best-effort message extraction already
+        // swallows body-read failures into the status-line fallback;
+        // an oversized body (at the real MAX_BODY_BYTES cap, not a
+        // stand-in) must take the same graceful path rather than
+        // propagating BodyTooLarge out of a function whose signature
+        // promises only Auth/RateLimited/Server errors.
+        let oversized_len = MAX_BODY_BYTES + 1;
+        let mut full = format!(
+            "HTTP/1.1 500 Internal Server Error\r\nContent-Length: {oversized_len}\r\n\r\n"
+        )
+        .into_bytes();
+        full.resize(full.len() + oversized_len, b'x');
+        let full: &'static [u8] = Box::leak(full.into_boxed_slice());
+
+        let addr = one_shot(full).await;
+        let resp = get(addr).await;
+        let err = ensure_success(resp, "op").await.expect_err("500 fails");
+        match err {
+            ApiError::Server { message, .. } => {
+                assert_eq!(
+                    message, "500 Internal Server Error",
+                    "oversized body must fall back to the status-line message"
+                );
+            }
+            other => panic!("expected Server, got {other:?}"),
         }
     }
 

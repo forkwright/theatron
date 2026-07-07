@@ -6480,7 +6480,6 @@ dependencies = [
  "gramma",
  "pulldown-cmark",
  "serde",
- "serde_json",
  "tokio",
 ]
 
@@ -7187,6 +7186,7 @@ name = "themelion"
 version = "1.4.0"
 dependencies = [
  "dioxus",
+ "dioxus-ssr",
 ]
 
 [[package]]

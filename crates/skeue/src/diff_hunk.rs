@@ -4,7 +4,7 @@ use dioxus::prelude::*;
 
 use gramma::diff::{ChangeType, DiffHunk, DiffLine, DiffViewMode, align_side_by_side};
 
-use crate::diff_line::DiffLineView;
+use crate::diff_line::{DiffLineView, render_highlighted_content};
 
 const HUNK_HEADER_STYLE: &str = "\
     padding: var(--space-1) var(--space-3); \
@@ -75,6 +75,8 @@ pub fn DiffHunkView(hunk: DiffHunk, language: String, mode: DiffViewMode) -> Ele
                 DiffViewMode::SideBySide => rsx! {
                     {render_side_by_side(&hunk, &language)}
                 },
+                // NOTE: DiffViewMode is #[non_exhaustive] (gramma) -- an
+                // unrecognized future variant falls back to Unified rendering.
                 _ => rsx! {
                     {render_unified_lines(&hunk.lines, &language)}
                 },
@@ -116,12 +118,15 @@ fn render_side_by_side(hunk: &DiffHunk, language: &str) -> Element {
 }
 
 /// Render one half of a side-by-side row.
-fn render_sbs_half(line: Option<&DiffLine>, side: ChangeType, _language: &str) -> Element {
+fn render_sbs_half(line: Option<&DiffLine>, side: ChangeType, language: &str) -> Element {
     let bg = match line {
         Some(l) => match l.change_type {
             ChangeType::Add => "rgba(34, 197, 94, 0.1)",
             ChangeType::Remove => "rgba(239, 68, 68, 0.1)",
-            ChangeType::Context | _ => "transparent",
+            ChangeType::Context => "transparent",
+            // NOTE: ChangeType is #[non_exhaustive] (gramma) -- an
+            // unrecognized future variant renders the same as Context.
+            _ => "transparent",
         },
         None => "rgba(128, 128, 128, 0.05)",
     };
@@ -129,11 +134,14 @@ fn render_sbs_half(line: Option<&DiffLine>, side: ChangeType, _language: &str) -
     let line_no = line.and_then(|l| match side {
         ChangeType::Remove => l.old_line_no,
         ChangeType::Add => l.new_line_no,
-        ChangeType::Context | _ => l.old_line_no.or(l.new_line_no),
+        ChangeType::Context => l.old_line_no.or(l.new_line_no),
+        // NOTE: ChangeType is #[non_exhaustive] (gramma) -- an unrecognized
+        // future variant falls back to whichever line number is present,
+        // same as Context.
+        _ => l.old_line_no.or(l.new_line_no),
     });
 
     let line_no_str = line_no.map_or_else(String::new, |n| n.to_string());
-    let content = line.map_or("", |l| l.content.as_str());
 
     rsx! {
         div {
@@ -145,7 +153,10 @@ fn render_sbs_half(line: Option<&DiffLine>, side: ChangeType, _language: &str) -
                     if !l.word_spans.is_empty() {
                         {render_sbs_word_spans(&l.word_spans, l.change_type)}
                     } else {
-                        {content}
+                        // NOTE: No word-level diff -- render with syntax
+                        // highlighting, mirroring DiffLineView's Unified path
+                        // (issue #179: SideBySide previously rendered raw text).
+                        {render_highlighted_content(&l.content, language)}
                     }
                 } else {
                     ""
@@ -160,7 +171,10 @@ fn render_sbs_word_spans(spans: &[gramma::diff::WordSpan], change_type: ChangeTy
     let changed_bg = match change_type {
         ChangeType::Add => "rgba(34, 197, 94, 0.3)",
         ChangeType::Remove => "rgba(239, 68, 68, 0.3)",
-        ChangeType::Context | _ => "transparent",
+        ChangeType::Context => "transparent",
+        // NOTE: ChangeType is #[non_exhaustive] (gramma) -- an unrecognized
+        // future variant renders the same as Context (no background tint).
+        _ => "transparent",
     };
 
     rsx! {
@@ -218,6 +232,51 @@ mod ssr_tests {
         assert!(
             html.contains("aria-label=\"Diff hunk: src/main.rs\""),
             "expected aria-label in {html}"
+        );
+    }
+
+    /// Regression test for issue #179: `render_sbs_half` used to render
+    /// plain content, dropping syntax highlighting in `SideBySide` mode
+    /// even though `language` was accepted and threaded through.
+    #[test]
+    fn context_line_renders_highlighted_spans_in_both_view_modes() {
+        let make_hunk = || DiffHunk {
+            old_start: 1,
+            old_count: 1,
+            new_start: 1,
+            new_count: 1,
+            context_label: "src/main.rs".to_string(),
+            lines: vec![DiffLine {
+                content: "fn main() {}".to_string(),
+                change_type: gramma::diff::ChangeType::Context,
+                old_line_no: Some(1),
+                new_line_no: Some(1),
+                word_spans: vec![],
+            }],
+        };
+
+        let unified_html = render_element(rsx! {
+            DiffHunkView {
+                hunk: make_hunk(),
+                language: "rust".to_string(),
+                mode: DiffViewMode::Unified,
+            }
+        });
+        let sbs_html = render_element(rsx! {
+            DiffHunkView {
+                hunk: make_hunk(),
+                language: "rust".to_string(),
+                mode: DiffViewMode::SideBySide,
+            }
+        });
+
+        assert!(
+            unified_html.contains("color:"),
+            "expected syntax-highlighted spans in Unified mode: {unified_html}"
+        );
+        assert!(
+            sbs_html.contains("color:"),
+            "expected syntax-highlighted spans in SideBySide mode (issue #179): {sbs_html}"
         );
     }
 }
