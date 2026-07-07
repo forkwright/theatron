@@ -18,4 +18,4 @@ serde = { workspace = true }
 tokio = { workspace = true }
 
 [dev-dependencies]
-dioxus-ssr = "=0.7.6"
+dioxus-ssr = "=0.7.9"
