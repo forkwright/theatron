@@ -265,12 +265,64 @@ fn parse_unified_diff_returns_empty_diff_file_for_gibberish_input() {
 }
 
 #[test]
-fn parse_unified_diff_skips_interleaved_file_headers_inside_hunk_body() {
-    let raw = "@@ -1,3 +1,3 @@\n a\n--- a/old.rs\n b\n-c\n+d\n";
+fn parse_unified_diff_skips_file_headers_before_first_hunk() {
+    let raw = "--- a/file.rs\n+++ b/file.rs\n@@ -1,2 +1,2 @@\n a\n-b\n+c\n";
     let diff = parse_unified_diff("file.rs", raw);
+    assert_eq!(diff.hunks.len(), 1);
+    assert_eq!(diff.additions, 1);
+    assert_eq!(diff.deletions, 1);
+    assert_eq!(diff.hunks[0].lines.len(), 3);
+}
+
+#[test]
+fn parse_unified_diff_keeps_removed_line_starting_with_double_dash() {
+    // WHY: A removed line whose content starts with `--` (SQL/Haskell
+    // comment) arrives as `---content`; the header-skip must not fire
+    // inside a hunk body (#79).
+    let raw = "--- a/q.sql\n+++ b/q.sql\n@@ -1,2 +1,1 @@\n SELECT 1;\n--- count rows\n";
+    let diff = parse_unified_diff("q.sql", raw);
+    assert_eq!(diff.deletions, 1);
     let lines = &diff.hunks[0].lines;
-    assert_eq!(lines.len(), 4);
-    assert!(!lines.iter().any(|l| l.content.contains("--- a/old.rs")));
+    assert_eq!(lines.len(), 2);
+    assert_eq!(lines[1].change_type, ChangeType::Remove);
+    assert_eq!(lines[1].content, "-- count rows");
+}
+
+#[test]
+fn parse_unified_diff_keeps_added_line_starting_with_double_plus() {
+    // WHY: An added line whose content starts with `++` (Haskell
+    // concatenation) arrives as `+++content`; the header-skip must not
+    // fire inside a hunk body (#79).
+    let raw = "--- a/l.hs\n+++ b/l.hs\n@@ -1,1 +1,2 @@\n xs\n+++ ys ++ zs\n";
+    let diff = parse_unified_diff("l.hs", raw);
+    assert_eq!(diff.additions, 1);
+    let lines = &diff.hunks[0].lines;
+    assert_eq!(lines.len(), 2);
+    assert_eq!(lines[1].change_type, ChangeType::Add);
+    assert_eq!(lines[1].content, "++ ys ++ zs");
+}
+
+#[test]
+fn parse_unified_diff_keeps_removed_markdown_separator_line() {
+    let raw = "@@ -1,2 +1,1 @@\n title\n----\n";
+    let diff = parse_unified_diff("doc.md", raw);
+    assert_eq!(diff.deletions, 1);
+    let lines = &diff.hunks[0].lines;
+    assert_eq!(lines[1].change_type, ChangeType::Remove);
+    assert_eq!(lines[1].content, "---");
+}
+
+#[test]
+fn hunk_line_numbers_saturate_at_u32_max_without_panicking() {
+    // WHY: Line-number counters must saturate, not overflow, on
+    // adversarial hunk headers near u32::MAX (#58).
+    let raw = "@@ -4294967294,3 +4294967294,3 @@\n a\n b\n c\n";
+    let diff = parse_unified_diff("huge.rs", raw);
+    let lines = &diff.hunks[0].lines;
+    assert_eq!(lines[0].old_line_no, Some(u32::MAX - 1));
+    assert_eq!(lines[1].old_line_no, Some(u32::MAX));
+    assert_eq!(lines[2].old_line_no, Some(u32::MAX));
+    assert_eq!(lines[2].new_line_no, Some(u32::MAX));
 }
 
 #[test]

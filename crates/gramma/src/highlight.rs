@@ -88,6 +88,7 @@ fn theme_item(scope: &str, r: u8, g: u8, b: u8) -> ThemeItem {
 }
 
 /// One styled span within a highlighted line.
+// kanon:ignore TOPOLOGY/shallow-struct -- deliberate data-transfer struct: gramma is the data layer; skeue components consume these fields directly to render (crate contract per #77)
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HighlightedSpan {
     /// Text content of the span.

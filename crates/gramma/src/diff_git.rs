@@ -111,16 +111,76 @@ fn normalize_diff_path(path: &str) -> Option<String> {
         return None;
     }
 
-    let path = path
+    // NOTE: Git C-quotes paths containing non-ASCII or special bytes;
+    // decode escape sequences after stripping the surrounding quotes.
+    let decoded = path
         .strip_prefix('"')
         .and_then(|path| path.strip_suffix('"'))
-        .unwrap_or(path);
+        .map(decode_git_quoted);
+    let path = decoded.as_deref().unwrap_or(path);
     let path = path
         .strip_prefix("a/")
         .or_else(|| path.strip_prefix("b/"))
         .unwrap_or(path);
 
     Some(path.to_string())
+}
+
+/// Decode git's C-style path quoting: `\NNN` octal byte escapes plus
+/// the simple escapes git emits (`\\`, `\"`, `\t`, `\n`, `\r`).
+/// Unknown escape sequences are kept verbatim.
+fn decode_git_quoted(quoted: &str) -> String {
+    let bytes = quoted.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while let Some(&byte) = bytes.get(i) {
+        if byte == b'\\' {
+            if let Some(octal) = decode_octal_escape(bytes, i) {
+                out.push(octal);
+                i += 4;
+                continue;
+            }
+            if let Some(simple) = bytes.get(i + 1).copied().and_then(decode_simple_escape) {
+                out.push(simple);
+                i += 2;
+                continue;
+            }
+        }
+        out.push(byte);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+/// Decode a `\NNN` three-octal-digit escape starting at the backslash.
+/// Returns `None` for short, non-octal, or out-of-range (`> \377`)
+/// sequences.
+fn decode_octal_escape(bytes: &[u8], backslash: usize) -> Option<u8> {
+    let high = octal_digit(bytes.get(backslash + 1))?;
+    let mid = octal_digit(bytes.get(backslash + 2))?;
+    let low = octal_digit(bytes.get(backslash + 3))?;
+    u8::try_from(high * 64 + mid * 8 + low).ok()
+}
+
+/// Numeric value of an octal digit byte, or `None` for anything else.
+fn octal_digit(byte: Option<&u8>) -> Option<u32> {
+    match byte {
+        Some(&digit @ b'0'..=b'7') => Some(u32::from(digit - b'0')),
+        _ => None,
+    }
+}
+
+/// Decoded byte for a single-character C escape, or `None` if the
+/// character is not a recognized escape.
+fn decode_simple_escape(escape: u8) -> Option<u8> {
+    match escape {
+        b'\\' => Some(b'\\'),
+        b'"' => Some(b'"'),
+        b't' => Some(b'\t'),
+        b'n' => Some(b'\n'),
+        b'r' => Some(b'\r'),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
@@ -195,5 +255,41 @@ mod tests {
         let files = parse_git_diff("not a diff\n@@ -1 +1 @@\n-old\n+new\n");
 
         assert!(files.is_empty());
+    }
+
+    #[test]
+    fn parse_git_diff_decodes_octal_escaped_quoted_paths() {
+        let raw = "diff --git \"a/src/caf\\303\\251.rs\" \"b/src/caf\\303\\251.rs\"\n--- \"a/src/caf\\303\\251.rs\"\n+++ \"b/src/caf\\303\\251.rs\"\n@@ -1,1 +1,1 @@\n-old\n+new\n";
+
+        let files = parse_git_diff(raw);
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(files.first().map(|f| f.path.as_str()), Some("src/café.rs"));
+    }
+
+    #[test]
+    fn parse_git_diff_decodes_quoted_path_from_diff_git_header_fallback() {
+        let raw =
+            "diff --git \"a/na\\303\\257ve.png\" \"b/na\\303\\257ve.png\"\nBinary files differ\n";
+
+        let files = parse_git_diff(raw);
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(files.first().map(|f| f.path.as_str()), Some("naïve.png"));
+    }
+
+    #[test]
+    fn decode_git_quoted_handles_simple_escapes_and_keeps_unknown_verbatim() {
+        assert_eq!(decode_git_quoted("a\\tb"), "a\tb");
+        assert_eq!(decode_git_quoted("a\\\\b"), "a\\b");
+        assert_eq!(decode_git_quoted("a\\\"b"), "a\"b");
+        assert_eq!(decode_git_quoted("a\\zb"), "a\\zb");
+        assert_eq!(decode_git_quoted("trailing\\"), "trailing\\");
+    }
+
+    #[test]
+    fn decode_git_quoted_rejects_out_of_range_octal_as_literal() {
+        // NOTE: `\777` = 511 exceeds a byte; kept verbatim, not wrapped.
+        assert_eq!(decode_git_quoted("a\\777b"), "a\\777b");
     }
 }

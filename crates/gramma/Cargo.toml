@@ -1,6 +1,6 @@
 [package]
 name = "gramma"
-description = "γράμμα (written character) — markdown + syntax highlighting + diff state. pulldown-cmark + syntect; sandbox-safe HTML output."
+description = "γράμμα (written character) — syntax highlighting spans + structured diff parsing. syntect-backed; pure data structures for UI renderers."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,5 +10,4 @@ rust-version.workspace = true
 authors.workspace = true
 
 [dependencies]
-pulldown-cmark = { workspace = true }
 syntect = { workspace = true }

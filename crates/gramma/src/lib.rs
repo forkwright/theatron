@@ -1,7 +1,8 @@
-//! γράμμα (gramma, written character) — markdown + syntax highlighting + diff.
+//! γράμμα (gramma, written character) — syntax highlighting + diff data.
 //!
-//! pulldown-cmark + syntect for native rendering, plus structured
-//! unified-diff parsing. Sandbox-safe HTML output.
+//! syntect-backed highlighting spans plus structured unified-diff
+//! parsing. Pure data structures — no HTML output; rendering lives in
+//! `skeue` components that consume these types.
 //!
 //! ## Modules
 //!
@@ -34,9 +35,27 @@ pub use highlight::{HighlightedSpan, detect_language, highlight_code};
 
 #[cfg(test)]
 mod smoke_tests {
-    /// Smoke test: crate compiles and the test module runs.
+    /// Round-trip smoke: the public parse API turns a minimal unified
+    /// diff into structured hunks with correct content and stats.
     #[test]
     fn crate_smoke() {
-        assert_eq!(2 + 2, 4);
+        let diff = crate::parse_unified_diff("smoke.rs", "@@ -1,2 +1,2 @@\n a\n-old\n+new\n");
+        assert_eq!(diff.hunks.len(), 1);
+        assert_eq!(diff.additions, 1);
+        assert_eq!(diff.deletions, 1);
+        let lines = diff
+            .hunks
+            .first()
+            .map(|hunk| hunk.lines.as_slice())
+            .unwrap_or_default();
+        assert_eq!(lines.len(), 3);
+        assert_eq!(
+            lines.get(1).map(|l| (l.change_type, l.content.as_str())),
+            Some((crate::ChangeType::Remove, "old"))
+        );
+        assert_eq!(
+            lines.get(2).map(|l| (l.change_type, l.content.as_str())),
+            Some((crate::ChangeType::Add, "new"))
+        );
     }
 }
