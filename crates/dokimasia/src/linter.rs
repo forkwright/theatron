@@ -205,6 +205,36 @@ mod tests {
         assert_eq!(diags.len(), 1);
     }
 
+    #[test]
+    fn lint_path_dispatches_cargo_toml_to_manifest_scanner() {
+        // Exercises the full production path: file_name() check →
+        // read_and_scan → lint_manifest, not the scanner in isolation.
+        let dir = tempdir();
+        std::fs::write(
+            dir.join("Cargo.toml"),
+            "[package]\nname = \"x\"\nversion = \"0.1.0\"\n\n[patch.crates-io]\nserde = { git = \"https://example.com/serde\" }\n",
+        )
+        .unwrap();
+        let linter = Linter::new(registry());
+        let diags = linter.lint_path(&dir);
+        assert_eq!(diags.len(), 1, "expected 1 diagnostic, got: {diags:?}");
+        assert_eq!(diags[0].severity, crate::diagnostic::Severity::Error);
+        assert_eq!(diags[0].code, "forbidden-patch-block");
+    }
+
+    #[test]
+    fn lint_path_cargo_toml_without_patch_block_is_clean() {
+        let dir = tempdir();
+        std::fs::write(
+            dir.join("Cargo.toml"),
+            "[package]\nname = \"x\"\nversion = \"0.1.0\"\n\n[dependencies]\nserde = \"1\"\n",
+        )
+        .unwrap();
+        let linter = Linter::new(registry());
+        let diags = linter.lint_path(&dir);
+        assert!(diags.is_empty(), "expected no diagnostics, got: {diags:?}");
+    }
+
     // ---- Graceful per-file errors (caught by QA swarm A03 H-01, M-13) ---
 
     #[test]

@@ -11,6 +11,9 @@ use crate::css::build_line_index;
 use crate::diagnostic::Diagnostic;
 use crate::tokens::TokenRegistry;
 
+/// The forbidden table header, in its canonical spelling.
+const PATCH_HEADER: &str = "[patch.crates-io]";
+
 /// Lint a Cargo manifest source string, returning a diagnostic if a
 /// `[patch.crates-io]` table is present.
 ///
@@ -51,13 +54,24 @@ pub(crate) fn lint_manifest(
             .copied()
             .unwrap_or(source.len());
         let line_str = &source[*line_start..line_end]; // kanon:ignore RUST/indexing-slicing -- line_start/line_end come from build_line_index(source), always in-bounds and at char boundaries (line_starts hold byte positions immediately after `\n`)
-        if line_str.trim() == "[patch.crates-io]" {
+        // NOTE: accept a bare header or a header followed by an inline
+        // `# comment` — both valid TOML spellings of the same table.
+        let trimmed = line_str.trim();
+        let is_header = trimmed == PATCH_HEADER
+            || trimmed
+                .strip_prefix(PATCH_HEADER)
+                .is_some_and(|rest| rest.trim_start().starts_with('#'));
+        if is_header {
             found_line = u32::try_from(line_idx).unwrap_or(0) + 1;
             // Find byte offset of the `[` character on this line.
             let bracket_rel = line_str.find('[').unwrap_or(0);
             found_offset = line_start + bracket_rel;
             found_col = u32::try_from(bracket_rel).unwrap_or(0) + 1;
-            found_len = line_str.trim_end().len();
+            // WHY: length is the header token itself, measured from the
+            // bracket — never from line start (indentation previously
+            // inflated the span past the closing `]`, and past EOF when
+            // the header was the final line).
+            found_len = PATCH_HEADER.len();
             break;
         }
     }
@@ -98,6 +112,56 @@ serde = { git = "https://forge.forkwright.com/forkwright/serde" }
         // Source has a leading newline so [package] is line 2;
         // [patch.crates-io] is line 6.
         assert_eq!(diags[0].line, 6);
+    }
+
+    #[test]
+    fn indented_header_span_covers_exactly_the_header() {
+        let src = "[package]\nname = \"foo\"\nversion = \"0.1.0\"\n\n  [patch.crates-io]\n  serde = { git = \"https://example.com/serde\" }\n";
+        let diags = lint_manifest(&registry(), src, Path::new("Cargo.toml"));
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].line, 5);
+        assert_eq!(diags[0].column, 3);
+        let span = &src[diags[0].byte_offset..diags[0].byte_offset + diags[0].byte_len];
+        assert_eq!(
+            span, "[patch.crates-io]",
+            "span must cover exactly the header"
+        );
+    }
+
+    #[test]
+    fn indented_header_at_end_of_file_renders_without_error() {
+        // Header is the final line, no trailing newline — the old
+        // line-start-relative length overran the file boundary here and
+        // render_human aborted with an io::Error.
+        let src = "[package]\nname = \"foo\"\nversion = \"0.1.0\"\n\n  [patch.crates-io]";
+        let diags = lint_manifest(&registry(), src, Path::new("Cargo.toml"));
+        assert_eq!(diags.len(), 1);
+        let end = diags[0].byte_offset + diags[0].byte_len;
+        assert!(
+            end <= src.len(),
+            "span end {end} overruns file len {}",
+            src.len()
+        );
+        let span = &src[diags[0].byte_offset..end];
+        assert_eq!(span, "[patch.crates-io]");
+
+        let mut buf: Vec<u8> = Vec::new();
+        let mut writer = codespan_reporting::term::termcolor::NoColor::new(&mut buf);
+        crate::render::render_human(&diags, &mut writer, |_| src.to_string())
+            .expect("render_human must succeed on an EOF-adjacent span");
+    }
+
+    #[test]
+    fn header_with_trailing_comment_reports_correct_position() {
+        // `[patch.crates-io] # reason` is valid TOML; the raw-line scan
+        // previously missed it and fell back to a 1:1 zero-width span.
+        let src = "[package]\nname = \"foo\"\nversion = \"0.1.0\"\n\n[patch.crates-io] # vendored until upstream release\nserde = { git = \"https://example.com/serde\" }\n";
+        let diags = lint_manifest(&registry(), src, Path::new("Cargo.toml"));
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].line, 5, "must point at the header line, not 1:1");
+        assert_eq!(diags[0].column, 1);
+        let span = &src[diags[0].byte_offset..diags[0].byte_offset + diags[0].byte_len];
+        assert_eq!(span, "[patch.crates-io]", "span must exclude the comment");
     }
 
     #[test]

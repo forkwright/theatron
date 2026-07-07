@@ -215,14 +215,23 @@ impl LitVisitor<'_> {
 
 /// Map a proc-macro2 `LineColumn` (1-indexed line, 0-indexed column) to a
 /// byte offset using the source's line index.
+///
+/// `LineColumn::column` counts UTF-8 *characters*, not bytes, so the line
+/// text is walked via `char_indices` to land on a guaranteed char-boundary
+/// byte offset regardless of multi-byte content. A column at or past the
+/// end of the line clamps to the line's end offset.
 fn lc_to_offset(source: &str, line_starts: &[usize], lc: LineColumn) -> Option<usize> {
     let line_idx = lc.line.checked_sub(1)?;
     let line_start = *line_starts.get(line_idx)?;
-    let offset = line_start.checked_add(lc.column)?;
-    if offset > source.len() {
-        return None;
+    let line_end = line_starts
+        .get(line_idx + 1)
+        .copied()
+        .unwrap_or(source.len());
+    let line = source.get(line_start..line_end)?;
+    match line.char_indices().nth(lc.column) {
+        Some((byte_rel, _)) => Some(line_start + byte_rel),
+        None => Some(line_end),
     }
-    Some(offset)
 }
 
 #[cfg(test)]
@@ -337,7 +346,7 @@ mod tests {
     #[test]
     fn cfg_all_test_module_is_skipped() {
         let src = r#"
-#[cfg(all(test, feature = "extra"))]
+#[cfg(all(test, target_os = "linux"))]
 mod combined {
     const BOGUS: &str = "color: var(--bogus-all);";
 }
@@ -425,6 +434,35 @@ const BOGUS: &str = "color: var(--bogus-const);";
         let diags = lint_rust(&registry(), src, Path::new("a.rs"));
         assert_eq!(diags.len(), 1);
         assert_eq!(diags[0].token.as_deref(), Some("--missing"));
+    }
+
+    #[test]
+    fn multibyte_utf8_before_literal_yields_char_boundary_span() {
+        // proc-macro2 columns count chars; adding them to byte offsets
+        // used to produce spans shifted left by the extra bytes of any
+        // multi-byte char earlier on the line (here é ×2 and → : 4 extra
+        // bytes), panicking codespan-reporting on mid-codepoint slices.
+        let src = "fn x() { let _a = \"héé→\"; let _s = \"var(--missing)\"; }\n";
+        let diags = lint_rust(&registry(), src, Path::new("a.rs"));
+        assert_eq!(diags.len(), 1, "expected 1 diagnostic, got: {diags:?}");
+        assert!(
+            src.is_char_boundary(diags[0].byte_offset),
+            "byte_offset must be a char boundary"
+        );
+        assert!(
+            src.is_char_boundary(diags[0].byte_offset + diags[0].byte_len),
+            "span end must be a char boundary"
+        );
+        let span = &src[diags[0].byte_offset..diags[0].byte_offset + diags[0].byte_len];
+        assert_eq!(
+            span, "\"var(--missing)\"",
+            "span must cover exactly the flagged literal"
+        );
+
+        let mut buf: Vec<u8> = Vec::new();
+        let mut writer = codespan_reporting::term::termcolor::NoColor::new(&mut buf);
+        crate::render::render_human(&diags, &mut writer, |_| src.to_string())
+            .expect("render_human must not panic or fail on non-ASCII source");
     }
 
     #[test]

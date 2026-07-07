@@ -109,13 +109,13 @@ pub(crate) fn mask_strings_and_comments(source: &str) -> String {
                 }
             }
         // Quoted string: "…" or '…' with backslash escapes.
-        } else if bytes[i] == b'"' || bytes[i] == b'\'' {
-            // kanon:ignore RUST/indexing-slicing -- bounded by outer i < bytes.len()
+        } else if matches!(bytes.get(i), Some(b'"' | b'\'')) {
+            // kanon:ignore RUST/indexing-slicing -- bounded by the matches! guard above
             let quote = bytes[i];
             out.push(b' ');
             i += 1;
-            while i < bytes.len() && bytes[i] != quote {
-                // kanon:ignore RUST/indexing-slicing -- bounded by short-circuit i < bytes.len()
+            while bytes.get(i).is_some_and(|&c| c != quote) {
+                // kanon:ignore RUST/indexing-slicing -- bounded by the is_some_and guard above
                 if bytes[i] == b'\\' && i + 1 < bytes.len() {
                     // kanon:ignore RUST/indexing-slicing -- bounded by outer while
                     // Mask backslash + next byte (handles \", \\, \n, etc.).

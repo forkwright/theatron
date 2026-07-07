@@ -15,6 +15,10 @@
 //!   string literal (including those nested inside `rsx!` and other macro
 //!   invocations), and extracts `var(--*)` patterns from each literal's
 //!   contents.
+//! - The manifest scanner checks every `Cargo.toml` for a
+//!   `[patch.crates-io]` table and reports it as an error per fleet
+//!   doctrine (patches against external deps live in forkwright forks,
+//!   not workspace patch-blocks).
 //! - [`Diagnostic`] carries file/line/column/severity/code/message and can
 //!   be rendered as human-readable diagnostics (codespan-reporting) or JSON.
 
@@ -61,10 +65,25 @@ pub enum Error {
 }
 
 #[cfg(test)]
-mod smoke_tests {
-    /// Smoke test: crate compiles and the test module runs.
+mod tests {
+    use super::Error;
+
     #[test]
-    fn crate_smoke() {
-        assert_eq!(2 + 2, 4);
+    fn error_display_includes_path_and_context() {
+        let spec = Error::Spec {
+            path: std::path::PathBuf::from("DESIGN-TOKENS.md"),
+            message: "no tables found".to_string(),
+        };
+        let rendered = spec.to_string();
+        assert!(rendered.contains("DESIGN-TOKENS.md"), "got: {rendered}");
+        assert!(rendered.contains("no tables found"), "got: {rendered}");
+
+        let io = Error::Io {
+            path: std::path::PathBuf::from("missing.md"),
+            source: std::io::Error::new(std::io::ErrorKind::NotFound, "gone"),
+        };
+        let rendered = io.to_string();
+        assert!(rendered.contains("missing.md"), "got: {rendered}");
+        assert!(rendered.contains("gone"), "got: {rendered}");
     }
 }

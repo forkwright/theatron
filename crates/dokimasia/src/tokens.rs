@@ -1,9 +1,9 @@
 //! Token registry — the canonical set of CSS custom properties declared by
 //! `DESIGN-TOKENS.md`.
 //!
-//! Tokens are extracted from inline code spans and fenced code blocks in the
-//! markdown spec. Anything matching `--[a-z][a-z0-9-]*` inside such spans is
-//! treated as a declared token name.
+//! The registry collects tokens out of inline code spans and fenced code
+//! blocks in the markdown spec. Anything matching `--[a-z][a-z0-9-]*` inside
+//! such spans counts as a declared token name.
 
 use std::collections::HashSet;
 use std::path::Path;
