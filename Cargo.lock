@@ -1939,9 +1939,9 @@ dependencies = [
 
 [[package]]
 name = "dioxus-native"
-version = "0.7.6"
+version = "0.7.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1547840ef02f07607e58a0365e728a40444374c4aa7e0e3baa549af68b3feb69"
+checksum = "a27795b6b4c12e2dc6ef284f80dd647d5aecda4c0b75948ba4ecde7f83c526d4"
 dependencies = [
  "anyrender",
  "anyrender_vello",
@@ -1970,9 +1970,9 @@ dependencies = [
 
 [[package]]
 name = "dioxus-native-dom"
-version = "0.7.6"
+version = "0.7.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "926b74f2cdc9ecdb98b1e4481ff938e763f808345c09b1097dd4c88aa1cd3b38"
+checksum = "cf20d08ad6f5f0714d28b2115a6e11f2d5b5959144f8bef106c2e0638a8f2f13"
 dependencies = [
  "blitz-dom",
  "blitz-traits",

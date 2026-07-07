@@ -57,7 +57,7 @@ dokimasia = { version = "1.3.0", path = "crates/dokimasia" }
 dioxus = "=0.7.9"
 dioxus-core = "=0.7.9"
 dioxus-hooks = "=0.7.6"
-dioxus-native = "=0.7.6"
+dioxus-native = "=0.7.9"
 
 # OS integration crates (used by mekhane).
 #
