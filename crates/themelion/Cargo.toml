@@ -1,6 +1,6 @@
 [package]
 name = "themelion"
-description = "θεμέλιον (foundation) — theatron's runtime base: theme provider, routing scaffolding, error boundary, settings, logging."
+description = "θεμέλιον (foundation) — theme provider and OS preference detection for Dioxus + Blitz fleet desktop apps."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -11,6 +11,3 @@ authors.workspace = true
 
 [dependencies]
 dioxus = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-snafu = { workspace = true }

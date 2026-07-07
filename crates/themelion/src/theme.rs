@@ -280,11 +280,28 @@ impl ThemeMode {
 
 /// Detect OS color preference from environment variables.
 ///
-/// Checks `GTK_THEME` for a "dark" suffix and `COLORFGBG` for background
+/// Checks `GTK_THEME` for a `:dark` variant suffix or a `-dark` name
+/// suffix (GTK3/GTK4 convention), then `COLORFGBG` for background
 /// brightness (same heuristic as the TUI). Falls back to dark.
 fn detect_system_preference() -> ResolvedTheme {
-    if let Ok(gtk_theme) = std::env::var("GTK_THEME") {
-        return if gtk_theme.to_ascii_lowercase().contains("dark") {
+    detect_system_preference_from(|name| std::env::var(name).ok())
+}
+
+/// Environment-injectable core of [`detect_system_preference`].
+///
+/// `env` returns the value of an environment variable, or `None` when
+/// unset. Tests pass a closure over controlled values — `std::env::set_var`
+/// is `unsafe` in edition 2024, so mutation-based env testing is not an
+/// option. Mirrors the `Env`-trait seam in `parodos::env`.
+fn detect_system_preference_from(env: impl Fn(&str) -> Option<String>) -> ResolvedTheme {
+    if let Some(gtk_theme) = env("GTK_THEME") {
+        // WHY: GTK selects a theme's dark variant via a `:dark` suffix
+        // (`GTK_THEME=Adwaita:dark`); standalone dark themes ship as
+        // `<Name>-dark` packages. A bare substring match would
+        // misclassify light-variant themes named e.g. `Darkly`.
+        let lower = gtk_theme.to_ascii_lowercase();
+        let is_dark = lower.ends_with(":dark") || lower.ends_with("-dark") || lower == "dark";
+        return if is_dark {
             ResolvedTheme::Dark
         } else {
             ResolvedTheme::Light
@@ -292,9 +309,9 @@ fn detect_system_preference() -> ResolvedTheme {
     }
 
     // WHY: COLORFGBG format is "fg;bg" or "fg;X;bg". Background is always
-    // the last component. Indices 0-6 are dark, 7+ are light. Matches the
+    // the last component. Indices 0-7 are dark, 8+ are light. Matches the
     // TUI detection logic in koilon/src/theme.rs.
-    if let Ok(val) = std::env::var("COLORFGBG")
+    if let Some(val) = env("COLORFGBG")
         && let Some(bg_str) = val.rsplit(';').next()
         && let Ok(bg) = bg_str.parse::<u8>()
     {
@@ -416,8 +433,97 @@ mod tests {
 
     #[test]
     fn system_resolve_returns_valid_theme() {
+        // Exercises the real-environment path end-to-end (no panic);
+        // branch behavior is covered by the injected-env tests below.
         let resolved = ThemeMode::System.resolve();
         assert!(resolved == ResolvedTheme::Dark || resolved == ResolvedTheme::Light);
+    }
+
+    /// Injected env: returns values from `pairs`, `None` otherwise.
+    fn env_from(pairs: &'static [(&'static str, &'static str)]) -> impl Fn(&str) -> Option<String> {
+        move |name| {
+            pairs
+                .iter()
+                .find(|(key, _)| *key == name)
+                .map(|(_, value)| (*value).to_string())
+        }
+    }
+
+    #[test]
+    fn gtk_theme_colon_dark_variant_resolves_dark() {
+        let env = env_from(&[("GTK_THEME", "Adwaita:dark")]);
+        assert_eq!(detect_system_preference_from(env), ResolvedTheme::Dark);
+    }
+
+    #[test]
+    fn gtk_theme_dash_dark_suffix_resolves_dark() {
+        let env = env_from(&[("GTK_THEME", "Arc-Dark")]);
+        assert_eq!(detect_system_preference_from(env), ResolvedTheme::Dark);
+    }
+
+    #[test]
+    fn gtk_theme_bare_dark_resolves_dark() {
+        let env = env_from(&[("GTK_THEME", "dark")]);
+        assert_eq!(detect_system_preference_from(env), ResolvedTheme::Dark);
+    }
+
+    #[test]
+    fn gtk_theme_without_dark_suffix_resolves_light() {
+        let env = env_from(&[("GTK_THEME", "Adwaita")]);
+        assert_eq!(detect_system_preference_from(env), ResolvedTheme::Light);
+    }
+
+    #[test]
+    fn gtk_theme_dark_named_theme_without_variant_resolves_light() {
+        // Substring matching would misclassify these as dark (#127):
+        // a dark-sounding theme *name* is not the `:dark` variant.
+        for theme in ["Darkly", "Darkroom", "Arc-Darker"] {
+            let env = move |name: &str| (name == "GTK_THEME").then(|| theme.to_string());
+            assert_eq!(
+                detect_system_preference_from(env),
+                ResolvedTheme::Light,
+                "GTK_THEME={theme} should resolve Light"
+            );
+        }
+    }
+
+    #[test]
+    fn gtk_theme_takes_precedence_over_colorfgbg() {
+        let env = env_from(&[("GTK_THEME", "Adwaita"), ("COLORFGBG", "15;0")]);
+        assert_eq!(detect_system_preference_from(env), ResolvedTheme::Light);
+    }
+
+    #[test]
+    fn colorfgbg_dark_background_resolves_dark() {
+        let env = env_from(&[("COLORFGBG", "15;0")]);
+        assert_eq!(detect_system_preference_from(env), ResolvedTheme::Dark);
+    }
+
+    #[test]
+    fn colorfgbg_light_background_resolves_light() {
+        // Three-component form "fg;X;bg" — background is the last field.
+        let env = env_from(&[("COLORFGBG", "15;0;12")]);
+        assert_eq!(detect_system_preference_from(env), ResolvedTheme::Light);
+    }
+
+    #[test]
+    fn colorfgbg_threshold_boundary_is_eight() {
+        let dark = env_from(&[("COLORFGBG", "15;7")]);
+        let light = env_from(&[("COLORFGBG", "15;8")]);
+        assert_eq!(detect_system_preference_from(dark), ResolvedTheme::Dark);
+        assert_eq!(detect_system_preference_from(light), ResolvedTheme::Light);
+    }
+
+    #[test]
+    fn colorfgbg_unparseable_background_falls_back_to_dark() {
+        let env = env_from(&[("COLORFGBG", "15;default")]);
+        assert_eq!(detect_system_preference_from(env), ResolvedTheme::Dark);
+    }
+
+    #[test]
+    fn no_theme_env_vars_falls_back_to_dark() {
+        let env = env_from(&[]);
+        assert_eq!(detect_system_preference_from(env), ResolvedTheme::Dark);
     }
 
     #[test]
@@ -466,6 +572,15 @@ mod tests {
         assert_copy::<ThemeMode>();
         assert_eq_trait::<ResolvedTheme>();
         assert_eq_trait::<ThemeMode>();
+
+        // Runtime confirmation: a copied value equals its source and
+        // the source remains usable after the copy (move would fail).
+        let source = ResolvedTheme::Dark;
+        let copied = source;
+        assert_eq!(source, copied);
+        let mode_source = ThemeMode::System;
+        let mode_copied = mode_source;
+        assert_eq!(mode_source, mode_copied);
     }
 
     #[test]
@@ -522,11 +637,13 @@ mod tests {
         // If a fourth variant is ever added, this loop forces a
         // compile-time consideration of whether it should appear in
         // all() — the match is exhaustive.
+        let mut matched = 0;
         for mode in ThemeMode::all() {
             match mode {
-                ThemeMode::Dark | ThemeMode::Light | ThemeMode::System => (),
+                ThemeMode::Dark | ThemeMode::Light | ThemeMode::System => matched += 1,
             }
         }
+        assert_eq!(matched, ThemeMode::all().len());
     }
 
     #[test]
