@@ -66,6 +66,7 @@ impl DeltaTone {
 }
 
 /// Optional delta annotation for a [`MetricTile`].
+// kanon:ignore TOPOLOGY/shallow-struct -- Dioxus props data-carrier; the fields are the API and there is no invariant a constructor would enforce
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MetricDelta {
     /// Trend direction.

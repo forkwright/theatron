@@ -4,7 +4,7 @@
 //! - Structure: header row + activity rows + optional pagination
 //! - Token use: header `--text-secondary` / `--text-xs` /
 //!   `--weight-semibold` / `--border-separator`
-//! - Row: see [`ActivityRow`] above
+//! - Row: see [`ActivityRow`]
 //!
 //! References (folds in #40):
 //! - Sourcehut PR queue: header + monospace rows + cursor pagination
@@ -13,14 +13,12 @@
 
 use dioxus::prelude::*;
 
-use crate::activity_row::{ActivityRow, ActivityStatus, RowDensity};
+use crate::activity_row::{ActivityRow, ActivityStatus, RowDensity, RowSemantics};
 
 /// One column header definition for [`QueueTable`].
 ///
-/// Width is a CSS length (`"1fr"`, `"120px"`, `"min-content"`, etc.) —
-/// passed verbatim to a CSS grid template column. The component does
-/// not enforce a fixed column model so consumers can mix flexible and
-/// fixed-width columns.
+/// Header labels are laid out with flexbox (`flex: 1 1 auto`), sharing
+/// the row width equally; there is no per-column width control.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QueueColumn {
     /// Column label. Empty string renders no text (icon-only column).
@@ -29,6 +27,7 @@ pub struct QueueColumn {
 
 /// One row in a [`QueueTable`]. Mirrors [`ActivityRow`]'s props but with
 /// owned data so callers can build a `Vec<QueueItem>` and pass it in.
+// kanon:ignore TOPOLOGY/shallow-struct -- Dioxus props data-carrier; the fields are the API and there is no invariant a constructor would enforce
 #[derive(Debug, Clone, PartialEq)]
 pub struct QueueItem {
     /// Primary text.
@@ -89,11 +88,12 @@ const EMPTY_STYLE: &str = "\
 ///
 /// # Accessibility
 ///
-/// - **Role**: `table` — column headers carry `role="columnheader"` and
-///   `scope="col"`.
+/// - **Role**: `table` — the header row carries `role="row"` with
+///   `role="columnheader"`/`scope="col"` children; data rows render via
+///   [`RowSemantics::TableRow`] as `role="row"` with `role="cell"` children.
 /// - **Name**: Column header text provides the column names.
 /// - **Consumer responsibility**: If rows are interactive (click-to-detail),
-///   the consumer must wrap each row in `role="row"` and `tabindex="0"`.
+///   the consumer must add focus handling (`tabindex="0"`) per row.
 #[component]
 pub fn QueueTable(
     /// Column headers.
@@ -137,6 +137,7 @@ pub fn QueueTable(
                         metadata: item.metadata,
                         status: item.status,
                         density,
+                        semantics: RowSemantics::TableRow,
                     }
                 }
             }
@@ -182,6 +183,38 @@ mod tests {
             "expected scope=col in {html}"
         );
         assert!(html.contains("Title"), "expected header text in {html}");
+    }
+
+    #[test]
+    fn data_rows_render_role_row_with_cells_not_listitem() {
+        use dioxus::prelude::*;
+        use dioxus_ssr::render_element;
+        let html = render_element(rsx! {
+            QueueTable {
+                columns: vec![QueueColumn { label: "Title".to_string() }],
+                items: vec![QueueItem {
+                    title: "PR #1".to_string(),
+                    timestamp: "2m ago".to_string(),
+                    icon: None,
+                    metadata: None,
+                    status: None,
+                }],
+            }
+        });
+        // Header row + one data row.
+        assert_eq!(
+            html.matches("role=\"row\"").count(),
+            2,
+            "expected header row and data row in {html}"
+        );
+        assert!(
+            html.contains("role=\"cell\""),
+            "expected role=cell on data-row cells in {html}"
+        );
+        assert!(
+            !html.contains("role=\"listitem\""),
+            "listitem is invalid inside role=table: {html}"
+        );
     }
 
     #[test]

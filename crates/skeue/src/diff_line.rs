@@ -83,10 +83,10 @@ fn indicator_color(change_type: ChangeType) -> &'static str {
 /// # Accessibility
 ///
 /// - **Role**: None — rendered as a generic div.
-/// - **Name**: The line `content` provides the accessible text.
-/// - **Consumer responsibility**: Line numbers and the change indicator are
-///   decorative (`aria-hidden="true"`); consumers should ensure the parent
-///   hunk or diff view provides sufficient context.
+/// - **Name**: The line `content` provides the accessible text. Line numbers
+///   and the change indicator are decorative (`aria-hidden="true"`).
+/// - **Consumer responsibility**: Ensure the parent hunk or diff view
+///   provides sufficient change-semantics context.
 #[component]
 pub fn DiffLineView(line: DiffLine, language: String) -> Element {
     let bg = line_bg(line.change_type);
@@ -106,6 +106,7 @@ pub fn DiffLineView(line: DiffLine, language: String) -> Element {
             }
             span {
                 style: "{INDICATOR_STYLE} color: {ind_color};",
+                aria_hidden: "true",
                 {ind}
             }
             div {
@@ -203,5 +204,28 @@ mod ssr_tests {
             "expected aria-hidden on gutter in {html}"
         );
         assert!(html.contains("main"), "expected content text in {html}");
+    }
+
+    #[test]
+    fn renders_aria_hidden_on_indicator_span_independently_of_gutter() {
+        let line = DiffLine {
+            content: "let x = 1;".to_string(),
+            change_type: ChangeType::Add,
+            old_line_no: None,
+            new_line_no: Some(2),
+            word_spans: vec![],
+        };
+        let html = render_element(rsx! {
+            DiffLineView {
+                line,
+                language: "rust".to_string(),
+            }
+        });
+        // Gutter div + indicator span each carry the attribute.
+        assert_eq!(
+            html.matches("aria-hidden=\"true\"").count(),
+            2,
+            "expected aria-hidden on both gutter and indicator in {html}"
+        );
     }
 }

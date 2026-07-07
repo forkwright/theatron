@@ -1,11 +1,10 @@
-//! Toast notification component (extracted from aletheia/proskenion).
+//! Toast notification component.
 //!
-//! API redesign for skeue:
-//! - `Toast` and `ToastId` types are now defined here (canonical)
-//! - `ToastDispatcher` trait replaces aletheia's `use_toast` hook —
-//!   consumers provide their own state container implementing it
-//! - Action dispatch is now a generic `EventHandler<ToastAction>`
-//!   callback — no more `crate::state::navigation::NavAction` dep
+//! [`Toast`] and [`ToastId`] are the canonical types. Consumers own the
+//! toast list state; [`ToastItem`] renders one toast and reports dismiss
+//! and action clicks through generic `EventHandler<ToastId>` /
+//! `EventHandler<ToastAction>` callbacks. Action ids are caller-defined
+//! and never interpreted by this crate.
 
 use std::time::Duration;
 
@@ -55,15 +54,18 @@ impl ToastSeverity {
 
 /// Opaque toast identifier. Wrapper newtype so consumers can't conflate
 /// with arbitrary u64 ids.
+// kanon:ignore TOPOLOGY/shallow-struct -- opaque-id newtype; type distinction is the behavior, construction is the identity
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ToastId(pub u64);
 
 /// Opaque caller-defined action identifier. Wrapper newtype so consumers
 /// can't conflate with arbitrary strings; theatron does not interpret it.
+// kanon:ignore TOPOLOGY/shallow-struct -- opaque-id newtype; type distinction is the behavior, construction is the identity
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ToastActionId(pub String);
 
 /// An action attached to a toast (e.g. "Open file", "Undo").
+// kanon:ignore TOPOLOGY/shallow-struct -- Dioxus props data-carrier; the fields are the API and there is no invariant a constructor would enforce
 #[derive(Clone, Debug, PartialEq)]
 pub struct ToastAction {
     /// Display label rendered on the action button.
@@ -73,6 +75,7 @@ pub struct ToastAction {
 }
 
 /// A toast notification.
+// kanon:ignore TOPOLOGY/shallow-struct -- Dioxus props data-carrier; the fields are the API and there is no invariant a constructor would enforce
 #[derive(Clone, Debug, PartialEq)]
 pub struct Toast {
     /// Unique identifier for this toast instance.

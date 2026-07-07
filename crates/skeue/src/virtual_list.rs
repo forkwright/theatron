@@ -12,7 +12,9 @@ pub const DEFAULT_OVERSCAN: usize = 10;
 /// Compute which item indices are visible given scroll position and item height.
 ///
 /// Returns `(range_start, range_end)` -- a half-open slice into the item list.
-/// Both ends are clamped to `[0, total_items]`.
+/// Both ends are clamped to `[0, total_items]`. Non-finite `scroll_top`,
+/// `container_height`, or `item_height` inputs (uninitialized layout state)
+/// and non-positive `item_height` return the empty range `(0, 0)`.
 #[must_use]
 pub fn visible_range(
     scroll_top: f64,
@@ -21,7 +23,14 @@ pub fn visible_range(
     item_height: f64,
     overscan: usize,
 ) -> (usize, usize) {
-    if total_items == 0 || item_height <= 0.0 {
+    // WHY: `NaN <= 0.0` is false, so a plain sign check lets NaN through and
+    // the divisions below produce a garbage non-empty range.
+    if total_items == 0
+        || !scroll_top.is_finite()
+        || !container_height.is_finite()
+        || !item_height.is_finite()
+        || item_height <= 0.0
+    {
         return (0, 0);
     }
     #[expect(
@@ -252,18 +261,26 @@ mod tests {
     #[test]
     fn visible_range_returns_empty_when_scroll_top_is_nan() {
         let (s, e) = visible_range(f64::NAN, 600.0, 100, 80.0, 10);
-        // NaN/80 = NaN, cast to usize = 0, count = 9, end = 19
-        assert_eq!(s, 0);
-        assert_eq!(e, 19);
+        assert_eq!((s, e), (0, 0));
     }
 
     #[test]
     fn visible_range_returns_empty_when_item_height_is_nan() {
         let (s, e) = visible_range(0.0, 600.0, 100, f64::NAN, 10);
-        // Guard: NaN <= 0.0 is false, so it proceeds.
-        // NaN cast to usize = 0, count = 1 (container_height/NaN = NaN)
-        assert_eq!(s, 0);
-        assert_eq!(e, 11); // 0 + 1 + 10
+        assert_eq!((s, e), (0, 0));
+    }
+
+    #[test]
+    fn visible_range_returns_empty_when_container_height_is_nan() {
+        let (s, e) = visible_range(0.0, f64::NAN, 100, 80.0, 10);
+        assert_eq!((s, e), (0, 0));
+    }
+
+    #[test]
+    fn visible_range_returns_empty_when_inputs_are_infinite() {
+        assert_eq!(visible_range(f64::INFINITY, 600.0, 100, 80.0, 10), (0, 0));
+        assert_eq!(visible_range(0.0, f64::INFINITY, 100, 80.0, 10), (0, 0));
+        assert_eq!(visible_range(0.0, 600.0, 100, f64::INFINITY, 10), (0, 0));
     }
 
     #[test]

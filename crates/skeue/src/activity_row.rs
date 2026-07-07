@@ -38,7 +38,24 @@ impl RowDensity {
     }
 }
 
+/// ARIA semantics for the row container.
+///
+/// ARIA 1.2 requires different owned-element roles depending on the parent:
+/// `role="list"` parents own `role="listitem"` children, while `role="table"`
+/// parents own `role="row"` children with `role="cell"` descendants.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
+pub enum RowSemantics {
+    /// `role="listitem"` — for rows inside a `role="list"` parent (default).
+    #[default]
+    ListItem,
+    /// `role="row"` with `role="cell"` children — for rows inside a
+    /// `role="table"` parent (used by `QueueTable`).
+    TableRow,
+}
+
 /// Optional status pill annotation alongside the row title.
+// kanon:ignore TOPOLOGY/shallow-struct -- Dioxus props data-carrier; the fields are the API and there is no invariant a constructor would enforce
 #[derive(Debug, Clone, PartialEq)]
 pub struct ActivityStatus {
     /// Pill kind.
@@ -93,11 +110,13 @@ const TIMESTAMP_STYLE: &str = "\
 ///
 /// # Accessibility
 ///
-/// - **Role**: `listitem` — intended for use inside a list.
+/// - **Role**: `listitem` by default; `row` with `role="cell"` children
+///   when `semantics` is [`RowSemantics::TableRow`].
 /// - **Name**: The `title` text provides the primary accessible name;
 ///   the optional status pill contributes additional state.
 /// - **Consumer responsibility**: Wrap rows in a parent with `role="list"`
-///   or `role="table"` as appropriate.
+///   (default semantics) or pass [`RowSemantics::TableRow`] when rendering
+///   inside a `role="table"` container.
 #[component]
 pub fn ActivityRow(
     /// Primary text — actor + action, or just title.
@@ -116,13 +135,20 @@ pub fn ActivityRow(
     /// Standard or roomy density. Defaults to standard.
     #[props(default)]
     density: RowDensity,
+    /// ARIA semantics — list item (default) or table row with cells.
+    #[props(default)]
+    semantics: RowSemantics,
 ) -> Element {
     let height = density.height_token();
+    let in_table = semantics == RowSemantics::TableRow;
+    let row_role = if in_table { "row" } else { "listitem" };
     rsx! {
         div {
-            role: "listitem",
+            role: row_role,
             style: "{ROW_STYLE_FMT} min-height: {height};",
             if let Some(ref glyph) = icon {
+                // NOTE: aria-hidden -- excluded from the accessibility tree,
+                // so no cell role is needed in table semantics.
                 span {
                     style: ICON_STYLE,
                     aria_hidden: "true",
@@ -130,21 +156,41 @@ pub fn ActivityRow(
                 }
             }
             div {
+                role: if in_table { "cell" },
                 style: TITLE_STYLE,
                 title: title.clone(),
                 {title.clone()}
             }
             if let Some(ref s) = status {
-                StatusPill {
-                    kind: s.kind,
-                    label: s.label.clone(),
-                    shape: StatusPillShape::Pill,
+                if in_table {
+                    span {
+                        role: "cell",
+                        StatusPill {
+                            kind: s.kind,
+                            label: s.label.clone(),
+                            shape: StatusPillShape::Pill,
+                        }
+                    }
+                } else {
+                    StatusPill {
+                        kind: s.kind,
+                        label: s.label.clone(),
+                        shape: StatusPillShape::Pill,
+                    }
                 }
             }
             if let Some(ref meta) = metadata {
-                span { style: META_STYLE, {meta.clone()} }
+                span {
+                    role: if in_table { "cell" },
+                    style: META_STYLE,
+                    {meta.clone()}
+                }
             }
-            span { style: TIMESTAMP_STYLE, {timestamp} }
+            span {
+                role: if in_table { "cell" },
+                style: TIMESTAMP_STYLE,
+                {timestamp}
+            }
         }
     }
 }
@@ -198,6 +244,34 @@ mod tests {
         assert!(
             html.contains("aria-hidden=\"true\""),
             "expected aria-hidden on icon in {html}"
+        );
+    }
+
+    #[test]
+    fn table_semantics_renders_role_row_with_cells_and_no_listitem() {
+        use dioxus::prelude::*;
+        use dioxus_ssr::render_element;
+        let html = render_element(rsx! {
+            ActivityRow {
+                title: "PR #1".to_string(),
+                timestamp: "2m ago".to_string(),
+                metadata: Some("forkwright/theatron".to_string()),
+                status: Some(ActivityStatus {
+                    kind: StatusPillKind::Success,
+                    label: "merged".to_string(),
+                }),
+                semantics: RowSemantics::TableRow,
+            }
+        });
+        assert!(html.contains("role=\"row\""), "expected role=row in {html}");
+        assert_eq!(
+            html.matches("role=\"cell\"").count(),
+            4,
+            "expected title, status, metadata, timestamp cells in {html}"
+        );
+        assert!(
+            !html.contains("role=\"listitem\""),
+            "listitem is invalid inside role=table: {html}"
         );
     }
 
