@@ -9,12 +9,12 @@
 //!   Constructed by callers who detect `reqwest::Error::is_timeout`
 //!   and want to surface the timeout to consumers as a distinct
 //!   variant.
-//! - [`ApiError::Server`] — non-2xx HTTP response with a
-//!   human-readable message extracted from the server body when
-//!   available.
-//! - [`ApiError::RateLimited`] — 429 response (split out of `Server`
-//!   for caller convenience). Carries the optional `Retry-After`
-//!   value when the server supplies it.
+//! - [`ApiError::Server`] — non-2xx HTTP response; carries a
+//!   human-readable message from the server body when available.
+//! - [`ApiError::RateLimited`] — 429 response, distinct from
+//!   `Server` so retry layers can classify back-off directly.
+//!   Carries the optional `Retry-After` value when the server
+//!   supplies it.
 //! - [`ApiError::BadResponse`] — server returned 2xx but the body
 //!   couldn't be deserialized into the expected DTO. Carries the
 //!   parser error for diagnostics.
@@ -389,18 +389,18 @@ mod tests {
     }
 
     #[test]
-    fn api_error_is_send_sync() {
-        // Compile-time check: ApiError crosses thread / await
-        // boundaries cleanly. Required for use in async tasks.
-        fn assert_send_sync<T: Send + Sync>() {}
-        assert_send_sync::<ApiError>();
-    }
-
-    #[test]
-    fn api_error_implements_std_error() {
-        // ApiError composes with `?` into anyhow / boxed-error chains.
-        fn assert_error<T: std::error::Error>() {}
-        assert_error::<ApiError>();
+    fn api_error_is_send_sync_std_error() {
+        // WHY: the generic bound enforces Send + Sync + Error at
+        // compile time (required for async tasks and `?` error
+        // propagation); the runtime assertion verifies the Display
+        // path through the Error impl.
+        fn display_via_error<T: std::error::Error + Send + Sync>(err: &T) -> String {
+            err.to_string()
+        }
+        assert_eq!(
+            display_via_error(&ApiError::Auth),
+            "authentication failed: token expired or invalid"
+        );
     }
 
     #[test]

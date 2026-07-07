@@ -4,7 +4,7 @@
 //! variants so consumers don't hand-roll status classification or
 //! response-body parsing per call site.
 //!
-//! These are the v1.2 surface that makes the v1.1 [`ApiError`] variants
+//! These helpers make the [`ApiError`] variants
 //! ([`Auth`](ApiError::Auth), [`RateLimited`](ApiError::RateLimited),
 //! [`Server`](ApiError::Server), [`BadResponse`](ApiError::BadResponse))
 //! reachable from normal `reqwest::Client::send` call sites without

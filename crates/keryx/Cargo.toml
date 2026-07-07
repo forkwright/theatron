@@ -1,6 +1,6 @@
 [package]
 name = "keryx"
-description = "κῆρυξ (herald/messenger) — HTTP client base, SSE/streaming (reqwest+tokio+eventsource-stream), retry, ApiError."
+description = "κῆρυξ (herald/messenger) — HTTP client base: response classification, owned SSE wire-protocol parser, ApiError retryability, URL path helpers."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -11,8 +11,6 @@ authors.workspace = true
 
 [dependencies]
 bytes = { workspace = true }
-dioxus = { workspace = true }
-eventsource-stream = { workspace = true }
 futures-core = { workspace = true }
 futures-util = { workspace = true }
 reqwest = { workspace = true }

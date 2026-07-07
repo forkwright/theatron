@@ -5,8 +5,32 @@ use std::task::{Context, Poll};
 
 use bytes::Bytes;
 use futures_core::Stream;
+use snafu::Snafu;
+
+/// Error yielded by [`SseStream`] when the underlying byte stream
+/// fails mid-stream.
+///
+/// Distinguishes transport failure (connection drop, TLS reset,
+/// network partition) from clean end-of-stream, so consumers can
+/// treat a truncated feed as a failure instead of a complete
+/// response.
+#[derive(Debug, Snafu)]
+#[non_exhaustive]
+pub enum SseError {
+    /// The underlying byte stream yielded a transport-level error.
+    ///
+    /// Events fully parsed before the failure were already yielded;
+    /// after this error, any partially-accumulated event is flushed
+    /// on the next poll and the stream then terminates.
+    #[snafu(display("SSE transport error: {message}"))]
+    Transport {
+        /// Rendered underlying transport error.
+        message: String,
+    },
+}
 
 /// A parsed SSE event from the wire protocol.
+// kanon:ignore TOPOLOGY/shallow-struct -- SseEvent is the parsed wire-protocol record: its fields ARE the protocol surface, and construction happens only inside the parser; a smart constructor would add nothing.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SseEvent {
     /// The `event:` field. Defaults to `"message"` per the SSE spec.
@@ -24,6 +48,12 @@ pub struct SseEvent {
 /// Handles the full SSE wire protocol: `data:`, `event:`, `id:`, `retry:`,
 /// comment lines (`:` prefix), multi-line `data:` fields (concatenated with
 /// newlines), and blank-line event delimiters.
+///
+/// Yields `Result<`[`SseEvent`]`, `[`SseError`]`>`: parsed events as
+/// `Ok`, and a mid-stream transport failure as a single `Err` item —
+/// truncation is observable rather than presenting as a clean
+/// end-of-stream. Only genuine end-of-stream (the inner stream
+/// returning `None`) terminates silently.
 pub struct SseStream<S> {
     stream: S,
     buf: String,
@@ -108,7 +138,11 @@ where
                 self.current_event = Some(value.to_string());
             }
             "id" => {
-                self.current_id = Some(value.to_string());
+                // WHY: WHATWG SSE spec — an id field value containing
+                // U+0000 NULL must be ignored, not stored.
+                if !value.contains('\0') {
+                    self.current_id = Some(value.to_string());
+                }
             }
             "retry" => {
                 if let Ok(ms) = value.parse::<u64>() {
@@ -145,12 +179,16 @@ where
     ///
     /// Returns:
     ///
-    /// - `Ok(Some(event))` — got an event before the deadline.
+    /// - `Ok(Some(Ok(event)))` — got an event before the deadline.
+    /// - `Ok(Some(Err(e)))` — the underlying stream failed mid-stream;
+    ///   see [`SseError`].
     /// - `Ok(None)` — the underlying stream terminated cleanly.
     /// - `Err(`[`tokio::time::error::Elapsed`]`)` — the deadline fired
-    ///   before the next event arrived. The stream is unchanged and may
-    ///   be polled again (e.g. with a longer timeout, or as a normal
-    ///   `StreamExt::next` call).
+    ///   before the next event arrived. The stream remains internally
+    ///   consistent and may be polled again (e.g. with a longer
+    ///   timeout, or as a normal `StreamExt::next` call), though bytes
+    ///   may already have been consumed from the underlying source
+    ///   into the internal buffer.
     ///
     /// Useful for keep-alive / liveness detection on SSE feeds where a
     /// stalled stream is a real condition (server crashed mid-stream,
@@ -167,11 +205,14 @@ where
     /// Returns [`tokio::time::error::Elapsed`] if `deadline` expires
     /// before the underlying byte stream yields enough bytes to
     /// produce the next [`SseEvent`] (or to terminate). The error
-    /// carries no data; the stream is left in its prior state.
+    /// carries no data; the stream's internal parse state is
+    /// consistent and further polling is safe, but bytes may have
+    /// been consumed from the underlying source into the internal
+    /// buffer.
     pub async fn next_with_timeout(
         &mut self,
         deadline: std::time::Duration,
-    ) -> Result<Option<SseEvent>, tokio::time::error::Elapsed> {
+    ) -> Result<Option<Result<SseEvent, SseError>>, tokio::time::error::Elapsed> {
         use futures_util::StreamExt;
 
         tokio::time::timeout(deadline, self.next()).await
@@ -183,7 +224,7 @@ where
     S: Stream<Item = Result<Bytes, E>> + Unpin,
     E: std::fmt::Display,
 {
-    type Item = SseEvent;
+    type Item = Result<SseEvent, SseError>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.get_mut();
@@ -195,7 +236,7 @@ where
                 this.buf.drain(..=pos);
 
                 if let Some(event) = this.process_line(&line) {
-                    return Poll::Ready(Some(event));
+                    return Poll::Ready(Some(Ok(event)));
                 }
             }
 
@@ -215,7 +256,7 @@ where
                         retry: this.current_retry.take(),
                     };
                     this.has_data = false;
-                    return Poll::Ready(Some(event));
+                    return Poll::Ready(Some(Ok(event)));
                 }
                 return Poll::Ready(None);
             }
@@ -226,7 +267,16 @@ where
                     // replaced rather than causing a hard failure.
                     this.push_chunk(&String::from_utf8_lossy(&bytes));
                 }
-                Poll::Ready(Some(Err(_)) | None) => {
+                Poll::Ready(Some(Err(source))) => {
+                    // WHY: a mid-stream transport failure must be
+                    // observable — mapping it to end-of-stream would
+                    // present truncation as a complete response.
+                    this.done = true;
+                    return Poll::Ready(Some(Err(SseError::Transport {
+                        message: source.to_string(),
+                    })));
+                }
+                Poll::Ready(None) => {
                     this.done = true;
                 }
                 Poll::Pending => return Poll::Pending,
@@ -291,7 +341,8 @@ mod tests {
 
         loop {
             match Pin::new(&mut sse).poll_next(&mut cx) {
-                Poll::Ready(Some(event)) => events.push(event),
+                Poll::Ready(Some(Ok(event))) => events.push(event),
+                Poll::Ready(Some(Err(err))) => panic!("unexpected transport error: {err}"),
                 Poll::Ready(None) => break,
                 Poll::Pending => panic!("unexpected Pending from synchronous stream"),
             }
@@ -351,6 +402,18 @@ mod tests {
         let events = collect_events(vec!["id: 42\ndata: test\n\n"]);
         assert_eq!(events.len(), 1, "expected exactly one event");
         assert_eq!(events[0].id.as_deref(), Some("42"));
+    }
+
+    #[test]
+    fn id_field_with_embedded_nul_discarded() {
+        // WHATWG SSE spec: an id field value containing U+0000 NULL
+        // must be ignored, not set as the last event ID.
+        let events = collect_events(vec!["id: abc\0def\ndata: test\n\n"]);
+        assert_eq!(events.len(), 1, "expected exactly one event");
+        assert!(
+            events[0].id.is_none(),
+            "NUL-containing id must be discarded per WHATWG SSE spec"
+        );
     }
 
     #[test]
@@ -437,6 +500,105 @@ mod tests {
         assert_eq!(events[0].data, "partial");
     }
 
+    /// Helper: byte stream that yields its chunks, then a transport
+    /// error. Used to verify mid-stream failures surface as `Err`
+    /// items rather than a silent clean EOF.
+    struct FailingStream {
+        chunks: Vec<Bytes>,
+        index: usize,
+        failed: bool,
+    }
+
+    impl FailingStream {
+        fn new(chunks: Vec<&str>) -> Self {
+            Self {
+                chunks: chunks
+                    .into_iter()
+                    .map(|s| Bytes::from(s.to_string()))
+                    .collect(),
+                index: 0,
+                failed: false,
+            }
+        }
+    }
+
+    impl Stream for FailingStream {
+        type Item = Result<Bytes, std::io::Error>;
+
+        fn poll_next(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+            let this = self.get_mut();
+            if this.index < this.chunks.len() {
+                #[expect(
+                    clippy::indexing_slicing,
+                    reason = "bounds checked by the if-guard above"
+                )]
+                let chunk = this.chunks[this.index].clone();
+                this.index += 1;
+                Poll::Ready(Some(Ok(chunk)))
+            } else if this.failed {
+                Poll::Ready(None)
+            } else {
+                this.failed = true;
+                Poll::Ready(Some(Err(std::io::Error::other("connection reset"))))
+            }
+        }
+    }
+
+    #[test]
+    fn mid_stream_transport_error_surfaces_as_err_not_eof() {
+        let stream = FailingStream::new(vec!["data: first\n\n", "data: par"]);
+        let mut sse = SseStream::new(stream);
+        let waker = std::task::Waker::noop();
+        let mut cx = Context::from_waker(waker);
+
+        // First item: the complete event parsed before the failure.
+        match Pin::new(&mut sse).poll_next(&mut cx) {
+            Poll::Ready(Some(Ok(event))) => assert_eq!(event.data, "first"),
+            other => panic!("expected first event, got {other:?}"),
+        }
+
+        // Second item: the transport error — NOT a silent clean EOF.
+        match Pin::new(&mut sse).poll_next(&mut cx) {
+            Poll::Ready(Some(Err(SseError::Transport { message }))) => {
+                assert!(
+                    message.contains("connection reset"),
+                    "error must carry the underlying message, got {message:?}"
+                );
+            }
+            other => panic!("expected transport error, got {other:?}"),
+        }
+
+        // Stream terminates after the error ("data: par" never
+        // completed a line, so nothing is flushed).
+        assert!(
+            matches!(Pin::new(&mut sse).poll_next(&mut cx), Poll::Ready(None)),
+            "stream must terminate after the error"
+        );
+    }
+
+    #[test]
+    fn buffered_partial_event_flushes_after_transport_error() {
+        // A complete `data:` line buffered before the failure is
+        // salvaged on the poll after the error is observed.
+        let stream = FailingStream::new(vec!["data: salvage\n"]);
+        let mut sse = SseStream::new(stream);
+        let waker = std::task::Waker::noop();
+        let mut cx = Context::from_waker(waker);
+
+        match Pin::new(&mut sse).poll_next(&mut cx) {
+            Poll::Ready(Some(Err(SseError::Transport { .. }))) => {}
+            other => panic!("expected transport error first, got {other:?}"),
+        }
+        match Pin::new(&mut sse).poll_next(&mut cx) {
+            Poll::Ready(Some(Ok(event))) => assert_eq!(event.data, "salvage"),
+            other => panic!("expected flushed partial event, got {other:?}"),
+        }
+        assert!(matches!(
+            Pin::new(&mut sse).poll_next(&mut cx),
+            Poll::Ready(None)
+        ));
+    }
+
     /// Helper: byte stream that never emits (returns Pending forever).
     /// Used to verify `next_with_timeout` fires Elapsed when nothing
     /// arrives.
@@ -457,7 +619,10 @@ mod tests {
         let result = sse
             .next_with_timeout(std::time::Duration::from_millis(50))
             .await;
-        let event = result.expect("Ok within deadline").expect("Some event");
+        let event = result
+            .expect("Ok within deadline")
+            .expect("Some event")
+            .expect("Ok event");
         assert_eq!(event.data, "hello");
     }
 
