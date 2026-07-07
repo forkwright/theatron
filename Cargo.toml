@@ -54,7 +54,7 @@ dokimasia = { version = "1.3.0", path = "crates/dokimasia" }
 # even though both compile in isolation. Caught by QA wave 2 #22 (M-10).
 # Bump deliberately, never via auto-resolution. proskenion/Cargo.toml
 # uses the same exact pin.
-dioxus = "=0.7.6"
+dioxus = "=0.7.9"
 dioxus-core = "=0.7.9"
 dioxus-hooks = "=0.7.6"
 dioxus-native = "=0.7.6"
