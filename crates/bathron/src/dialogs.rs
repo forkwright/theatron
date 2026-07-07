@@ -16,6 +16,7 @@
 /// File-type filter for the native dialog (e.g.
 /// `FileFilter::new("Images", &["png", "jpg"])`).
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct FileFilter {
     /// Human-readable name shown in the dialog filter dropdown.
     pub name: String,
@@ -182,11 +183,9 @@ mod tests {
         assert_ne!(MessageKind::Info, MessageKind::Error);
     }
 
-    #[test]
-    fn message_kind_is_copy() {
-        // Compile-time check: small enum used in builder patterns
-        // is Copy so it crosses closure boundaries cheaply.
-        fn assert_copy<T: Copy>() {}
-        assert_copy::<MessageKind>();
-    }
+    // INVARIANT: MessageKind is a small enum used in builder
+    // patterns; it must stay Copy so it crosses closure boundaries
+    // cheaply. Verified at compile time.
+    const fn assert_copy<T: Copy>() {}
+    const _: () = assert_copy::<MessageKind>();
 }

@@ -68,6 +68,8 @@ pub fn default_tray_icon() -> tray_icon::menu::Menu {
     any(target_os = "windows", target_os = "linux", target_os = "macos")
 ))]
 mod icon {
+    use std::io::Cursor;
+
     use snafu::prelude::*;
 
     /// Errors that can occur when building a [`tray_icon::Icon`] from raw
@@ -76,10 +78,12 @@ mod icon {
     #[snafu(visibility(pub))]
     #[non_exhaustive]
     pub enum DefaultIconError {
-        /// The provided bytes could not be decoded as an image.
+        /// The provided bytes could not be decoded as an image, or the
+        /// image header declared dimensions above `MAX_ICON_DIMENSION`.
         #[snafu(display("image decode failed: {source}"))]
         Decode {
-            /// Underlying image crate error.
+            /// Underlying image crate error. A dimension-cap violation
+            /// surfaces as `image::ImageError::Limits`.
             source: image::ImageError,
         },
 
@@ -92,21 +96,51 @@ mod icon {
         },
     }
 
+    /// Maximum tray/window icon width and height, in pixels, accepted by
+    /// [`default_icon`].
+    ///
+    /// SECURITY: enforced via `image::Limits` on the decoder before the
+    /// RGBA8 pixel buffer is allocated. Tray icons are small OS-chrome
+    /// elements (typically 16-256px); without this cap, an image header
+    /// claiming dimensions far beyond that would size the allocation off
+    /// attacker-controlled header fields before decoding ever fails.
+    const MAX_ICON_DIMENSION: u32 = 4096;
+
     /// Load a tray (or window) icon from raw image bytes.
     ///
     /// Pass [`include_bytes!("icon.png")`](include_bytes) (or any PNG byte
     /// slice). The `image` crate decodes to RGBA8; the resulting buffer
     /// feeds [`tray_icon::Icon::from_rgba`].
     ///
+    /// The image header's declared width and height are checked against
+    /// `MAX_ICON_DIMENSION` (4096px) before the pixel buffer is
+    /// allocated, so a crafted header cannot force an oversized
+    /// allocation.
+    ///
     /// # Errors
     ///
-    /// Returns an error if the bytes cannot be decoded as an image, or if
-    /// the resulting RGBA8 buffer is rejected by
+    /// Returns an error if the bytes cannot be decoded as an image, if
+    /// the header declares width or height above `MAX_ICON_DIMENSION`,
+    /// or if the resulting RGBA8 buffer is rejected by
     /// [`tray_icon::Icon::from_rgba`] (rare; usually a zero-dimension
     /// image).
     pub fn default_icon(bytes: &[u8]) -> Result<tray_icon::Icon, DefaultIconError> {
-        let img =
-            image::load_from_memory(bytes).map_err(|source| DefaultIconError::Decode { source })?;
+        let mut reader = image::ImageReader::new(Cursor::new(bytes))
+            .with_guessed_format()
+            .map_err(|source| DefaultIconError::Decode {
+                source: image::ImageError::from(source),
+            })?;
+        // NOTE: `image::Limits` is `#[non_exhaustive]`, so it cannot be
+        // struct-literal constructed outside the `image` crate (even
+        // with `..Default::default()`) -- mutate the public fields on a
+        // default-constructed value instead.
+        let mut limits = image::Limits::default();
+        limits.max_image_width = Some(MAX_ICON_DIMENSION);
+        limits.max_image_height = Some(MAX_ICON_DIMENSION);
+        reader.limits(limits);
+        let img = reader
+            .decode()
+            .map_err(|source| DefaultIconError::Decode { source })?;
         let rgba = img.to_rgba8();
         let (width, height) = (rgba.width(), rgba.height());
         tray_icon::Icon::from_rgba(rgba.into_raw(), width, height)
@@ -126,12 +160,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn default_tray_icon_returns_menu() {
-        // Constructs the default tray menu without panicking.
-        // We don't assert on the populated state — the OS may reject
-        // PredefinedMenuItem::quit on a CI environment without a
-        // session bus — but the function must not panic.
-        let _ = default_tray_icon();
+    fn default_tray_icon_returns_menu_with_at_most_quit_item() {
+        // Documented contract: a menu containing the single Quit item,
+        // or an empty menu when the OS rejects the append (headless CI
+        // without a session bus). Anything else is a regression.
+        let menu = default_tray_icon();
+        let items = menu.items();
+        assert!(
+            items.len() <= 1,
+            "default menu must hold at most the Quit item, got {} items",
+            items.len()
+        );
     }
 
     #[cfg(feature = "default-icon")]
@@ -166,5 +205,77 @@ mod tests {
             result.is_err(),
             "default_icon should reject invalid image bytes"
         );
+    }
+
+    /// Security regression: a crafted image header claiming huge
+    /// dimensions must be rejected via the dimension-limit path (before
+    /// the RGBA8 buffer is allocated), not merely "some decode error".
+    ///
+    /// Builds a valid, tiny PNG, then splices a crafted IHDR
+    /// width/height declaring dimensions far above the 4096px cap,
+    /// recomputing the chunk CRC so the splice is a plausible header
+    /// (not corrupt framing) — the only thing wrong with the input is
+    /// the claimed dimensions.
+    #[cfg(feature = "default-icon")]
+    #[test]
+    fn default_icon_rejects_oversized_header_dimensions() {
+        // PNG layout: [8-byte signature][4-byte length][4-byte type =
+        // "IHDR"][4-byte width][4-byte height][5 more IHDR bytes][4-byte
+        // CRC over type+data]. IHDR is always the first chunk.
+        const SIGNATURE_LEN: usize = 8;
+        const LENGTH_FIELD_LEN: usize = 4;
+        const CHUNK_TYPE_LEN: usize = 4;
+        const IHDR_DATA_LEN: usize = 13;
+
+        use std::io::Cursor;
+
+        let img = image::ImageBuffer::from_pixel(1, 1, image::Rgba([255u8, 0, 0, 255]));
+        let mut bytes: Vec<u8> = Vec::new();
+        image::DynamicImage::ImageRgba8(img)
+            .write_to(&mut Cursor::new(&mut bytes), image::ImageFormat::Png)
+            .expect("encode 1x1 PNG");
+
+        let width_offset = SIGNATURE_LEN + LENGTH_FIELD_LEN + CHUNK_TYPE_LEN;
+        let oversized: u32 = 1_000_000; // far above the 4096px cap
+        bytes[width_offset..width_offset + 4].copy_from_slice(&oversized.to_be_bytes());
+        bytes[width_offset + 4..width_offset + 8].copy_from_slice(&oversized.to_be_bytes());
+
+        let ihdr_start = SIGNATURE_LEN + LENGTH_FIELD_LEN;
+        let ihdr_len = CHUNK_TYPE_LEN + IHDR_DATA_LEN;
+        let crc = crc32(&bytes[ihdr_start..ihdr_start + ihdr_len]);
+        let crc_offset = ihdr_start + ihdr_len;
+        bytes[crc_offset..crc_offset + 4].copy_from_slice(&crc.to_be_bytes());
+
+        let result = default_icon(&bytes);
+        assert!(
+            result.is_err(),
+            "default_icon must reject a header claiming {oversized}x{oversized} pixels"
+        );
+        let err = result.expect_err("checked is_err above");
+        assert!(
+            matches!(
+                &err,
+                DefaultIconError::Decode {
+                    source: image::ImageError::Limits(_),
+                }
+            ),
+            "rejection must be the dimension-limit path, not a generic decode failure: {err:?}"
+        );
+    }
+
+    /// Minimal CRC-32/ISO-HDLC (the PNG chunk checksum) so the oversized-
+    /// header test above can craft a structurally valid chunk without
+    /// pulling in a CRC dependency for one test.
+    #[cfg(feature = "default-icon")]
+    fn crc32(bytes: &[u8]) -> u32 {
+        let mut crc: u32 = 0xFFFF_FFFF;
+        for &byte in bytes {
+            crc ^= u32::from(byte);
+            for _ in 0..8 {
+                let mask = if crc & 1 == 0 { 0 } else { 0xEDB8_8320 };
+                crc = (crc >> 1) ^ mask;
+            }
+        }
+        !crc
     }
 }

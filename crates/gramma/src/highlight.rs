@@ -88,6 +88,7 @@ fn theme_item(scope: &str, r: u8, g: u8, b: u8) -> ThemeItem {
 }
 
 /// One styled span within a highlighted line.
+// kanon:ignore TOPOLOGY/shallow-struct -- deliberate data-transfer struct: gramma is the data layer; skeue components consume these fields directly to render (crate contract per #77)
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HighlightedSpan {
     /// Text content of the span.
@@ -132,18 +133,27 @@ pub fn highlight_code(code: &str, language: &str) -> Vec<Vec<HighlightedSpan>> {
                 .collect(),
             // On syntect failure, preserve the line text as a single
             // unstyled span rather than dropping it silently.
-            Err(_) => vec![HighlightedSpan {
-                text: line.to_string(),
-                color: syn_color_to_css(SynColor::WHITE),
-                bold: false,
-                italic: false,
-            }],
+            Err(_) => vec![highlight_failure_fallback(line, theme)],
         };
 
         result.push(spans);
     }
 
     result
+}
+
+/// Build the single-span fallback line used when syntect fails to
+/// highlight a line. Uses the theme's configured foreground color so
+/// the unstyled line still matches the surrounding palette, falling
+/// back to white only when the theme itself declares no foreground.
+fn highlight_failure_fallback(line: &str, theme: &Theme) -> HighlightedSpan {
+    let color = theme.settings.foreground.unwrap_or(SynColor::WHITE);
+    HighlightedSpan {
+        text: line.to_string(),
+        color: syn_color_to_css(color),
+        bold: false,
+        italic: false,
+    }
 }
 
 fn syn_color_to_css(c: SynColor) -> String {
@@ -324,6 +334,24 @@ mod tests {
         };
         assert_eq!(syn_color_to_css(white), "#ffffff");
         assert_eq!(syn_color_to_css(black), "#000000");
+    }
+
+    #[test]
+    fn highlight_failure_fallback_uses_theme_foreground_not_hardcoded_white() {
+        // warm_theme's configured foreground is 0xd4d0ca — the
+        // syntect-failure fallback must reuse it rather than
+        // hardcoding white, which would clash on the light theme.
+        let theme = warm_theme();
+        let span = highlight_failure_fallback("plain text", theme);
+        assert_eq!(span.color, "#d4d0ca");
+        assert_ne!(span.color, "#ffffff");
+    }
+
+    #[test]
+    fn highlight_failure_fallback_falls_back_to_white_when_theme_has_no_foreground() {
+        let theme = Theme::default();
+        let span = highlight_failure_fallback("plain text", &theme);
+        assert_eq!(span.color, "#ffffff");
     }
 
     #[test]

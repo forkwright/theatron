@@ -1,6 +1,6 @@
 [package]
 name = "skeue"
-description = "σκευή (props/equipment) — generic Dioxus components per kanon DESIGN-TOKENS.md: status pill, metric tile, activity row, queue table, sparkline, conn status, toast, modal, sidebar, tab bar, virtual list, command palette, diff hunk."
+description = "σκευή (props/equipment) — generic Dioxus components per kanon DESIGN-TOKENS.md: status pill, metric tile, activity row, queue table, sparkline, conn status, toast, virtual list, diff hunk, diff line, code block, badge, spinner, empty state, error state, markdown table."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -15,7 +15,6 @@ gramma = { workspace = true }
 dioxus = { workspace = true }
 pulldown-cmark = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
 tokio = { workspace = true }
 
 [dev-dependencies]

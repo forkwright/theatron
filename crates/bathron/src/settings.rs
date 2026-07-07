@@ -8,7 +8,18 @@
 //!
 //! Writes go through [`tempfile::NamedTempFile`] in the same
 //! directory then [`persist`] (rename) onto the target path so a
-//! crash mid-write cannot leave a half-flushed `settings.toml`.
+//! crash mid-write cannot leave a half-flushed `settings.toml`. The
+//! tempfile is fsynced before rename (data durability) and, on unix,
+//! the parent directory is fsynced after rename (so the rename
+//! itself survives a power loss, not just the file's contents).
+//!
+//! Mutations ([`Settings::set`], [`Settings::remove`]) hold an
+//! exclusive advisory lock on a sibling `settings.toml.lock` file for
+//! the duration of their read-modify-write cycle, so concurrent
+//! writers — other threads or other processes sharing the same path —
+//! serialize instead of silently overwriting each other's keys.
+//! Reads take no lock: the rename-based write means a reader always
+//! sees a complete document.
 //!
 //! Reads parse the entire TOML document, deserialize the requested
 //! key, and discard the rest. This is fine for an operator-tier
@@ -62,6 +73,16 @@ pub enum SettingsError {
         source: std::io::Error,
     },
 
+    /// Failed to open or acquire the advisory write lock guarding
+    /// the settings file's read-modify-write cycle.
+    #[snafu(display("failed to lock settings file via {}: {source}", path.display()))]
+    LockFile {
+        /// Lock-file path.
+        path: PathBuf,
+        /// Underlying I/O error.
+        source: std::io::Error,
+    },
+
     /// Failed to atomically promote the tempfile to the target path.
     #[snafu(display("failed to persist tempfile to {}: {source}", path.display()))]
     PersistFile {
@@ -101,15 +122,16 @@ impl SettingsError {
     ///
     /// Returns `Some(&Path)` for filesystem-touching variants
     /// ([`Self::CreateDir`], [`Self::ReadFile`], [`Self::WriteFile`],
-    /// [`Self::PersistFile`]) and `None` for the rest. Useful for
-    /// consumer code that wants to log the affected path without
-    /// destructuring per variant.
+    /// [`Self::LockFile`], [`Self::PersistFile`]) and `None` for the
+    /// rest. Useful for consumer code that wants to log the affected
+    /// path without destructuring per variant.
     #[must_use]
     pub fn path(&self) -> Option<&Path> {
         match self {
             Self::CreateDir { path, .. }
             | Self::ReadFile { path, .. }
             | Self::WriteFile { path, .. }
+            | Self::LockFile { path, .. }
             | Self::PersistFile { path, .. } => Some(path),
             Self::NoConfigDir
             | Self::ParseToml { .. }
@@ -185,6 +207,25 @@ impl Settings {
         &self.file
     }
 
+    /// Open the sibling lock file that serializes mutations.
+    ///
+    /// The lock file is separate from `settings.toml` because
+    /// [`write_doc`](Self::write_doc) replaces the settings file by
+    /// rename — a lock held on the settings file's inode would be
+    /// orphaned by the very write it guards, letting the next writer
+    /// proceed concurrently. The lock file is never renamed, so its
+    /// inode is stable across writes.
+    fn write_lock(&self) -> Result<fd_lock::RwLock<std::fs::File>, SettingsError> {
+        let path = self.file.with_extension("toml.lock");
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .write(true)
+            .open(&path)
+            .context(LockFileSnafu { path })?;
+        Ok(fd_lock::RwLock::new(file))
+    }
+
     fn read_doc(&self) -> Result<toml::Table, SettingsError> {
         let text = match std::fs::read_to_string(&self.file) {
             Ok(text) => text,
@@ -219,6 +260,19 @@ impl Settings {
         tmp.persist(&self.file).context(PersistFileSnafu {
             path: self.file.clone(),
         })?;
+        // WHY: rename is only durable once the directory entry itself
+        // is flushed. Without this, a power loss right after persist()
+        // can revert the rename on some filesystems even though
+        // sync_all() above already flushed the tempfile's data —
+        // fsyncing the tempfile covers data durability, fsyncing the
+        // parent directory covers the rename itself. Not meaningful on
+        // Windows (no directory-as-file open), hence unix-only.
+        #[cfg(unix)]
+        std::fs::File::open(parent)
+            .and_then(|dir| dir.sync_all())
+            .context(WriteFileSnafu {
+                path: self.file.clone(),
+            })?;
         Ok(())
     }
 
@@ -287,11 +341,21 @@ impl Settings {
     /// Write `value` at `key`. Atomic via tempfile + rename; a
     /// crash mid-write leaves the previous on-disk state intact.
     ///
+    /// The read-modify-write cycle holds an exclusive advisory lock
+    /// on a sibling `settings.toml.lock` file, so concurrent writers
+    /// (threads or processes) serialize instead of silently losing
+    /// each other's keys.
+    ///
     /// # Errors
     ///
-    /// [`SettingsError::ReadFile`], [`SettingsError::WriteFile`],
-    /// [`SettingsError::PersistFile`], [`SettingsError::SerializeToml`].
+    /// [`SettingsError::ReadFile`], [`SettingsError::LockFile`],
+    /// [`SettingsError::WriteFile`], [`SettingsError::PersistFile`],
+    /// [`SettingsError::SerializeToml`].
     pub fn set<T: Serialize>(&self, key: &str, value: &T) -> Result<(), SettingsError> {
+        let mut lock = self.write_lock()?;
+        let _guard = lock.write().context(LockFileSnafu {
+            path: self.file.with_extension("toml.lock"),
+        })?;
         let mut doc = self.read_doc()?;
         let serialized = toml::Value::try_from(value).context(SerializeTomlSnafu)?;
         doc.insert(key.to_string(), serialized);
@@ -307,8 +371,9 @@ impl Settings {
     ///
     /// Atomic via tempfile + rename, like [`set`](Self::set); a
     /// crash mid-write leaves the previous on-disk state intact.
-    /// Skips the write entirely when the key is absent (no I/O
-    /// cost, no settings-file mtime bump).
+    /// Holds the same exclusive advisory lock as [`set`](Self::set)
+    /// across the read-modify-write cycle. Skips the write when the
+    /// key is absent (no settings-file mtime bump).
     ///
     /// Symmetric with [`set`](Self::set) and rounds out the CRUD
     /// surface alongside [`get`](Self::get) / [`contains`](Self::contains)
@@ -317,9 +382,13 @@ impl Settings {
     /// # Errors
     ///
     /// [`SettingsError::ReadFile`], [`SettingsError::ParseToml`],
-    /// [`SettingsError::WriteFile`], [`SettingsError::PersistFile`],
-    /// [`SettingsError::SerializeToml`].
+    /// [`SettingsError::LockFile`], [`SettingsError::WriteFile`],
+    /// [`SettingsError::PersistFile`], [`SettingsError::SerializeToml`].
     pub fn remove(&self, key: &str) -> Result<bool, SettingsError> {
+        let mut lock = self.write_lock()?;
+        let _guard = lock.write().context(LockFileSnafu {
+            path: self.file.with_extension("toml.lock"),
+        })?;
         let mut doc = self.read_doc()?;
         if doc.remove(key).is_none() {
             return Ok(false);

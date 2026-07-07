@@ -11,23 +11,27 @@
 //! - [`launch`] / [`launch_cfg`] / [`launch_cfg_with_props`] — start
 //!   a desktop app. Internally configures the tray-event broadcast
 //!   channels, then delegates to [`dioxus_native::launch_cfg_with_props`].
-//! - [`launch_cfg_with_props_and_menu`] — same as
-//!   [`launch_cfg_with_props`] but with an optional [`muda::Menu`] for
+//! - `launch_cfg_with_props_and_menu` — same as
+//!   [`launch_cfg_with_props`] but with an optional `muda::Menu` for
 //!   app-menu event plumbing (available when the `menus` feature is
 //!   enabled).
 //! - [`tray`] — re-exports of the upstream `tray_icon` crate plus tiny
 //!   helpers ([`tray::init_tray_icon`], [`tray::default_tray_icon`]).
-//! - [`hotkey`] — re-exports of the upstream `global_hotkey` crate
+//! - `hotkey` — re-exports of the upstream `global_hotkey` crate
 //!   (available when the `global-hotkeys` feature is enabled).
+//! - `menus` — re-exports of the upstream `muda` crate plus the
+//!   consumer-side wiring guide (available when the `menus` feature is
+//!   enabled).
 //! - Tray hooks ([`use_tray_icon_event_handler`],
 //!   [`use_tray_menu_event_handler`]) — subscribe to tray events
 //!   delivered through tokio broadcast channels installed by [`launch`].
-//! - App-menu hook ([`use_app_menu_event_handler`]) — subscribe to
+//! - App-menu hook (`use_app_menu_event_handler`) — subscribe to
 //!   top-of-window menu events (available when the `menus` feature is
 //!   enabled).
-//! - Global-hotkey hook ([`use_global_hotkey_event_handler`]) —
-//!   subscribe to process-global hotkey events (available when the
-//!   `global-hotkeys` feature is enabled).
+//! - Global-hotkey hooks (`use_global_hotkey_manager` to register
+//!   hotkeys, `use_global_hotkey_event_handler` to subscribe to
+//!   process-global hotkey events; available when the `global-hotkeys`
+//!   feature is enabled).
 //!
 //! ## Architecture
 //!
@@ -49,7 +53,7 @@
 //! slot (because `tray_icon::menu` is a re-export of `muda`). Mekhane
 //! installs **one** shared handler that fans out to both the tray-menu
 //! broadcast and the app-menu broadcast. Consumers subscribe to whichever
-//! channel they care about; the same underlying [`muda::MenuEvent`] is
+//! channel they care about; the same underlying `muda::MenuEvent` is
 //! delivered to both.
 
 #![deny(missing_docs, clippy::all, clippy::pedantic)]
@@ -64,6 +68,12 @@ pub mod tray;
 #[cfg(feature = "global-hotkeys")]
 pub mod hotkey;
 
+#[cfg(all(
+    feature = "menus",
+    any(target_os = "windows", target_os = "linux", target_os = "macos")
+))]
+pub mod menus;
+
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 pub use hooks::{use_tray_icon_event_handler, use_tray_menu_event_handler};
 
@@ -77,14 +87,32 @@ pub use hooks::use_app_menu_event_handler;
     feature = "global-hotkeys",
     any(target_os = "windows", target_os = "linux", target_os = "macos")
 ))]
-pub use hooks::use_global_hotkey_event_handler;
+pub use hooks::{use_global_hotkey_event_handler, use_global_hotkey_manager};
+
+/// Capacity (in events) of every broadcast channel installed by the
+/// launchers. Documented in the `hooks` module (Lagged-handling
+/// section); a regression test pins the value.
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
+pub(crate) const CHANNEL_CAPACITY: usize = 64;
 
 /// Launch a desktop app with the default config.
+///
+/// # Panics
+///
+/// Panics if the `global-hotkeys` feature is enabled and
+/// `global_hotkey::GlobalHotKeyManager::new` fails (usually a
+/// headless-CI or missing-display situation).
 pub fn launch(app: fn() -> dioxus_core::Element) {
     launch_cfg(app, vec![], vec![]);
 }
 
 /// Launch a desktop app with explicit context providers and configs.
+///
+/// # Panics
+///
+/// Panics if the `global-hotkeys` feature is enabled and
+/// `global_hotkey::GlobalHotKeyManager::new` fails (usually a
+/// headless-CI or missing-display situation).
 pub fn launch_cfg(
     app: fn() -> dioxus_core::Element,
     contexts: Vec<Box<dyn Fn() -> Box<dyn Any> + Send + Sync>>,
@@ -95,6 +123,12 @@ pub fn launch_cfg(
 
 /// Launch a desktop app with explicit props, context providers, and
 /// configs. Most consumers want [`launch`] or [`launch_cfg`].
+///
+/// # Panics
+///
+/// Panics if the `global-hotkeys` feature is enabled and
+/// `global_hotkey::GlobalHotKeyManager::new` fails (usually a
+/// headless-CI or missing-display situation).
 pub fn launch_cfg_with_props<P: Clone + 'static, M: 'static>(
     app: impl ComponentFunction<P, M>,
     props: P,
@@ -130,8 +164,8 @@ pub fn launch_cfg_with_props<P: Clone + 'static, M: 'static>(
 ///
 /// # Panics
 ///
-/// Panics if `global-hotkeys` feature is enabled and
-/// [`global_hotkey::GlobalHotKeyManager::new`] fails (usually a
+/// Panics if the `global-hotkeys` feature is enabled and
+/// `global_hotkey::GlobalHotKeyManager::new` fails (usually a
 /// headless-CI or missing-display situation).
 #[cfg(feature = "menus")]
 pub fn launch_cfg_with_props_and_menu<P: Clone + 'static, M: 'static>(
@@ -161,11 +195,19 @@ fn launch_inner<P: Clone + 'static, M: 'static>(
     // carries today; document if it bites.
     #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
     {
-        let (tray_tx, _) = tokio::sync::broadcast::channel::<tray_icon::TrayIconEvent>(64);
-        let (menu_tx, _) = tokio::sync::broadcast::channel::<tray_icon::menu::MenuEvent>(64);
+        let (tray_tx, _) =
+            tokio::sync::broadcast::channel::<tray_icon::TrayIconEvent>(CHANNEL_CAPACITY);
+        let (menu_tx, _) =
+            tokio::sync::broadcast::channel::<tray_icon::menu::MenuEvent>(CHANNEL_CAPACITY);
+        // WHY: wrapped in a newtype so dioxus's TypeId-keyed context
+        // lookup cannot conflate this channel with app_menu_tx below —
+        // see hooks::TrayMenuSender for the collision this prevents.
+        let menu_tx = hooks::TrayMenuSender::new(menu_tx);
 
         #[cfg(feature = "menus")]
-        let (app_menu_tx, _) = tokio::sync::broadcast::channel::<muda::MenuEvent>(64);
+        let (app_menu_tx, _) = tokio::sync::broadcast::channel::<muda::MenuEvent>(CHANNEL_CAPACITY);
+        #[cfg(feature = "menus")]
+        let app_menu_tx = hooks::AppMenuSender::new(app_menu_tx);
 
         let tx = tray_tx.clone();
         tray_icon::TrayIconEvent::set_event_handler(Some(move |t| {
@@ -212,8 +254,9 @@ fn launch_inner<P: Clone + 'static, M: 'static>(
                 global_hotkey::GlobalHotKeyManager::new()
                     .expect("global hotkey manager initialization failed"), // kanon:ignore RUST/expect -- unrecoverable OS-level error; documented in public API
             );
-            let (hotkey_tx, _) =
-                tokio::sync::broadcast::channel::<global_hotkey::GlobalHotKeyEvent>(64);
+            let (hotkey_tx, _) = tokio::sync::broadcast::channel::<global_hotkey::GlobalHotKeyEvent>(
+                CHANNEL_CAPACITY,
+            );
 
             let tx = hotkey_tx.clone();
             global_hotkey::GlobalHotKeyEvent::set_event_handler(Some(move |e| {
@@ -260,42 +303,38 @@ mod tests {
         );
     }
 
-    /// Verifies the tokio broadcast channel that `launch` configures
-    /// has the documented capacity. If this constant ever changes,
-    /// update the docs in `hooks.rs` (Lagged-handling section) and the
-    /// reasoning paragraph that mentions 64 events.
+    /// Enforces the documented 64-event capacity of the broadcast
+    /// channels installed by the launchers. The launchers size every
+    /// channel (tray-icon, tray-menu, app-menu, global-hotkey) with
+    /// [`CHANNEL_CAPACITY`]; capacity is payload-type-independent, so a
+    /// stand-in payload proves the ring-buffer size for all of them
+    /// (the concrete event types are `#[non_exhaustive]` upstream and
+    /// cannot be constructed here).
+    ///
+    /// Overfilling by one message must yield `Lagged(1)` — the ring
+    /// buffer holds exactly `CHANNEL_CAPACITY` slots.
     #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
-    #[test]
-    fn broadcast_channel_capacity_is_64() {
-        let (tx, _rx) = tokio::sync::broadcast::channel::<tray_icon::TrayIconEvent>(64);
-        // capacity() returns the channel's buffered slots.
-        assert_eq!(tx.len(), 0, "fresh channel should be empty");
-        // The exact capacity isn't observable from Sender alone, but
-        // we can verify the channel was created without panic. The
-        // capacity number is the contract enumerated in launch().
-    }
+    #[tokio::test]
+    async fn broadcast_channel_capacity_is_64() {
+        assert_eq!(
+            CHANNEL_CAPACITY, 64,
+            "capacity contract documented in hooks.rs must stay 64 or docs must be updated"
+        );
 
-    /// Verifies the app-menu broadcast channel has the same 64-event
-    /// capacity as the tray channels.
-    #[cfg(all(
-        feature = "menus",
-        any(target_os = "windows", target_os = "linux", target_os = "macos")
-    ))]
-    #[test]
-    fn app_menu_broadcast_channel_capacity_is_64() {
-        let (tx, _rx) = tokio::sync::broadcast::channel::<muda::MenuEvent>(64);
-        assert_eq!(tx.len(), 0, "fresh channel should be empty");
-    }
+        let (tx, mut rx) = tokio::sync::broadcast::channel::<usize>(CHANNEL_CAPACITY);
+        for i in 0..=CHANNEL_CAPACITY {
+            tx.send(i).expect("send with a live receiver succeeds");
+        }
 
-    /// Verifies the global-hotkey broadcast channel has the same 64-event
-    /// capacity as the tray channels.
-    #[cfg(all(
-        feature = "global-hotkeys",
-        any(target_os = "windows", target_os = "linux", target_os = "macos")
-    ))]
-    #[test]
-    fn global_hotkey_broadcast_channel_capacity_is_64() {
-        let (tx, _rx) = tokio::sync::broadcast::channel::<global_hotkey::GlobalHotKeyEvent>(64);
-        assert_eq!(tx.len(), 0, "fresh channel should be empty");
+        match rx.recv().await {
+            Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                assert_eq!(n, 1, "one overflow send must drop exactly one event");
+            }
+            other => panic!("expected Lagged(1) after capacity+1 sends, got {other:?}"),
+        }
+        // NOTE: after the lag report the oldest surviving message is 1
+        // (message 0 was evicted by the capacity+1'th send).
+        let next = rx.recv().await.expect("oldest surviving message");
+        assert_eq!(next, 1);
     }
 }

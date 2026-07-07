@@ -47,7 +47,10 @@ fn line_bg(change_type: ChangeType) -> &'static str {
     match change_type {
         ChangeType::Add => "rgba(34, 197, 94, 0.1)",
         ChangeType::Remove => "rgba(239, 68, 68, 0.1)",
-        ChangeType::Context | _ => "transparent",
+        ChangeType::Context => "transparent",
+        // NOTE: ChangeType is #[non_exhaustive] (gramma) -- an unrecognized
+        // future variant renders the same as Context (no background tint).
+        _ => "transparent",
     }
 }
 
@@ -56,7 +59,10 @@ fn word_changed_bg(change_type: ChangeType) -> &'static str {
     match change_type {
         ChangeType::Add => "rgba(34, 197, 94, 0.3)",
         ChangeType::Remove => "rgba(239, 68, 68, 0.3)",
-        ChangeType::Context | _ => "transparent",
+        ChangeType::Context => "transparent",
+        // NOTE: ChangeType is #[non_exhaustive] (gramma) -- an unrecognized
+        // future variant renders the same as Context (no background tint).
+        _ => "transparent",
     }
 }
 
@@ -65,7 +71,10 @@ fn indicator_char(change_type: ChangeType) -> &'static str {
     match change_type {
         ChangeType::Add => "+",
         ChangeType::Remove => "-",
-        ChangeType::Context | _ => " ",
+        ChangeType::Context => " ",
+        // NOTE: ChangeType is #[non_exhaustive] (gramma) -- an unrecognized
+        // future variant renders the same blank indicator as Context.
+        _ => " ",
     }
 }
 
@@ -74,7 +83,10 @@ fn indicator_color(change_type: ChangeType) -> &'static str {
     match change_type {
         ChangeType::Add => "var(--status-success)",
         ChangeType::Remove => "var(--status-error)",
-        ChangeType::Context | _ => "var(--text-muted)",
+        ChangeType::Context => "var(--text-muted)",
+        // NOTE: ChangeType is #[non_exhaustive] (gramma) -- an unrecognized
+        // future variant renders the same muted color as Context.
+        _ => "var(--text-muted)",
     }
 }
 
@@ -83,10 +95,10 @@ fn indicator_color(change_type: ChangeType) -> &'static str {
 /// # Accessibility
 ///
 /// - **Role**: None — rendered as a generic div.
-/// - **Name**: The line `content` provides the accessible text.
-/// - **Consumer responsibility**: Line numbers and the change indicator are
-///   decorative (`aria-hidden="true"`); consumers should ensure the parent
-///   hunk or diff view provides sufficient context.
+/// - **Name**: The line `content` provides the accessible text. Line numbers
+///   and the change indicator are decorative (`aria-hidden="true"`).
+/// - **Consumer responsibility**: Ensure the parent hunk or diff view
+///   provides sufficient change-semantics context.
 #[component]
 pub fn DiffLineView(line: DiffLine, language: String) -> Element {
     let bg = line_bg(line.change_type);
@@ -106,6 +118,7 @@ pub fn DiffLineView(line: DiffLine, language: String) -> Element {
             }
             span {
                 style: "{INDICATOR_STYLE} color: {ind_color};",
+                aria_hidden: "true",
                 {ind}
             }
             div {
@@ -123,7 +136,11 @@ pub fn DiffLineView(line: DiffLine, language: String) -> Element {
 }
 
 /// Render content with syntax highlighting via syntect.
-fn render_highlighted_content(content: &str, language: &str) -> Element {
+///
+/// Shared with [`crate::diff_hunk`]'s side-by-side renderer so both
+/// `DiffViewMode`s apply the same highlighting to plain (non-word-diffed)
+/// content.
+pub(crate) fn render_highlighted_content(content: &str, language: &str) -> Element {
     let line_with_newline = format!("{content}\n");
     let highlighted = highlight_code(&line_with_newline, language);
 
@@ -203,5 +220,28 @@ mod ssr_tests {
             "expected aria-hidden on gutter in {html}"
         );
         assert!(html.contains("main"), "expected content text in {html}");
+    }
+
+    #[test]
+    fn renders_aria_hidden_on_indicator_span_independently_of_gutter() {
+        let line = DiffLine {
+            content: "let x = 1;".to_string(),
+            change_type: ChangeType::Add,
+            old_line_no: None,
+            new_line_no: Some(2),
+            word_spans: vec![],
+        };
+        let html = render_element(rsx! {
+            DiffLineView {
+                line,
+                language: "rust".to_string(),
+            }
+        });
+        // Gutter div + indicator span each carry the attribute.
+        assert_eq!(
+            html.matches("aria-hidden=\"true\"").count(),
+            2,
+            "expected aria-hidden on both gutter and indicator in {html}"
+        );
     }
 }

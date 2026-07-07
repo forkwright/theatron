@@ -88,11 +88,17 @@ pub fn EmptyState(
     #[props(default)]
     action: Option<Element>,
 ) -> Element {
+    // WHY: aria-describedby must reference a DOM id unique to this instance --
+    // ScopeId is stable across re-renders and unique per mounted component, so
+    // two EmptyState instances on one page never collide over the same id.
+    let message_id = format!("empty-state-message-{}", dioxus::core::current_scope_id().0);
+    let describedby = message.is_some().then(|| message_id.clone());
     rsx! {
         div {
             style: EMPTY_STATE_STYLE,
             role: "status",
             "aria-label": title.clone(),
+            "aria-describedby": describedby,
             if let Some(icon) = icon {
                 div {
                     style: ICON_STYLE,
@@ -106,6 +112,7 @@ pub fn EmptyState(
             }
             if let Some(msg) = message {
                 p {
+                    id: message_id.clone(),
                     style: MESSAGE_STYLE,
                     {msg}
                 }
@@ -202,6 +209,57 @@ mod tests {
         let html = dioxus_ssr::render(&vdom);
         // No <p> tag should appear when message is None.
         assert!(!html.contains("<p"), "no <p> when message is None: {html}");
+    }
+
+    /// Regression test companion to issue #184.2 (ErrorState): EmptyState's
+    /// doc carries the identical "message is the accessible description"
+    /// claim and had the identical missing `aria-describedby` wiring.
+    #[test]
+    fn empty_state_wires_aria_describedby_to_message_id() {
+        let mut vdom = VirtualDom::new_with_props(
+            EmptyState,
+            EmptyStateProps {
+                title: "No sessions".to_string(),
+                message: Some("Start a new session from the sidebar.".to_string()),
+                icon: None,
+                action: None,
+            },
+        );
+        vdom.rebuild_in_place();
+        let html = dioxus_ssr::render(&vdom);
+        let id_marker = "id=\"";
+        let id_start = html
+            .find(id_marker)
+            .map(|i| i + id_marker.len())
+            .expect("message <p> should carry an id");
+        let id_end = html[id_start..]
+            .find('"')
+            .map(|i| id_start + i)
+            .expect("id attribute value should be closed");
+        let message_id = &html[id_start..id_end];
+        assert!(
+            html.contains(&format!("aria-describedby=\"{message_id}\"")),
+            "expected aria-describedby to reference message id {message_id} in {html}"
+        );
+    }
+
+    #[test]
+    fn empty_state_omits_aria_describedby_when_no_message() {
+        let mut vdom = VirtualDom::new_with_props(
+            EmptyState,
+            EmptyStateProps {
+                title: "Nothing".to_string(),
+                message: None,
+                icon: None,
+                action: None,
+            },
+        );
+        vdom.rebuild_in_place();
+        let html = dioxus_ssr::render(&vdom);
+        assert!(
+            !html.contains("aria-describedby"),
+            "no aria-describedby without a message: {html}"
+        );
     }
 
     #[test]

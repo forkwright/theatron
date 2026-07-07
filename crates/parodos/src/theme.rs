@@ -1,9 +1,11 @@
 //! Terminal palette + color-depth detection for ratatui apps.
 //!
 //! Provides the [`Theme`] semantic palette plus per-depth ([`ColorDepth`])
-//! and per-mode ([`ThemeMode`]) palette constructors. The detection layer
-//! reads `COLORTERM`, `TERM`, and `COLORFGBG` via the [`Env`] trait so
-//! tests can supply deterministic environment values.
+//! and per-brightness ([`ResolvedTheme`]) palette constructors. The
+//! detection layer reads `COLORTERM`, `TERM`, and `COLORFGBG` via the
+//! [`Env`] trait so tests can supply deterministic environment values.
+//! The theme vocabulary ([`ThemeMode`], [`ResolvedTheme`]) is owned by
+//! `themelion` and re-exported here.
 //!
 //! Palette field names ([`Colors::bg`], [`TextColors::fg_muted`],
 //! [`Borders::focused`], etc.) are self-documenting; enumerating them
@@ -62,73 +64,20 @@ impl ColorDepth {
     }
 }
 
-/// Background brightness: drives palette selection.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[non_exhaustive]
-#[expect(
-    missing_docs,
-    reason = "Dark/Light variant names are self-documenting; from_label and is_* methods carry the prose"
-)]
-pub enum ThemeMode {
-    Dark,
-    Light,
-}
-
-impl ThemeMode {
-    /// Whether this is the dark palette (`Dark`).
-    ///
-    /// Convenience predicate matching the pattern from
-    /// `themelion::ResolvedTheme::is_dark` and the rest of the
-    /// v1.1 enum predicates.
-    #[must_use]
-    pub const fn is_dark(self) -> bool {
-        matches!(self, Self::Dark)
-    }
-
-    /// Whether this is the light palette (`Light`).
-    #[must_use]
-    pub const fn is_light(self) -> bool {
-        matches!(self, Self::Light)
-    }
-
-    /// Parse a string label into a `ThemeMode`.
-    ///
-    /// Recognises `"dark"` and `"light"` (case-insensitive). Returns
-    /// `None` for any other input, including `"system"` — parodos
-    /// runs in a terminal where there is no OS-level light/dark
-    /// preference to resolve, so unlike `themelion::ThemeMode` this
-    /// enum has no `System` variant.
-    ///
-    /// Symmetric with `themelion::ThemeMode::from_label` (theatron
-    /// PR #57) for crates that round-trip a config string into the
-    /// TUI palette.
-    #[must_use]
-    pub fn from_label(s: &str) -> Option<Self> {
-        match s.to_ascii_lowercase().as_str() {
-            "dark" => Some(Self::Dark),
-            "light" => Some(Self::Light),
-            _ => None,
-        }
-    }
-
-    /// Every `ThemeMode` variant, in canonical order.
-    ///
-    /// Useful for building selection UIs and for exhaustiveness
-    /// tests that need to iterate every variant. Returns a fixed-size
-    /// array so callers can iterate without allocation.
-    ///
-    /// Symmetric with `themelion::ThemeMode::all` (theatron PR #57);
-    /// parodos's array has two elements (`[Dark, Light]`) because
-    /// the terminal-side enum has no `System` variant.
-    #[must_use]
-    pub const fn all() -> [Self; 2] {
-        [Self::Dark, Self::Light]
-    }
-}
+// WHY re-export instead of a local enum (#129): the workspace has ONE
+// canonical theme vocabulary, owned by themelion. parodos's former
+// two-variant `ThemeMode` was a misnamed duplicate of `ResolvedTheme`
+// (concrete post-resolution brightness) with divergent from_label
+// semantics. Terminal consumers parse a preference with
+// `ThemeMode::from_label`, then bridge via `ThemeMode::forced()` —
+// `Theme::for_mode(mode.forced())` runs parodos's own terminal
+// detection when the preference is `System`.
+pub use themelion::{ResolvedTheme, ThemeMode};
 
 /// Background and accent colors.
 #[derive(Debug, Clone)]
 #[expect(missing_docs, reason = "palette field names are self-documenting")]
+// kanon:ignore TOPOLOGY/shallow-struct -- semantic palette group: pure color data by design, swapped as a unit; behavior lives in Theme's style_* methods
 pub struct Colors {
     pub bg: Color,
     pub surface: Color,
@@ -141,6 +90,7 @@ pub struct Colors {
 /// Foreground text and role-speaker colors.
 #[derive(Debug, Clone)]
 #[expect(missing_docs, reason = "palette field names are self-documenting")]
+// kanon:ignore TOPOLOGY/shallow-struct -- semantic palette group: pure color data by design, swapped as a unit; behavior lives in Theme's style_* methods
 pub struct TextColors {
     pub fg: Color,
     pub fg_muted: Color,
@@ -153,6 +103,7 @@ pub struct TextColors {
 /// Structural border and selection colors.
 #[derive(Debug, Clone)]
 #[expect(missing_docs, reason = "palette field names are self-documenting")]
+// kanon:ignore TOPOLOGY/shallow-struct -- semantic palette group: pure color data by design, swapped as a unit; behavior lives in Theme's style_* methods
 pub struct Borders {
     pub normal: Color,
     pub focused: Color,
@@ -163,6 +114,7 @@ pub struct Borders {
 /// Semantic feedback and animation-state colors.
 #[derive(Debug, Clone)]
 #[expect(missing_docs, reason = "palette field names are self-documenting")]
+// kanon:ignore TOPOLOGY/shallow-struct -- semantic palette group: pure color data by design, swapped as a unit; behavior lives in Theme's style_* methods
 pub struct StatusColors {
     pub success: Color,
     pub warning: Color,
@@ -177,6 +129,7 @@ pub struct StatusColors {
 /// Code-block colors.
 #[derive(Debug, Clone)]
 #[expect(missing_docs, reason = "palette field names are self-documenting")]
+// kanon:ignore TOPOLOGY/shallow-struct -- semantic palette group: pure color data by design, swapped as a unit; behavior lives in Theme's style_* methods
 pub struct CodeColors {
     pub fg: Color,
     pub bg: Color,
@@ -186,6 +139,7 @@ pub struct CodeColors {
 /// Thinking-block colors.
 #[derive(Debug, Clone)]
 #[expect(missing_docs, reason = "palette field names are self-documenting")]
+// kanon:ignore TOPOLOGY/shallow-struct -- semantic palette group: pure color data by design, swapped as a unit; behavior lives in Theme's style_* methods
 pub struct ThinkingColors {
     pub fg: Color,
     pub border: Color,
@@ -211,13 +165,8 @@ pub struct Theme {
     /// Color depth (for conditional rendering).
     pub depth: ColorDepth,
     /// Light or dark background.
-    pub mode: ThemeMode,
+    pub mode: ResolvedTheme,
 }
-
-/// Auto-detected theme from the terminal environment.
-/// Used as the default when no config override is set.
-#[cfg(test)]
-pub static THEME: std::sync::LazyLock<Theme> = std::sync::LazyLock::new(Theme::default);
 
 impl Default for Theme {
     fn default() -> Self {
@@ -232,17 +181,41 @@ impl Theme {
         Self::for_mode(None)
     }
 
-    /// Create theme for a specific mode. `None` means auto-detect from the terminal.
-    pub fn for_mode(mode: Option<ThemeMode>) -> Self {
-        let resolved = mode.unwrap_or_else(detect_background);
-        let depth = detect_color_depth();
-        match (resolved, depth) {
-            (ThemeMode::Light, ColorDepth::TrueColor) => Self::truecolor_light(),
-            (ThemeMode::Light, ColorDepth::Color256) => Self::color256_light(),
-            (ThemeMode::Light, ColorDepth::Basic) => Self::basic_light(),
-            (ThemeMode::Dark, ColorDepth::TrueColor) => Self::truecolor(),
-            (ThemeMode::Dark, ColorDepth::Color256) => Self::color256(),
-            (ThemeMode::Dark, ColorDepth::Basic) => Self::basic(),
+    /// Create theme for a specific brightness. `None` means auto-detect
+    /// from the terminal.
+    ///
+    /// To honor a stored user preference, bridge through
+    /// `ThemeMode::forced()`: `Theme::for_mode(mode.forced())` — a
+    /// `System` preference becomes `None` and falls back to terminal
+    /// detection here (the desktop-side `ThemeMode::resolve` probes
+    /// `GTK_THEME`, the wrong seam for a TUI).
+    #[must_use]
+    pub fn for_mode(mode: Option<ResolvedTheme>) -> Self {
+        Self::for_mode_with_env(mode, &RealEnv)
+    }
+
+    /// Create theme for a specific mode, reading terminal capabilities from
+    /// `env`. `None` means auto-detect background brightness from `env`.
+    ///
+    /// This is the injectable inner implementation of [`Theme::for_mode`],
+    /// matching the probe pattern used by `clipboard` and `hyperlink`:
+    /// tests supply a deterministic [`Env`] instead of racing on
+    /// `std::env::set_var`.
+    #[must_use]
+    pub fn for_mode_with_env(mode: Option<ResolvedTheme>, env: &impl Env) -> Self {
+        let resolved = mode.unwrap_or_else(|| detect_background(env));
+        let depth = detect_color_depth(env);
+        // WHY is_light instead of matching ResolvedTheme variants: the
+        // enum is #[non_exhaustive] in themelion, so a cross-crate match
+        // would demand a wildcard arm that silently absorbs any future
+        // variant; the boolean predicate keeps dispatch total.
+        match depth {
+            ColorDepth::TrueColor if resolved.is_light() => Self::truecolor_light(),
+            ColorDepth::TrueColor => Self::truecolor(),
+            ColorDepth::Color256 if resolved.is_light() => Self::color256_light(),
+            ColorDepth::Color256 => Self::color256(),
+            ColorDepth::Basic if resolved.is_light() => Self::basic_light(),
+            ColorDepth::Basic => Self::basic(),
         }
     }
 
@@ -292,7 +265,7 @@ impl Theme {
                 border: Color::Rgb(60, 60, 75),
             },
             depth: ColorDepth::TrueColor,
-            mode: ThemeMode::Dark,
+            mode: ResolvedTheme::Dark,
         }
     }
 
@@ -342,7 +315,7 @@ impl Theme {
                 border: Color::Rgb(200, 200, 212),
             },
             depth: ColorDepth::TrueColor,
-            mode: ThemeMode::Light,
+            mode: ResolvedTheme::Light,
         }
     }
 
@@ -392,7 +365,7 @@ impl Theme {
                 border: Color::Indexed(238),
             },
             depth: ColorDepth::Color256,
-            mode: ThemeMode::Dark,
+            mode: ResolvedTheme::Dark,
         }
     }
 
@@ -442,7 +415,7 @@ impl Theme {
                 border: Color::Indexed(252),
             },
             depth: ColorDepth::Color256,
-            mode: ThemeMode::Light,
+            mode: ResolvedTheme::Light,
         }
     }
 
@@ -492,7 +465,7 @@ impl Theme {
                 border: Color::DarkGray,
             },
             depth: ColorDepth::Basic,
-            mode: ThemeMode::Dark,
+            mode: ResolvedTheme::Dark,
         }
     }
 
@@ -542,7 +515,7 @@ impl Theme {
                 border: Color::Gray,
             },
             depth: ColorDepth::Basic,
-            mode: ThemeMode::Light,
+            mode: ResolvedTheme::Light,
         }
     }
 
@@ -663,46 +636,54 @@ impl Theme {
 ///
 /// Format: `fg;bg` or `fg;X;bg` where values are ANSI color indices.
 /// Indices 0-6 are dark colors, 7+ are light. Defaults to dark when unset.
-fn detect_background() -> ThemeMode {
-    if let Some(val) = RealEnv.var("COLORFGBG") {
+fn detect_background(env: &impl Env) -> ResolvedTheme {
+    if let Some(val) = env.var("COLORFGBG") {
         // WHY: Some terminals emit three values (e.g., "15;0;0"). The background
         // is always the last component.
         if let Some(bg_str) = val.rsplit(';').next()
             && let Ok(bg) = bg_str.parse::<u8>()
         {
-            return if bg >= 8 {
-                ThemeMode::Light
+            // WHY: doc-declared boundary is "0-6 dark, 7+ light" (#183) --
+            // index 7 (white/light gray) is the conventional COLORFGBG light
+            // signal, so the cutoff is `>= 7`, not `>= 8`.
+            return if bg >= 7 {
+                ResolvedTheme::Light
             } else {
-                ThemeMode::Dark
+                ResolvedTheme::Dark
             };
         }
     }
-    ThemeMode::Dark
+    ResolvedTheme::Dark
 }
 
 /// Detect terminal color capability from environment variables.
-fn detect_color_depth() -> ColorDepth {
-    let env = RealEnv;
-
+fn detect_color_depth(env: &impl Env) -> ColorDepth {
     // WHY: COLORTERM is the most reliable indicator: check it before TERM.
     if let Some(ct) = env.var("COLORTERM") {
         match ct.as_str() {
             "truecolor" | "24bit" => return ColorDepth::TrueColor,
-            // NOTE: unrecognized COLORTERM value, check other env vars
-            _ => {}
+            _ => {
+                // NOTE: unrecognized COLORTERM value, check other env vars
+            }
         }
     }
 
     if let Some(tp) = env.var("TERM_PROGRAM") {
         match tp.as_str() {
             "iTerm.app" | "WezTerm" | "Alacritty" | "kitty" => return ColorDepth::TrueColor,
-            // NOTE: unrecognized terminal program, continue probing
-            _ => {}
+            _ => {
+                // NOTE: unrecognized terminal program, continue probing
+            }
         }
     }
 
-    // NOTE: GNOME Terminal sets COLORTERM=truecolor, but VTE_VERSION is a reliable backup.
-    if env.var("VTE_VERSION").is_some() {
+    // NOTE: GNOME Terminal sets COLORTERM=truecolor, but VTE_VERSION is a backup signal.
+    // WHY: VTE gained TrueColor in 0.36.0 (VTE_VERSION=3600); older VTE
+    // terminals set the variable too, so presence alone over-promotes them.
+    if let Some(vte) = env.var("VTE_VERSION")
+        && let Ok(version) = vte.parse::<u32>()
+        && version >= 3600
+    {
         return ColorDepth::TrueColor;
     }
 
@@ -723,17 +704,14 @@ fn detect_color_depth() -> ColorDepth {
 pub const BRAILLE_SPINNER: &[char] = &['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
 /// Get the current braille spinner frame based on tick count.
-#[expect(
-    clippy::indexing_slicing,
-    reason = "index is computed as expr % BRAILLE_SPINNER.len(), which is always a valid index"
-)]
 #[must_use]
 pub fn spinner_frame(tick: u64) -> char {
     // WHY: mod by BRAILLE_SPINNER.len() in u64 space first, then try_from;
     // the result is < 10, so usize conversion cannot fail on any platform.
     let len = u64::try_from(BRAILLE_SPINNER.len()).unwrap_or(1).max(1);
     let idx = usize::try_from((tick / 3) % len).unwrap_or(0);
-    BRAILLE_SPINNER[idx]
+    // NOTE: idx < len by construction; the fallback frame is unreachable.
+    BRAILLE_SPINNER.get(idx).copied().unwrap_or('⠋')
 }
 
 #[cfg(test)]

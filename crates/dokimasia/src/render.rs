@@ -113,6 +113,30 @@ mod tests {
     }
 
     #[test]
+    fn render_human_tolerates_out_of_range_span() {
+        // The non-IO arm of the `term::emit` error map (`other =>
+        // io::Error::other(...)`) is unreachable via this function's public
+        // surface with the vendored codespan-reporting 0.11.1:
+        // `SimpleFiles`'s `Files` impl never constructs `IndexTooLarge`,
+        // `ColumnTooLarge`, or `InvalidCharBoundary` (dead in that crate
+        // version's own source), `FileMissing` can't occur because every
+        // `d.file` is registered into `files` before any label references
+        // it, and `LineTooLarge` can't occur because `SimpleFile::line_index`
+        // always clamps to an existing line via `binary_search`
+        // (QA #186.3 — confirmed empirically: this out-of-range span
+        // renders `Ok(())`, not an error, so there is no non-IO error path
+        // left to exercise short of a fake `Files` implementation).
+        let short_src = "abc".to_string();
+        let mut sources: HashMap<PathBuf, String> = HashMap::new();
+        sources.insert(PathBuf::from("a.css"), short_src);
+        let diags = vec![diag_undoc("a.css", 1, 1, 1_000_000, 5, "--missing")];
+        let mut buf: Vec<u8> = Vec::new();
+        let mut writer = NoColor::new(&mut buf);
+        render_human(&diags, &mut writer, |p| sources[p].clone())
+            .expect("out-of-range span must clamp, not error or panic");
+    }
+
+    #[test]
     fn render_human_writes_error_with_label() {
         let src = "div { color: var(--missing); }\n".to_string();
         let mut sources: HashMap<PathBuf, String> = HashMap::new();

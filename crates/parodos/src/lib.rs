@@ -1,9 +1,7 @@
 //! πάροδος (parodos, chorus's stage entrance) -- terminal UI substrate.
 //!
-//! Ratatui shared primitives + Elm state/update/view dispatcher.
-//! Extracted from aletheia/koilon during Phase 1+2 of the chalkeion
-//! plan. See `~/dev/kanon/projects/chalkeion/{vision,STATE,ROADMAP}.md`
-//! for the broader plan.
+//! Ratatui shared primitives for terminal apps: theming, sanitization,
+//! clipboard, hyperlinks, fuzzy matching, layout, and text helpers.
 //!
 //! ## Modules
 //!
@@ -14,11 +12,14 @@
 //! - [`fuzzy`] -- subsequence fuzzy matcher for command palette / slash
 //!   completion. Pure-logic, no external state.
 //! - [`theme`] -- terminal palette + color-depth detection. Provides
-//!   [`Theme`](theme::Theme), [`ThemeMode`],
-//!   [`ColorDepth`], and detection helpers that
-//!   read terminal capability env vars (COLORTERM, TERM, COLORFGBG).
+//!   [`Theme`](theme::Theme), [`ColorDepth`], and detection helpers
+//!   that read terminal capability env vars (COLORTERM, TERM,
+//!   COLORFGBG). Re-exports the canonical theme vocabulary from
+//!   `themelion`: [`ThemeMode`] (Dark/Light/System preference) and
+//!   [`ResolvedTheme`] (concrete brightness driving the palette).
 //! - [`highlight`] -- syntect-backed code-block syntax highlighting
-//!   that returns ratatui `Line`s tinted to the active [`ThemeMode`].
+//!   that returns ratatui `Line`s tinted to the active
+//!   [`ResolvedTheme`].
 //! - [`sanitize`] -- strip dangerous escape sequences (CSI/OSC/DCS/
 //!   APC/SOS/PM) and replace C0/C1 control bytes with safe alternates
 //!   for terminal display of untrusted text.
@@ -48,10 +49,9 @@ pub mod widgets;
 
 pub use env::{Env, RealEnv};
 pub use fuzzy::{MatchResult, fuzzy_match};
-pub use theme::{ColorDepth, ThemeMode};
+pub use theme::{ColorDepth, ResolvedTheme, ThemeMode};
 
-/// Returns the parodos crate version. Filled in iteratively as the
-/// koilon extraction progresses.
+/// Returns the parodos crate version.
 #[must_use]
 pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
@@ -59,9 +59,21 @@ pub fn version() -> &'static str {
 
 #[cfg(test)]
 mod smoke_tests {
-    /// Smoke test: crate compiles and the test module runs.
+    /// The reported crate version is a well-formed MAJOR.MINOR.PATCH triple.
     #[test]
-    fn crate_smoke() {
-        assert_eq!(2 + 2, 4);
+    fn version_is_wellformed_semver() {
+        let version = super::version();
+        let parts: Vec<&str> = version.split('.').collect();
+        assert_eq!(
+            parts.len(),
+            3,
+            "version {version} must be MAJOR.MINOR.PATCH"
+        );
+        assert!(
+            parts
+                .iter()
+                .all(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit())),
+            "version {version} components must be numeric"
+        );
     }
 }

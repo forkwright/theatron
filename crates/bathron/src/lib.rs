@@ -18,10 +18,10 @@
 //!
 //! [`version`] is unconditional.
 //!
-//! See `~/dev/kanon/projects/chalkeion/{vision,STATE,ROADMAP}.md` for
-//! the broader plan.
+//! See the [theatron repository](https://forge.forkwright.com/forkwright/theatron)
+//! for the broader roadmap.
 //!
-//! [`mekhane`]: https://forge.forkwright.com/forkwright/theatron
+//! [`mekhane`]: https://forge.forkwright.com/forkwright/theatron/src/branch/main/crates/mekhane
 
 #![deny(missing_docs, clippy::all, clippy::pedantic)]
 
@@ -37,8 +37,7 @@ pub mod settings;
 #[cfg(feature = "logging")]
 pub mod logging;
 
-/// Returns the bathron crate version. Filled in iteratively as the
-/// platform-services extraction progresses.
+/// Returns the crate version string from Cargo metadata.
 #[must_use]
 pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")

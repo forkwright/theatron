@@ -9,15 +9,17 @@
 //!   Constructed by callers who detect `reqwest::Error::is_timeout`
 //!   and want to surface the timeout to consumers as a distinct
 //!   variant.
-//! - [`ApiError::Server`] — non-2xx HTTP response with a
-//!   human-readable message extracted from the server body when
-//!   available.
-//! - [`ApiError::RateLimited`] — 429 response (split out of `Server`
-//!   for caller convenience). Carries the optional `Retry-After`
-//!   value when the server supplies it.
+//! - [`ApiError::Server`] — non-2xx HTTP response; carries a
+//!   human-readable message from the server body when available.
+//! - [`ApiError::RateLimited`] — 429 response, distinct from
+//!   `Server` so retry layers can classify back-off directly.
+//!   Carries the optional `Retry-After` value when the server
+//!   supplies it.
 //! - [`ApiError::BadResponse`] — server returned 2xx but the body
 //!   couldn't be deserialized into the expected DTO. Carries the
 //!   parser error for diagnostics.
+//! - [`ApiError::BodyTooLarge`] — response body exceeded the
+//!   configured maximum size before it could be fully buffered.
 //! - [`ApiError::Auth`] — credentials rejected (401/403).
 //! - [`ApiError::InvalidToken`] — token contains bytes that aren't
 //!   valid in an HTTP header value.
@@ -34,7 +36,15 @@ use snafu::prelude::*;
 #[non_exhaustive]
 pub enum ApiError {
     /// HTTP transport or connection error (no response received).
-    #[snafu(display("{operation}: {source}"))]
+    ///
+    /// # Security
+    ///
+    /// The `Display` impl redacts any userinfo (embedded credentials)
+    /// from a URL carried by `source` — `reqwest::Error`'s own
+    /// `Display` echoes the request URL verbatim, which would leak a
+    /// credential embedded in the URL (`https://user:pass@host/...`)
+    /// into logs.
+    #[snafu(display("{operation}: {}", redact_reqwest_error(source)))]
     Http {
         /// Which API call failed.
         operation: &'static str,
@@ -103,6 +113,19 @@ pub enum ApiError {
         source: serde_json::Error,
     },
 
+    /// Response body exceeded the configured maximum size before it
+    /// could be fully buffered.
+    ///
+    /// See `response::read_body_capped` for the read path that
+    /// enforces this cap.
+    #[snafu(display("{operation}: response body exceeded {limit} bytes"))]
+    BodyTooLarge {
+        /// Which API call's response body was too large.
+        operation: &'static str,
+        /// The configured maximum body size in bytes.
+        limit: usize,
+    },
+
     /// Credentials rejected by the server (401/403).
     #[snafu(display("authentication failed: token expired or invalid"))]
     Auth,
@@ -132,6 +155,7 @@ impl ApiError {
     ///
     /// - [`ApiError::Server`] for 4xx responses (caller error).
     /// - [`ApiError::BadResponse`] — schema mismatch.
+    /// - [`ApiError::BodyTooLarge`] — retrying won't shrink the body.
     /// - [`ApiError::Auth`] — need a fresh credential.
     /// - [`ApiError::InvalidToken`] — token is malformed.
     /// - [`ApiError::Http`] for non-connect / non-timeout errors
@@ -146,7 +170,10 @@ impl ApiError {
             Self::Timeout { .. } | Self::RateLimited { .. } => true,
             Self::Http { source, .. } => source.is_connect() || source.is_timeout(),
             Self::Server { status, .. } => *status >= 500,
-            Self::BadResponse { .. } | Self::Auth | Self::InvalidToken => false,
+            Self::BadResponse { .. }
+            | Self::BodyTooLarge { .. }
+            | Self::Auth
+            | Self::InvalidToken => false,
         }
     }
 
@@ -166,6 +193,9 @@ impl ApiError {
     /// - [`ApiError::Timeout`] — no response received.
     /// - [`ApiError::BadResponse`] — 2xx response but unparseable
     ///   body; the specific 2xx code isn't preserved.
+    /// - [`ApiError::BodyTooLarge`] — like `BadResponse`, this only
+    ///   surfaces from a 2xx response whose body exceeded the cap;
+    ///   the specific 2xx code isn't preserved.
     /// - [`ApiError::Auth`] — the credential rejection could be
     ///   401 or 403; returning a single specific value would lose
     ///   information. Use the original `Server` variant if status
@@ -183,6 +213,7 @@ impl ApiError {
             Self::Http { .. }
             | Self::Timeout { .. }
             | Self::BadResponse { .. }
+            | Self::BodyTooLarge { .. }
             | Self::Auth
             | Self::InvalidToken => None,
         }
@@ -212,7 +243,8 @@ impl ApiError {
             | Self::Timeout { operation, .. }
             | Self::Server { operation, .. }
             | Self::RateLimited { operation, .. }
-            | Self::BadResponse { operation, .. } => Some(operation),
+            | Self::BadResponse { operation, .. }
+            | Self::BodyTooLarge { operation, .. } => Some(operation),
             Self::Auth | Self::InvalidToken => None,
         }
     }
@@ -245,6 +277,7 @@ impl ApiError {
             | Self::Timeout { .. }
             | Self::Server { .. }
             | Self::BadResponse { .. }
+            | Self::BodyTooLarge { .. }
             | Self::Auth
             | Self::InvalidToken => None,
         }
@@ -274,6 +307,7 @@ impl ApiError {
             Self::Http { .. }
             | Self::Timeout { .. }
             | Self::BadResponse { .. }
+            | Self::BodyTooLarge { .. }
             | Self::Auth
             | Self::InvalidToken => false,
         }
@@ -300,393 +334,47 @@ impl ApiError {
             | Self::Timeout { .. }
             | Self::RateLimited { .. }
             | Self::BadResponse { .. }
+            | Self::BodyTooLarge { .. }
             | Self::Auth
             | Self::InvalidToken => false,
         }
     }
 }
 
+/// Render a [`reqwest::Error`] for display with any URL userinfo
+/// (embedded credentials) stripped.
+///
+/// `reqwest::Error`'s own `Display` impl includes the request URL
+/// verbatim when one is known, which would echo a credential embedded
+/// in the URL (`https://user:pass@host/...`) straight into logs. This
+/// redacts the userinfo component before rendering by replacing the
+/// raw (credentialed) URL text wherever it appears in the rendered
+/// message with a credential-stripped copy — this targets exactly the
+/// leak without having to reconstruct reqwest's own message format.
+fn redact_reqwest_error(err: &reqwest::Error) -> String {
+    let rendered = err.to_string();
+    let Some(url) = err.url() else {
+        return rendered;
+    };
+    if url.password().is_none() && url.username().is_empty() {
+        return rendered;
+    }
+
+    let mut redacted = url.clone();
+    // WHY: `set_username`/`set_password` only fail for
+    // "cannot-be-a-base" URLs (e.g. `data:`, `mailto:`); a URL that
+    // reqwest sent a request to is always `http(s)`, which can always
+    // carry userinfo. Degrade to a fixed placeholder instead of
+    // panicking on the unreachable error path.
+    if redacted.set_username("").is_err() || redacted.set_password(None).is_err() {
+        return rendered.replace(url.as_str(), "[redacted]");
+    }
+    rendered.replace(url.as_str(), redacted.as_str())
+}
+
 /// Result alias for keryx API operations.
 pub type Result<T> = std::result::Result<T, ApiError>;
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn server_error_displays_status_and_message() {
-        let err = ApiError::Server {
-            operation: "get_pulls",
-            status: 500,
-            message: "internal error".to_string(),
-        };
-        let s = format!("{err}");
-        assert!(s.contains("get_pulls"), "operation in display: {s}");
-        assert!(s.contains("500"), "status in display: {s}");
-        assert!(s.contains("internal error"), "message in display: {s}");
-    }
-
-    #[test]
-    fn auth_error_displays_distinct_message() {
-        let err = ApiError::Auth;
-        let s = format!("{err}");
-        assert!(s.contains("authentication"), "auth in display: {s}");
-    }
-
-    #[test]
-    fn invalid_token_error_displays_distinct_message() {
-        let err = ApiError::InvalidToken;
-        let s = format!("{err}");
-        assert!(s.contains("invalid token"), "invalid token in display: {s}");
-    }
-
-    #[test]
-    fn timeout_error_displays_operation_and_seconds() {
-        let err = ApiError::Timeout {
-            operation: "get_runs",
-            timeout_secs: 30,
-        };
-        let s = format!("{err}");
-        assert!(s.contains("get_runs"), "operation in display: {s}");
-        assert!(s.contains("30"), "timeout secs in display: {s}");
-        assert!(s.contains("timed out"), "verb in display: {s}");
-    }
-
-    #[test]
-    fn rate_limited_error_displays_retry_after_when_present() {
-        let err = ApiError::RateLimited {
-            operation: "list_prs",
-            retry_after_secs: Some(60),
-        };
-        let s = format!("{err}");
-        assert!(s.contains("list_prs"), "operation in display: {s}");
-        assert!(s.contains("429"), "status in display: {s}");
-        assert!(s.contains("retry after 60s"), "retry-after in display: {s}");
-    }
-
-    #[test]
-    fn rate_limited_error_omits_retry_after_when_absent() {
-        let err = ApiError::RateLimited {
-            operation: "list_prs",
-            retry_after_secs: None,
-        };
-        let s = format!("{err}");
-        assert!(s.contains("list_prs"), "operation in display: {s}");
-        assert!(s.contains("429"), "status in display: {s}");
-        assert!(!s.contains("retry after"), "no retry-after when None: {s}");
-    }
-
-    #[test]
-    fn bad_response_error_displays_operation_and_source() {
-        let json_err = serde_json::from_str::<i32>("not a number").unwrap_err();
-        let err = ApiError::BadResponse {
-            operation: "get_health",
-            source: json_err,
-        };
-        let s = format!("{err}");
-        assert!(s.contains("get_health"), "operation in display: {s}");
-        assert!(s.contains("bad response body"), "verb in display: {s}");
-    }
-
-    #[test]
-    fn api_error_is_send_sync() {
-        // Compile-time check: ApiError crosses thread / await
-        // boundaries cleanly. Required for use in async tasks.
-        fn assert_send_sync<T: Send + Sync>() {}
-        assert_send_sync::<ApiError>();
-    }
-
-    #[test]
-    fn api_error_implements_std_error() {
-        // ApiError composes with `?` into anyhow / boxed-error chains.
-        fn assert_error<T: std::error::Error>() {}
-        assert_error::<ApiError>();
-    }
-
-    #[test]
-    fn operation_returns_some_for_operation_carrying_variants() {
-        let http = ApiError::Http {
-            operation: "fetch_pulls",
-            source: build_dummy_reqwest_error(),
-        };
-        let timeout = ApiError::Timeout {
-            operation: "fetch_runs",
-            timeout_secs: 30,
-        };
-        let server = ApiError::Server {
-            operation: "list_prs",
-            status: 500,
-            message: String::new(),
-        };
-        let rate_limited = ApiError::RateLimited {
-            operation: "list_users",
-            retry_after_secs: None,
-        };
-        let bad_response = ApiError::BadResponse {
-            operation: "get_repo",
-            source: serde_json::from_str::<i32>("nope").unwrap_err(),
-        };
-        assert_eq!(http.operation(), Some("fetch_pulls"));
-        assert_eq!(timeout.operation(), Some("fetch_runs"));
-        assert_eq!(server.operation(), Some("list_prs"));
-        assert_eq!(rate_limited.operation(), Some("list_users"));
-        assert_eq!(bad_response.operation(), Some("get_repo"));
-    }
-
-    #[test]
-    fn operation_returns_none_for_context_free_variants() {
-        assert_eq!(ApiError::Auth.operation(), None);
-        assert_eq!(ApiError::InvalidToken.operation(), None);
-    }
-
-    #[test]
-    fn is_retryable_true_for_timeout() {
-        let err = ApiError::Timeout {
-            operation: "x",
-            timeout_secs: 5,
-        };
-        assert!(err.is_retryable());
-    }
-
-    #[test]
-    fn is_retryable_true_for_rate_limited() {
-        let with_retry = ApiError::RateLimited {
-            operation: "x",
-            retry_after_secs: Some(60),
-        };
-        let without_retry = ApiError::RateLimited {
-            operation: "x",
-            retry_after_secs: None,
-        };
-        assert!(with_retry.is_retryable());
-        assert!(without_retry.is_retryable());
-    }
-
-    #[test]
-    fn is_retryable_true_for_5xx_server() {
-        for status in [500, 502, 503, 504, 599] {
-            let err = ApiError::Server {
-                operation: "x",
-                status,
-                message: String::new(),
-            };
-            assert!(
-                err.is_retryable(),
-                "5xx status {status} should be retryable"
-            );
-        }
-    }
-
-    #[test]
-    fn is_retryable_false_for_4xx_server() {
-        for status in [400, 403, 404, 422, 499] {
-            let err = ApiError::Server {
-                operation: "x",
-                status,
-                message: String::new(),
-            };
-            assert!(
-                !err.is_retryable(),
-                "4xx status {status} should not be retryable"
-            );
-        }
-    }
-
-    #[test]
-    fn is_retryable_false_for_terminal_variants() {
-        let bad_response = ApiError::BadResponse {
-            operation: "x",
-            source: serde_json::from_str::<i32>("nope").unwrap_err(),
-        };
-        assert!(!bad_response.is_retryable());
-        assert!(!ApiError::Auth.is_retryable());
-        assert!(!ApiError::InvalidToken.is_retryable());
-    }
-
-    #[test]
-    fn status_code_returns_wire_status_for_server() {
-        for status in [400, 404, 500, 503] {
-            let err = ApiError::Server {
-                operation: "x",
-                status,
-                message: String::new(),
-            };
-            assert_eq!(err.status_code(), Some(status));
-        }
-    }
-
-    #[test]
-    fn status_code_returns_429_for_rate_limited() {
-        let with = ApiError::RateLimited {
-            operation: "x",
-            retry_after_secs: Some(60),
-        };
-        let without = ApiError::RateLimited {
-            operation: "x",
-            retry_after_secs: None,
-        };
-        assert_eq!(with.status_code(), Some(429));
-        assert_eq!(without.status_code(), Some(429));
-    }
-
-    #[test]
-    fn status_code_returns_none_for_response_less_variants() {
-        let http = ApiError::Http {
-            operation: "x",
-            source: build_dummy_reqwest_error(),
-        };
-        let timeout = ApiError::Timeout {
-            operation: "x",
-            timeout_secs: 5,
-        };
-        let bad_response = ApiError::BadResponse {
-            operation: "x",
-            source: serde_json::from_str::<i32>("nope").unwrap_err(),
-        };
-        assert_eq!(http.status_code(), None);
-        assert_eq!(timeout.status_code(), None);
-        assert_eq!(bad_response.status_code(), None);
-        assert_eq!(ApiError::Auth.status_code(), None);
-        assert_eq!(ApiError::InvalidToken.status_code(), None);
-    }
-
-    #[test]
-    fn retry_after_returns_some_for_rate_limited_with_header() {
-        let err = ApiError::RateLimited {
-            operation: "list_prs",
-            retry_after_secs: Some(60),
-        };
-        assert_eq!(err.retry_after(), Some(60));
-    }
-
-    #[test]
-    fn retry_after_returns_none_for_rate_limited_without_header() {
-        let err = ApiError::RateLimited {
-            operation: "list_prs",
-            retry_after_secs: None,
-        };
-        assert_eq!(err.retry_after(), None);
-    }
-
-    #[test]
-    fn retry_after_returns_none_for_other_variants() {
-        let http = ApiError::Http {
-            operation: "x",
-            source: build_dummy_reqwest_error(),
-        };
-        let timeout = ApiError::Timeout {
-            operation: "x",
-            timeout_secs: 5,
-        };
-        let server = ApiError::Server {
-            operation: "x",
-            status: 503,
-            message: String::new(),
-        };
-        let bad_response = ApiError::BadResponse {
-            operation: "x",
-            source: serde_json::from_str::<i32>("nope").unwrap_err(),
-        };
-        assert_eq!(http.retry_after(), None);
-        assert_eq!(timeout.retry_after(), None);
-        assert_eq!(server.retry_after(), None);
-        assert_eq!(bad_response.retry_after(), None);
-        assert_eq!(ApiError::Auth.retry_after(), None);
-        assert_eq!(ApiError::InvalidToken.retry_after(), None);
-    }
-
-    #[test]
-    fn is_client_error_true_for_4xx_server() {
-        for status in [400, 401, 403, 404, 422, 429, 499] {
-            let err = ApiError::Server {
-                operation: "x",
-                status,
-                message: String::new(),
-            };
-            assert!(err.is_client_error(), "{status} should be client error");
-            assert!(
-                !err.is_server_error(),
-                "{status} should not be server error"
-            );
-        }
-    }
-
-    #[test]
-    fn is_server_error_true_for_5xx_server() {
-        for status in [500, 502, 503, 504, 599] {
-            let err = ApiError::Server {
-                operation: "x",
-                status,
-                message: String::new(),
-            };
-            assert!(err.is_server_error(), "{status} should be server error");
-            assert!(
-                !err.is_client_error(),
-                "{status} should not be client error"
-            );
-        }
-    }
-
-    #[test]
-    fn rate_limited_is_client_error_not_server_error() {
-        let err = ApiError::RateLimited {
-            operation: "x",
-            retry_after_secs: Some(60),
-        };
-        assert!(err.is_client_error());
-        assert!(!err.is_server_error());
-    }
-
-    #[test]
-    fn class_predicates_false_for_response_less_variants() {
-        let http = ApiError::Http {
-            operation: "x",
-            source: build_dummy_reqwest_error(),
-        };
-        let timeout = ApiError::Timeout {
-            operation: "x",
-            timeout_secs: 5,
-        };
-        let bad_response = ApiError::BadResponse {
-            operation: "x",
-            source: serde_json::from_str::<i32>("nope").unwrap_err(),
-        };
-        for err in [
-            http,
-            timeout,
-            bad_response,
-            ApiError::Auth,
-            ApiError::InvalidToken,
-        ] {
-            assert!(!err.is_client_error(), "no response → not 4xx ({err:?})");
-            assert!(!err.is_server_error(), "no response → not 5xx ({err:?})");
-        }
-    }
-
-    #[test]
-    fn class_predicates_partition_server_status_codes() {
-        // Every 4xx is client_error xor server_error; same for 5xx.
-        // Boundary statuses (399, 600) fall in neither.
-        let make = |status| ApiError::Server {
-            operation: "x",
-            status,
-            message: String::new(),
-        };
-        assert!(!make(399).is_client_error() && !make(399).is_server_error());
-        assert!(make(400).is_client_error() && !make(400).is_server_error());
-        assert!(make(499).is_client_error() && !make(499).is_server_error());
-        assert!(!make(500).is_client_error() && make(500).is_server_error());
-        assert!(!make(599).is_client_error() && make(599).is_server_error());
-        assert!(!make(600).is_client_error() && !make(600).is_server_error());
-    }
-
-    /// Build a `reqwest::Error` synchronously for the
-    /// `operation_returns_some` test. `reqwest::Error` has no
-    /// public constructor; the cheapest path is to call the async
-    /// client's builder with an invalid URL, which fails
-    /// pre-network at `build()` time and returns a real
-    /// `reqwest::Error`.
-    fn build_dummy_reqwest_error() -> reqwest::Error {
-        reqwest::Client::new().get("not a url").build().unwrap_err()
-    }
-}
+#[path = "error_tests.rs"]
+mod tests;

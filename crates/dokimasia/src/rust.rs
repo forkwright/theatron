@@ -95,6 +95,91 @@ impl<'ast> Visit<'ast> for LitVisitor<'_> {
         // `#[link_name = "…"]`, etc.) are metadata, not source CSS, so the
         // same blanket skip applies.
     }
+
+    // `#[cfg(test)]` is legal on every AST layer below, not just top-level
+    // `syn::Item` nodes: an associated fn/const inside a non-test `impl`
+    // block, a trait's default method, an enum variant, a struct field, or
+    // a `let` statement can each carry it independently of their enclosing
+    // item. Each override below applies the same `has_cfg_test` check
+    // before falling through to the default (recursing) visit — mirroring
+    // `visit_item` above. (Caught by QA #176.)
+
+    fn visit_impl_item_fn(&mut self, node: &'ast syn::ImplItemFn) {
+        if has_cfg_test(&node.attrs) {
+            return;
+        }
+        syn::visit::visit_impl_item_fn(self, node);
+    }
+
+    fn visit_impl_item_const(&mut self, node: &'ast syn::ImplItemConst) {
+        if has_cfg_test(&node.attrs) {
+            return;
+        }
+        syn::visit::visit_impl_item_const(self, node);
+    }
+
+    fn visit_impl_item_type(&mut self, node: &'ast syn::ImplItemType) {
+        if has_cfg_test(&node.attrs) {
+            return;
+        }
+        syn::visit::visit_impl_item_type(self, node);
+    }
+
+    fn visit_impl_item_macro(&mut self, node: &'ast syn::ImplItemMacro) {
+        if has_cfg_test(&node.attrs) {
+            return;
+        }
+        syn::visit::visit_impl_item_macro(self, node);
+    }
+
+    fn visit_trait_item_fn(&mut self, node: &'ast syn::TraitItemFn) {
+        if has_cfg_test(&node.attrs) {
+            return;
+        }
+        syn::visit::visit_trait_item_fn(self, node);
+    }
+
+    fn visit_trait_item_const(&mut self, node: &'ast syn::TraitItemConst) {
+        if has_cfg_test(&node.attrs) {
+            return;
+        }
+        syn::visit::visit_trait_item_const(self, node);
+    }
+
+    fn visit_trait_item_type(&mut self, node: &'ast syn::TraitItemType) {
+        if has_cfg_test(&node.attrs) {
+            return;
+        }
+        syn::visit::visit_trait_item_type(self, node);
+    }
+
+    fn visit_trait_item_macro(&mut self, node: &'ast syn::TraitItemMacro) {
+        if has_cfg_test(&node.attrs) {
+            return;
+        }
+        syn::visit::visit_trait_item_macro(self, node);
+    }
+
+    fn visit_local(&mut self, node: &'ast syn::Local) {
+        if has_cfg_test(&node.attrs) {
+            return;
+        }
+        syn::visit::visit_local(self, node);
+    }
+
+    fn visit_variant(&mut self, node: &'ast syn::Variant) {
+        if has_cfg_test(&node.attrs) {
+            return;
+        }
+        syn::visit::visit_variant(self, node);
+    }
+
+    fn visit_field(&mut self, node: &'ast syn::Field) {
+        if has_cfg_test(&node.attrs) {
+            return;
+        }
+        syn::visit::visit_field(self, node);
+    }
 }
 
 /// Best-effort attribute extraction from any `syn::Item` variant.
@@ -215,14 +300,23 @@ impl LitVisitor<'_> {
 
 /// Map a proc-macro2 `LineColumn` (1-indexed line, 0-indexed column) to a
 /// byte offset using the source's line index.
+///
+/// `LineColumn::column` counts UTF-8 *characters*, not bytes, so the line
+/// text is walked via `char_indices` to land on a guaranteed char-boundary
+/// byte offset regardless of multi-byte content. A column at or past the
+/// end of the line clamps to the line's end offset.
 fn lc_to_offset(source: &str, line_starts: &[usize], lc: LineColumn) -> Option<usize> {
     let line_idx = lc.line.checked_sub(1)?;
     let line_start = *line_starts.get(line_idx)?;
-    let offset = line_start.checked_add(lc.column)?;
-    if offset > source.len() {
-        return None;
+    let line_end = line_starts
+        .get(line_idx + 1)
+        .copied()
+        .unwrap_or(source.len());
+    let line = source.get(line_start..line_end)?;
+    match line.char_indices().nth(lc.column) {
+        Some((byte_rel, _)) => Some(line_start + byte_rel),
+        None => Some(line_end),
     }
-    Some(offset)
 }
 
 #[cfg(test)]
@@ -337,7 +431,7 @@ mod tests {
     #[test]
     fn cfg_all_test_module_is_skipped() {
         let src = r#"
-#[cfg(all(test, feature = "extra"))]
+#[cfg(all(test, target_os = "linux"))]
 mod combined {
     const BOGUS: &str = "color: var(--bogus-all);";
 }
@@ -405,6 +499,116 @@ const BOGUS: &str = "color: var(--bogus-const);";
         assert!(diags.is_empty());
     }
 
+    // ---- cfg(test) on non-Item AST layers (QA #176) ---
+
+    #[test]
+    fn cfg_test_on_impl_item_fn_is_skipped() {
+        // The method carries #[cfg(test)], but the surrounding `impl` block
+        // is ordinary production code — only `visit_item` used to be
+        // checked, so this leaked through before.
+        let src = r#"
+struct Widget;
+
+impl Widget {
+    #[cfg(test)]
+    fn test_helper() -> &'static str {
+        "color: var(--bogus-impl-fn);"
+    }
+}
+"#;
+        let diags = lint_rust(&registry(), src, Path::new("a.rs"));
+        assert!(
+            diags.is_empty(),
+            "cfg(test) impl-item fn must be skipped, got: {diags:?}"
+        );
+    }
+
+    #[test]
+    fn cfg_test_on_impl_item_const_is_skipped() {
+        let src = r#"
+struct Widget;
+
+impl Widget {
+    #[cfg(test)]
+    const BOGUS: &str = "color: var(--bogus-impl-const);";
+}
+"#;
+        let diags = lint_rust(&registry(), src, Path::new("a.rs"));
+        assert!(diags.is_empty());
+    }
+
+    #[test]
+    fn cfg_test_on_trait_default_method_is_skipped() {
+        // Default trait methods carry a body directly on the trait item,
+        // reached via `visit_trait_item_fn` rather than `visit_item`.
+        let src = r#"
+trait Widget {
+    #[cfg(test)]
+    fn test_helper() -> &'static str {
+        "color: var(--bogus-trait-fn);"
+    }
+}
+"#;
+        let diags = lint_rust(&registry(), src, Path::new("a.rs"));
+        assert!(
+            diags.is_empty(),
+            "cfg(test) trait default method must be skipped, got: {diags:?}"
+        );
+    }
+
+    #[test]
+    fn cfg_test_on_local_statement_is_skipped() {
+        let src = r#"
+fn render() {
+    #[cfg(test)]
+    let _bogus = "color: var(--bogus-local);";
+}
+"#;
+        let diags = lint_rust(&registry(), src, Path::new("a.rs"));
+        assert!(
+            diags.is_empty(),
+            "cfg(test) local `let` statement must be skipped, got: {diags:?}"
+        );
+    }
+
+    #[test]
+    fn cfg_test_on_enum_variant_is_skipped() {
+        // Enum discriminants parse as an arbitrary `Expr` — syn is purely
+        // syntactic and does not enforce that a discriminant be a constant
+        // integer expression — so a string literal here is a legitimate
+        // way to prove the variant's own #[cfg(test)] gate is honored
+        // before the visitor descends into it.
+        let src = r#"
+enum Kind {
+    #[cfg(test)]
+    Bogus = "color: var(--bogus-variant)",
+}
+"#;
+        let diags = lint_rust(&registry(), src, Path::new("a.rs"));
+        assert!(
+            diags.is_empty(),
+            "cfg(test) enum variant must be skipped, got: {diags:?}"
+        );
+    }
+
+    #[test]
+    fn cfg_test_on_struct_field_is_skipped() {
+        // Field types support const-generic braced expressions
+        // (`Foo<{ EXPR }>`), so a string literal there proves the field's
+        // own #[cfg(test)] gate is honored before descending into its type.
+        let src = r#"
+struct Widget {
+    #[cfg(test)]
+    bogus: Foo<{ "color: var(--bogus-field)" }>,
+}
+"#;
+        let diags = lint_rust(&registry(), src, Path::new("a.rs"));
+        assert!(
+            diags.is_empty(),
+            "cfg(test) struct field must be skipped, got: {diags:?}"
+        );
+    }
+
     // ---- Masking inside string literal contents (caught by QA swarm A01) ---
 
     #[test]
@@ -425,6 +629,35 @@ const BOGUS: &str = "color: var(--bogus-const);";
         let diags = lint_rust(&registry(), src, Path::new("a.rs"));
         assert_eq!(diags.len(), 1);
         assert_eq!(diags[0].token.as_deref(), Some("--missing"));
+    }
+
+    #[test]
+    fn multibyte_utf8_before_literal_yields_char_boundary_span() {
+        // proc-macro2 columns count chars; adding them to byte offsets
+        // used to produce spans shifted left by the extra bytes of any
+        // multi-byte char earlier on the line (here é ×2 and → : 4 extra
+        // bytes), panicking codespan-reporting on mid-codepoint slices.
+        let src = "fn x() { let _a = \"héé→\"; let _s = \"var(--missing)\"; }\n";
+        let diags = lint_rust(&registry(), src, Path::new("a.rs"));
+        assert_eq!(diags.len(), 1, "expected 1 diagnostic, got: {diags:?}");
+        assert!(
+            src.is_char_boundary(diags[0].byte_offset),
+            "byte_offset must be a char boundary"
+        );
+        assert!(
+            src.is_char_boundary(diags[0].byte_offset + diags[0].byte_len),
+            "span end must be a char boundary"
+        );
+        let span = &src[diags[0].byte_offset..diags[0].byte_offset + diags[0].byte_len];
+        assert_eq!(
+            span, "\"var(--missing)\"",
+            "span must cover exactly the flagged literal"
+        );
+
+        let mut buf: Vec<u8> = Vec::new();
+        let mut writer = codespan_reporting::term::termcolor::NoColor::new(&mut buf);
+        crate::render::render_human(&diags, &mut writer, |_| src.to_string())
+            .expect("render_human must not panic or fail on non-ASCII source");
     }
 
     #[test]

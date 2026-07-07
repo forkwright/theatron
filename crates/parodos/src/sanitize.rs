@@ -23,7 +23,15 @@ pub fn sanitize_for_display(s: &str) -> Cow<'_, str> {
     let mut i = 0;
 
     while i < len {
-        let b = bytes[i];
+        // INVARIANT: i always points at a UTF-8 char boundary; every advance
+        // below moves past whole ASCII bytes or whole decoded characters.
+        debug_assert!(
+            s.is_char_boundary(i),
+            "sanitize loop must stay on UTF-8 char boundaries"
+        );
+        let Some(&b) = bytes.get(i) else {
+            break;
+        };
 
         // NOTE: 7-bit ESC introducer: 0x1B
         if b == 0x1B && i + 1 < len {
@@ -45,7 +53,13 @@ pub fn sanitize_for_display(s: &str) -> Cow<'_, str> {
                     continue;
                 }
                 // NOTE: ESC (: character set designation, e.g., ESC(B for ASCII
-                b'(' | b')' | b'*' | b'+' if i + 2 < len => {
+                // WHY: only consume the designator when it is a printable
+                // ASCII byte -- a blind 3-byte skip over a multibyte
+                // designator would strand `i` mid-character. Non-ASCII
+                // designators fall through to the two-byte ESC arm.
+                b'(' | b')' | b'*' | b'+'
+                    if i + 2 < len && (0x20..=0x7E).contains(&bytes[i + 2]) =>
+                {
                     i += 3;
                     continue;
                 }
@@ -60,12 +74,6 @@ pub fn sanitize_for_display(s: &str) -> Cow<'_, str> {
                     continue;
                 }
             }
-        }
-
-        // NOTE: 8-bit C1 control characters (0x80--0x9F)
-        if (0x80..=0x9F).contains(&b) {
-            i += 1;
-            continue;
         }
 
         // NOTE: C0 control characters (0x00--0x1F)
@@ -126,23 +134,21 @@ pub fn sanitize_for_display(s: &str) -> Cow<'_, str> {
     Cow::Owned(out)
 }
 
-/// Quick check whether the string contains any bytes that need sanitization.
+/// Quick check whether the string contains any characters that need sanitization.
+///
+/// Single pass covering C0 controls (except HT/LF/CR), DEL, and C1 controls
+/// (U+0080--U+009F); the clean-input fast path scans the text exactly once.
 fn needs_sanitization(s: &str) -> bool {
-    for &b in s.as_bytes() {
-        match b {
-            // NOTE: replace C0 controls (except HT/LF/CR) and DEL with control pictures
-            0x00..=0x08 | 0x0B..=0x0C | 0x0E..=0x1F | 0x7F => return true,
-            _ => {
-                // NOTE: printable ASCII byte, no sanitization needed
-            }
-        }
-    }
-    for ch in s.chars() {
-        if ('\u{0080}'..='\u{009F}').contains(&ch) {
-            return true;
-        }
-    }
-    false
+    s.chars().any(|ch| {
+        matches!(
+            ch,
+            '\u{0000}'..='\u{0008}'
+                | '\u{000B}'..='\u{000C}'
+                | '\u{000E}'..='\u{001F}'
+                | '\u{007F}'
+                | '\u{0080}'..='\u{009F}'
+        )
+    })
 }
 
 /// Skip a CSI sequence: parameters (0x30-0x3F), intermediates (0x20-0x2F), final byte (0x40-0x7E).
@@ -250,14 +256,32 @@ fn control_picture(byte: u8) -> char {
 }
 
 /// Decode a single UTF-8 character from a byte slice, returning the char and its byte length.
-#[expect(
-    clippy::indexing_slicing,
-    reason = "start is always a valid index: callers only call this after the outer loop has verified i < len"
-)]
+///
+/// PERF: bounds the validated window to at most 4 bytes (the maximum length
+/// of any UTF-8 scalar value) instead of re-validating the entire remaining
+/// suffix on every call. The unbounded form (`str::from_utf8(&bytes[start..])`)
+/// made `sanitize_for_display` quadratic: once sanitization was triggered, this
+/// function ran once per remaining byte, each call re-scanning up to the whole
+/// rest of the string (#178).
 fn decode_utf8_char(bytes: &[u8], start: usize) -> Option<(char, usize)> {
-    let remaining = &bytes[start..];
-    let s = std::str::from_utf8(remaining).ok()?;
-    let ch = s.chars().next()?;
+    let window_end = (start.checked_add(4)?).min(bytes.len());
+    let window = bytes.get(start..window_end)?;
+
+    let valid_prefix = match std::str::from_utf8(window) {
+        Ok(s) => s,
+        Err(err) => {
+            // NOTE: the 4-byte cap can truncate the character *after* the one
+            // we want (e.g. an ASCII byte followed by an unfinished 4-byte
+            // sequence). `valid_up_to` isolates the genuinely-decodable
+            // prefix; zero means `start` itself is not a valid char start.
+            let valid_up_to = err.valid_up_to();
+            if valid_up_to == 0 {
+                return None;
+            }
+            std::str::from_utf8(window.get(..valid_up_to)?).ok()?
+        }
+    };
+    let ch = valid_prefix.chars().next()?;
     Some((ch, ch.len_utf8()))
 }
 
@@ -531,7 +555,8 @@ mod tests {
     #[test]
     fn bare_esc_at_end() {
         let result = sanitize_for_display("text\x1b");
-        // The bare ESC at end without a follow-up byte is just skipped
+        // NOTE: a bare ESC at end of input introduces no sequence, so it is
+        // replaced by its control picture.
         assert!(!result.contains('\x1b'));
     }
 
@@ -591,6 +616,24 @@ mod tests {
         // ESC + <designator>: 3-byte charset designation sequence
         let input = "\x1b+0text";
         assert_eq!(sanitize_for_display(input), "text");
+    }
+
+    #[test]
+    fn esc_charset_with_multibyte_designator_preserves_char_boundary() {
+        // ESC ( followed by U+0100 (0xC4 0x80): the designator is not
+        // printable ASCII, so only ESC ( is consumed and the multibyte
+        // character survives intact instead of the loop landing on its
+        // continuation byte (which sits in the 0x80--0x9F range).
+        let input = "\x1b(\u{0100}text";
+        assert_eq!(sanitize_for_display(input), "\u{0100}text");
+    }
+
+    #[test]
+    fn esc_charset_with_control_designator_preserves_control_handling() {
+        // ESC ( followed by \n: the designator is not printable ASCII, so
+        // the newline is not swallowed by a blind 3-byte skip.
+        let input = "\x1b(\ntext";
+        assert_eq!(sanitize_for_display(input), "\ntext");
     }
 
     #[test]
@@ -662,5 +705,65 @@ mod tests {
     fn sanitize_strips_unterminated_osc_with_embedded_esc() {
         let input = "before\x1b]0;title\x1bwithout_terminator";
         assert_eq!(sanitize_for_display(input), "before");
+    }
+
+    // --- #178: bounded-window decode_utf8_char regression coverage ---
+
+    #[test]
+    fn decode_utf8_char_bounded_window_handles_short_then_long_char() {
+        // WHY: a 1-byte char immediately followed by a 4-byte char means the
+        // 4-byte decode window truncates the *second* character's sequence.
+        // The bounded decoder must still recover the first char via
+        // `valid_up_to`, not treat the truncated tail as making `start` invalid.
+        let bytes = "a\u{1F600}".as_bytes();
+        assert_eq!(decode_utf8_char(bytes, 0), Some(('a', 1)));
+    }
+
+    #[test]
+    fn decode_utf8_char_bounded_window_decodes_full_four_byte_char() {
+        let bytes = "\u{1F600}".as_bytes();
+        assert_eq!(decode_utf8_char(bytes, 0), Some(('\u{1F600}', 4)));
+    }
+
+    #[test]
+    fn multibyte_content_around_control_bytes_decodes_correctly() {
+        // Correctness check for the bounded-window rewrite: control bytes
+        // interleaved with multi-byte UTF-8 text must sanitize identically
+        // to the pre-#178 unbounded implementation.
+        let input = "caf\u{00E9}\x01\u{1F600}world\u{4F60}\u{597D}\x1b[31mred\x1b[0m";
+        assert_eq!(
+            sanitize_for_display(input),
+            "caf\u{00E9}\u{2401}\u{1F600}world\u{4F60}\u{597D}red"
+        );
+    }
+
+    #[test]
+    fn sanitize_large_string_completes_in_linear_time() {
+        // WHY: regression guard for #178 -- decode_utf8_char used to
+        // re-validate the entire remaining suffix on every call, making
+        // sanitize_for_display quadratic once a single control byte tripped
+        // needs_sanitization. Under the old O(n^2) behavior this 2MB input
+        // would take on the order of hours; under O(n) decoding it completes
+        // in milliseconds. The 10s bound is generous margin, not a tight
+        // timing assertion.
+        let mut input = String::with_capacity(2 * 1024 * 1024 + 64);
+        input.push('\x01'); // trip needs_sanitization on the very first byte
+        while input.len() < 2 * 1024 * 1024 {
+            input.push('a');
+            if input.len() % 97 == 0 {
+                input.push('\u{00E9}');
+            }
+        }
+
+        let start = std::time::Instant::now();
+        let result = sanitize_for_display(&input);
+        let elapsed = start.elapsed();
+
+        assert!(result.starts_with('\u{2401}'));
+        assert!(
+            elapsed < std::time::Duration::from_secs(10),
+            "sanitize_for_display took {elapsed:?} on a 2MB string; \
+             expected sub-second completion under O(n) decoding"
+        );
     }
 }

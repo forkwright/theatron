@@ -1,9 +1,11 @@
-//! Theme state management for the Dioxus desktop app.
+//! Canonical fleet theme vocabulary + OS preference detection.
 //!
-//! Provides `ThemeProvider` (wraps root, applies `data-theme`) and a
-//! `Signal<ThemeMode>` context so any descendant can read or switch themes.
-
-use dioxus::prelude::*;
+//! Owns the fleet-wide theme types: [`ThemeMode`] (user preference,
+//! Dark/Light/System) and [`ResolvedTheme`] (concrete brightness after
+//! resolving `System`). Terminal consumers (`parodos`) re-export these
+//! with default features off; the Dioxus components (`ThemeProvider`,
+//! `ThemeToggle`) live in `crate::provider` behind the `dioxus`
+//! feature.
 
 /// User-selected theme preference.
 #[non_exhaustive]
@@ -29,7 +31,8 @@ pub enum ResolvedTheme {
 
 impl ResolvedTheme {
     /// Returns `"dark"` or `"light"` — matches the `[data-theme="…"]`
-    /// CSS selector value applied by [`ThemeProvider`].
+    /// CSS selector value applied by `ThemeProvider` (available with
+    /// the `dioxus` feature).
     #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
@@ -58,7 +61,7 @@ impl ResolvedTheme {
 
     /// Parse a `ResolvedTheme` from its [`as_str`](Self::as_str) value
     /// — i.e. the lowercase `[data-theme="…"]` attribute value that
-    /// [`ThemeProvider`] applies to the DOM.
+    /// `ThemeProvider` applies to the DOM.
     ///
     /// Recognises `"dark"` and `"light"` (case-sensitive — they
     /// match the canonical attribute lowercase). Returns `None`
@@ -183,26 +186,55 @@ impl ThemeMode {
     /// settings-storage layer that persists the human-readable
     /// label (e.g. `bathron::settings`).
     ///
-    /// Recognized labels (case-sensitive): `"Dark"`, `"Light"`,
-    /// `"System"`. The match is case-sensitive so consumer code
-    /// that wants a forgiving round-trip should normalize before
-    /// calling.
+    /// Recognized labels (case-insensitive): `"Dark"`, `"Light"`,
+    /// `"System"`. This is the forgiving human-input channel — it
+    /// accepts any casing so hand-edited settings files and legacy
+    /// lowercase stores parse without pre-normalization. For a strict
+    /// wire format use [`slug`](Self::slug) / [`from_slug`](Self::from_slug).
     ///
     /// # Examples
     ///
     /// ```
     /// use themelion::ThemeMode;
     /// assert_eq!(ThemeMode::from_label("Dark"), Some(ThemeMode::Dark));
-    /// assert_eq!(ThemeMode::from_label("dark"), None); // case-sensitive
+    /// assert_eq!(ThemeMode::from_label("dark"), Some(ThemeMode::Dark));
+    /// assert_eq!(ThemeMode::from_label("SYSTEM"), Some(ThemeMode::System));
     /// assert_eq!(ThemeMode::from_label("garbage"), None);
     /// ```
     #[must_use]
     pub fn from_label(label: &str) -> Option<Self> {
-        match label {
-            "Dark" => Some(Self::Dark),
-            "Light" => Some(Self::Light),
-            "System" => Some(Self::System),
+        match label.to_ascii_lowercase().as_str() {
+            "dark" => Some(Self::Dark),
+            "light" => Some(Self::Light),
+            "system" => Some(Self::System),
             _ => None,
+        }
+    }
+
+    /// The concrete theme this preference forces, or `None` when it
+    /// defers to the environment (`System`).
+    ///
+    /// Bridge for consumers with their own environment-detection seam:
+    /// [`resolve`](Self::resolve) consults the *desktop* environment
+    /// (`GTK_THEME` / `COLORFGBG`) for `System`, which is the wrong
+    /// probe for a terminal app. `parodos::Theme::for_mode(mode.forced())`
+    /// instead lets the terminal substrate run its own detection when
+    /// the preference is `System`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use themelion::{ResolvedTheme, ThemeMode};
+    /// assert_eq!(ThemeMode::Dark.forced(), Some(ResolvedTheme::Dark));
+    /// assert_eq!(ThemeMode::Light.forced(), Some(ResolvedTheme::Light));
+    /// assert_eq!(ThemeMode::System.forced(), None);
+    /// ```
+    #[must_use]
+    pub const fn forced(self) -> Option<ResolvedTheme> {
+        match self {
+            Self::Dark => Some(ResolvedTheme::Dark),
+            Self::Light => Some(ResolvedTheme::Light),
+            Self::System => None,
         }
     }
 
@@ -280,11 +312,28 @@ impl ThemeMode {
 
 /// Detect OS color preference from environment variables.
 ///
-/// Checks `GTK_THEME` for a "dark" suffix and `COLORFGBG` for background
+/// Checks `GTK_THEME` for a `:dark` variant suffix or a `-dark` name
+/// suffix (GTK3/GTK4 convention), then `COLORFGBG` for background
 /// brightness (same heuristic as the TUI). Falls back to dark.
 fn detect_system_preference() -> ResolvedTheme {
-    if let Ok(gtk_theme) = std::env::var("GTK_THEME") {
-        return if gtk_theme.to_ascii_lowercase().contains("dark") {
+    detect_system_preference_from(|name| std::env::var(name).ok())
+}
+
+/// Environment-injectable core of [`detect_system_preference`].
+///
+/// `env` returns the value of an environment variable, or `None` when
+/// unset. Tests pass a closure over controlled values — `std::env::set_var`
+/// is `unsafe` in edition 2024, so mutation-based env testing is not an
+/// option. Mirrors the `Env`-trait seam in `parodos::env`.
+fn detect_system_preference_from(env: impl Fn(&str) -> Option<String>) -> ResolvedTheme {
+    if let Some(gtk_theme) = env("GTK_THEME") {
+        // WHY: GTK selects a theme's dark variant via a `:dark` suffix
+        // (`GTK_THEME=Adwaita:dark`); standalone dark themes ship as
+        // `<Name>-dark` packages. A bare substring match would
+        // misclassify light-variant themes named e.g. `Darkly`.
+        let lower = gtk_theme.to_ascii_lowercase();
+        let is_dark = lower.ends_with(":dark") || lower.ends_with("-dark") || lower == "dark";
+        return if is_dark {
             ResolvedTheme::Dark
         } else {
             ResolvedTheme::Light
@@ -292,13 +341,14 @@ fn detect_system_preference() -> ResolvedTheme {
     }
 
     // WHY: COLORFGBG format is "fg;bg" or "fg;X;bg". Background is always
-    // the last component. Indices 0-6 are dark, 7+ are light. Matches the
-    // TUI detection logic in koilon/src/theme.rs.
-    if let Ok(val) = std::env::var("COLORFGBG")
+    // the last component. Indices 0-6 are dark, 7+ are light — ANSI index 7
+    // is "white" (light-grey), the conventional dark/light boundary matched
+    // by the TUI detection logic in koilon/src/theme.rs (#180).
+    if let Some(val) = env("COLORFGBG")
         && let Some(bg_str) = val.rsplit(';').next()
         && let Ok(bg) = bg_str.parse::<u8>()
     {
-        return if bg >= 8 {
+        return if bg >= 7 {
             ResolvedTheme::Light
         } else {
             ResolvedTheme::Dark
@@ -308,367 +358,6 @@ fn detect_system_preference() -> ResolvedTheme {
     ResolvedTheme::Dark
 }
 
-/// Root theme provider.
-///
-/// Wraps the component tree with a `div[data-theme]` so CSS custom properties
-/// in `themes.css` activate. Provides `Signal<ThemeMode>` as context for
-/// descendant components (including `ThemeToggle`).
-#[component]
-pub fn ThemeProvider(children: Element, initial_mode: Option<ThemeMode>) -> Element {
-    let mode = use_signal(|| initial_mode.unwrap_or(ThemeMode::System));
-    use_context_provider(|| mode);
-    let resolved = use_memo(move || mode().resolve());
-
-    rsx! {
-        div {
-            "data-theme": resolved().as_str(),
-            style: "display: contents",
-            {children}
-        }
-    }
-}
-
-const TOGGLE_STYLE: &str = "\
-    display: inline-flex; \
-    align-items: center; \
-    gap: var(--space-2); \
-    padding: var(--space-1) var(--space-3); \
-    border: 1px solid var(--border); \
-    border-radius: var(--radius-md); \
-    background: var(--bg-surface); \
-    color: var(--text-secondary); \
-    font-family: var(--font-body); \
-    font-size: var(--text-sm); \
-    cursor: pointer; \
-    transition: \
-        border-color var(--transition-quick), \
-        color var(--transition-quick), \
-        background-color var(--transition-quick);\
-";
-
-/// A button that cycles through theme modes (Dark → Light → System → Dark).
-///
-/// Reads `Signal<ThemeMode>` from context (provided by [`ThemeProvider`])
-/// and advances to the next mode on click. After the mode is advanced,
-/// fires `on_change` with the new mode — consumers wire this to their own
-/// persistence layer (proskenion writes to settings.toml; chalkeion to
-/// its own state dir).
-///
-/// The callback is optional — pass `EventHandler::default()` (or omit
-/// in shorthand form) for surfaces that don't persist.
-#[component]
-pub fn ThemeToggle(#[props(default)] on_change: EventHandler<ThemeMode>) -> Element {
-    let mut mode = use_context::<Signal<ThemeMode>>();
-    let current = mode();
-    let icon = current.icon();
-    let label = current.label();
-
-    rsx! {
-        button {
-            r#type: "button",
-            onclick: move |_| {
-                let next = mode().next();
-                mode.set(next);
-                on_change.call(next);
-            },
-            title: "Theme: {label}",
-            "aria-label": "Switch theme, current: {label}",
-            style: TOGGLE_STYLE,
-            span { {icon} }
-            span { {label} }
-        }
-    }
-}
-
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn resolve_dark_returns_dark() {
-        assert_eq!(ThemeMode::Dark.resolve(), ResolvedTheme::Dark);
-    }
-
-    #[test]
-    fn resolve_light_returns_light() {
-        assert_eq!(ThemeMode::Light.resolve(), ResolvedTheme::Light);
-    }
-
-    #[test]
-    fn resolved_as_str_matches_css_selectors() {
-        assert_eq!(ResolvedTheme::Dark.as_str(), "dark");
-        assert_eq!(ResolvedTheme::Light.as_str(), "light");
-    }
-
-    #[test]
-    fn labels_are_nonempty() {
-        for mode in [ThemeMode::Dark, ThemeMode::Light, ThemeMode::System] {
-            assert!(!mode.label().is_empty());
-        }
-    }
-
-    #[test]
-    fn icons_are_nonempty() {
-        for mode in [ThemeMode::Dark, ThemeMode::Light, ThemeMode::System] {
-            assert!(!mode.icon().is_empty());
-        }
-    }
-
-    #[test]
-    fn system_resolve_returns_valid_theme() {
-        let resolved = ThemeMode::System.resolve();
-        assert!(resolved == ResolvedTheme::Dark || resolved == ResolvedTheme::Light);
-    }
-
-    #[test]
-    fn next_cycles_dark_light_system_dark() {
-        assert_eq!(ThemeMode::Dark.next(), ThemeMode::Light);
-        assert_eq!(ThemeMode::Light.next(), ThemeMode::System);
-        assert_eq!(ThemeMode::System.next(), ThemeMode::Dark);
-    }
-
-    #[test]
-    fn next_full_cycle_returns_to_start() {
-        let start = ThemeMode::Dark;
-        let cycled = start.next().next().next();
-        assert_eq!(cycled, start);
-    }
-
-    #[test]
-    fn label_values_match_user_facing_strings() {
-        assert_eq!(ThemeMode::Dark.label(), "Dark");
-        assert_eq!(ThemeMode::Light.label(), "Light");
-        assert_eq!(ThemeMode::System.label(), "System");
-    }
-
-    #[test]
-    fn icon_values_are_distinct_unicode_glyphs() {
-        let dark = ThemeMode::Dark.icon();
-        let light = ThemeMode::Light.icon();
-        let system = ThemeMode::System.icon();
-        assert_ne!(dark, light);
-        assert_ne!(light, system);
-        assert_ne!(system, dark);
-        // Each is a single Unicode scalar, not an empty string or a multi-char sequence.
-        assert_eq!(dark.chars().count(), 1);
-        assert_eq!(light.chars().count(), 1);
-        assert_eq!(system.chars().count(), 1);
-    }
-
-    #[test]
-    fn resolved_theme_eq_and_copy_are_derived() {
-        // Compile-time check: ResolvedTheme is Copy + Eq (the
-        // derive in the source must hold). Used by chalkeion /
-        // proskenion view code to copy across closure boundaries.
-        fn assert_copy<T: Copy>() {}
-        fn assert_eq_trait<T: Eq>() {}
-        assert_copy::<ResolvedTheme>();
-        assert_copy::<ThemeMode>();
-        assert_eq_trait::<ResolvedTheme>();
-        assert_eq_trait::<ThemeMode>();
-    }
-
-    #[test]
-    fn resolve_is_pure_for_dark_and_light() {
-        // Calling resolve repeatedly on Dark / Light returns the
-        // same value (pure; no side effects, no state).
-        for _ in 0..3 {
-            assert_eq!(ThemeMode::Dark.resolve(), ResolvedTheme::Dark);
-            assert_eq!(ThemeMode::Light.resolve(), ResolvedTheme::Light);
-        }
-    }
-
-    #[test]
-    fn theme_mode_debug_includes_variant_name() {
-        // Debug derive yields the variant name verbatim. Useful
-        // for logging in consumer code.
-        assert_eq!(format!("{:?}", ThemeMode::Dark), "Dark");
-        assert_eq!(format!("{:?}", ThemeMode::Light), "Light");
-        assert_eq!(format!("{:?}", ThemeMode::System), "System");
-    }
-
-    #[test]
-    fn from_label_round_trips_each_variant() {
-        for mode in ThemeMode::all() {
-            assert_eq!(ThemeMode::from_label(mode.label()), Some(mode));
-        }
-    }
-
-    #[test]
-    fn from_label_is_case_sensitive() {
-        assert_eq!(ThemeMode::from_label("dark"), None);
-        assert_eq!(ThemeMode::from_label("DARK"), None);
-        assert_eq!(ThemeMode::from_label("Dark"), Some(ThemeMode::Dark));
-    }
-
-    #[test]
-    fn from_label_returns_none_for_unknown() {
-        assert_eq!(ThemeMode::from_label(""), None);
-        assert_eq!(ThemeMode::from_label("Auto"), None);
-        assert_eq!(ThemeMode::from_label("garbage"), None);
-    }
-
-    #[test]
-    fn all_returns_three_variants_in_canonical_order() {
-        let modes = ThemeMode::all();
-        assert_eq!(modes.len(), 3);
-        assert_eq!(modes[0], ThemeMode::Dark);
-        assert_eq!(modes[1], ThemeMode::Light);
-        assert_eq!(modes[2], ThemeMode::System);
-    }
-
-    #[test]
-    fn all_covers_every_variant_exhaustively() {
-        // If a fourth variant is ever added, this loop forces a
-        // compile-time consideration of whether it should appear in
-        // all() — the match is exhaustive.
-        for mode in ThemeMode::all() {
-            match mode {
-                ThemeMode::Dark | ThemeMode::Light | ThemeMode::System => (),
-            }
-        }
-    }
-
-    #[test]
-    fn theme_mode_is_dark_true_only_for_dark() {
-        assert!(ThemeMode::Dark.is_dark());
-        assert!(!ThemeMode::Light.is_dark());
-        assert!(!ThemeMode::System.is_dark());
-    }
-
-    #[test]
-    fn theme_mode_is_light_true_only_for_light() {
-        assert!(!ThemeMode::Dark.is_light());
-        assert!(ThemeMode::Light.is_light());
-        assert!(!ThemeMode::System.is_light());
-    }
-
-    #[test]
-    fn theme_mode_is_system_true_only_for_system() {
-        assert!(!ThemeMode::Dark.is_system());
-        assert!(!ThemeMode::Light.is_system());
-        assert!(ThemeMode::System.is_system());
-    }
-
-    #[test]
-    fn theme_mode_predicates_form_an_exhaustive_partition() {
-        // Exactly one of is_dark / is_light / is_system is true for
-        // any given variant. Mirrors the ColorDepth partition test
-        // in parodos and the ResolvedTheme mutual-exclusivity test.
-        for mode in ThemeMode::all() {
-            let count = u32::from(mode.is_dark())
-                + u32::from(mode.is_light())
-                + u32::from(mode.is_system());
-            assert_eq!(count, 1, "exactly one predicate true for {mode:?}");
-        }
-    }
-
-    #[test]
-    fn theme_mode_slug_returns_lowercase_canonical() {
-        assert_eq!(ThemeMode::Dark.slug(), "dark");
-        assert_eq!(ThemeMode::Light.slug(), "light");
-        assert_eq!(ThemeMode::System.slug(), "system");
-    }
-
-    #[test]
-    fn theme_mode_from_slug_round_trips_with_slug() {
-        for mode in ThemeMode::all() {
-            assert_eq!(ThemeMode::from_slug(mode.slug()), Some(mode));
-        }
-    }
-
-    #[test]
-    fn theme_mode_from_slug_is_case_sensitive() {
-        // Distinct from from_label (which takes "Dark") — slugs are
-        // lowercase storage form.
-        assert_eq!(ThemeMode::from_slug("Dark"), None);
-        assert_eq!(ThemeMode::from_slug("DARK"), None);
-        assert_eq!(ThemeMode::from_slug("Light"), None);
-        assert_eq!(ThemeMode::from_slug("System"), None);
-    }
-
-    #[test]
-    fn theme_mode_from_slug_returns_none_for_unrecognized() {
-        assert_eq!(ThemeMode::from_slug(""), None);
-        assert_eq!(ThemeMode::from_slug("auto"), None);
-        assert_eq!(ThemeMode::from_slug("garbage"), None);
-        assert_eq!(ThemeMode::from_slug("dark "), None);
-    }
-
-    #[test]
-    fn theme_mode_slug_distinct_from_label() {
-        // slug and label are intentionally different surfaces:
-        // slug for config, label for UI.
-        for mode in ThemeMode::all() {
-            assert_ne!(mode.slug(), mode.label());
-            // slug should be a lowercase variant of label
-            assert_eq!(mode.slug(), mode.label().to_lowercase());
-        }
-    }
-
-    #[test]
-    fn resolved_theme_is_dark_returns_true_only_for_dark() {
-        assert!(ResolvedTheme::Dark.is_dark());
-        assert!(!ResolvedTheme::Light.is_dark());
-    }
-
-    #[test]
-    fn resolved_theme_is_light_returns_true_only_for_light() {
-        assert!(ResolvedTheme::Light.is_light());
-        assert!(!ResolvedTheme::Dark.is_light());
-    }
-
-    #[test]
-    fn resolved_theme_predicates_are_mutually_exclusive() {
-        // is_dark and is_light are exhaustive partitions of
-        // ResolvedTheme — exactly one is true for any value.
-        for theme in [ResolvedTheme::Dark, ResolvedTheme::Light] {
-            assert_ne!(theme.is_dark(), theme.is_light());
-        }
-    }
-
-    #[test]
-    fn resolved_theme_parse_data_attr_recognizes_canonical_values() {
-        assert_eq!(
-            ResolvedTheme::parse_data_attr("dark"),
-            Some(ResolvedTheme::Dark)
-        );
-        assert_eq!(
-            ResolvedTheme::parse_data_attr("light"),
-            Some(ResolvedTheme::Light)
-        );
-    }
-
-    #[test]
-    fn resolved_theme_parse_data_attr_is_case_sensitive() {
-        // Canonical [data-theme="..."] is lowercase; case-sensitive
-        // parsing matches what's actually written. Same semantics
-        // as ThemeMode::from_label.
-        assert_eq!(ResolvedTheme::parse_data_attr("Dark"), None);
-        assert_eq!(ResolvedTheme::parse_data_attr("DARK"), None);
-        assert_eq!(ResolvedTheme::parse_data_attr("Light"), None);
-    }
-
-    #[test]
-    fn resolved_theme_parse_data_attr_returns_none_for_unrecognized() {
-        assert_eq!(ResolvedTheme::parse_data_attr(""), None);
-        assert_eq!(ResolvedTheme::parse_data_attr("system"), None);
-        assert_eq!(ResolvedTheme::parse_data_attr("auto"), None);
-        assert_eq!(ResolvedTheme::parse_data_attr("dark "), None);
-    }
-
-    #[test]
-    fn resolved_theme_parse_data_attr_round_trips_with_as_str() {
-        for theme in [ResolvedTheme::Dark, ResolvedTheme::Light] {
-            assert_eq!(ResolvedTheme::parse_data_attr(theme.as_str()), Some(theme));
-        }
-    }
-
-    #[test]
-    fn resolved_theme_all_returns_every_variant() {
-        let variants = ResolvedTheme::all();
-        assert_eq!(variants.len(), 2);
-        assert!(variants.contains(&ResolvedTheme::Dark));
-        assert!(variants.contains(&ResolvedTheme::Light));
-    }
-}
+#[path = "theme_tests.rs"]
+mod tests;

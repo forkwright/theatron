@@ -100,12 +100,18 @@ pub fn ErrorState(
     action: Option<Element>,
 ) -> Element {
     let icon_text = icon.unwrap_or_else(|| "\u{26A0}".to_string()); // ⚠ warning sign
+    // WHY: aria-describedby must reference a DOM id unique to this instance --
+    // ScopeId is stable across re-renders and unique per mounted component, so
+    // two ErrorState instances on one page never collide over the same id.
+    let message_id = format!("error-state-message-{}", dioxus::core::current_scope_id().0);
+    let describedby = message.is_some().then(|| message_id.clone());
     rsx! {
         div {
             style: ERROR_STATE_STYLE,
             role: "alert",
             "aria-live": "assertive",
             "aria-label": title.clone(),
+            "aria-describedby": describedby,
             div {
                 style: ICON_STYLE,
                 "aria-hidden": "true",
@@ -117,6 +123,7 @@ pub fn ErrorState(
             }
             if let Some(msg) = message {
                 p {
+                    id: message_id.clone(),
                     style: MESSAGE_STYLE,
                     {msg}
                 }
@@ -228,6 +235,56 @@ mod tests {
         vdom.rebuild_in_place();
         let html = dioxus_ssr::render(&vdom);
         assert!(!html.contains("<p"), "no <p> when message is None: {html}");
+    }
+
+    /// Regression test for issue #184.2: the doc claimed `message` becomes
+    /// the accessible description, but no `aria-describedby` wiring existed.
+    #[test]
+    fn error_state_wires_aria_describedby_to_message_id() {
+        let mut vdom = VirtualDom::new_with_props(
+            ErrorState,
+            ErrorStateProps {
+                title: "Connection lost".to_string(),
+                message: Some("Check your network and try again.".to_string()),
+                icon: None,
+                action: None,
+            },
+        );
+        vdom.rebuild_in_place();
+        let html = dioxus_ssr::render(&vdom);
+        let id_marker = "id=\"";
+        let id_start = html
+            .find(id_marker)
+            .map(|i| i + id_marker.len())
+            .expect("message <p> should carry an id");
+        let id_end = html[id_start..]
+            .find('"')
+            .map(|i| id_start + i)
+            .expect("id attribute value should be closed");
+        let message_id = &html[id_start..id_end];
+        assert!(
+            html.contains(&format!("aria-describedby=\"{message_id}\"")),
+            "expected aria-describedby to reference message id {message_id} in {html}"
+        );
+    }
+
+    #[test]
+    fn error_state_omits_aria_describedby_when_no_message() {
+        let mut vdom = VirtualDom::new_with_props(
+            ErrorState,
+            ErrorStateProps {
+                title: "Failed".to_string(),
+                message: None,
+                icon: None,
+                action: None,
+            },
+        );
+        vdom.rebuild_in_place();
+        let html = dioxus_ssr::render(&vdom);
+        assert!(
+            !html.contains("aria-describedby"),
+            "no aria-describedby without a message: {html}"
+        );
     }
 
     #[test]

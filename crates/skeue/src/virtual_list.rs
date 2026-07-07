@@ -12,7 +12,9 @@ pub const DEFAULT_OVERSCAN: usize = 10;
 /// Compute which item indices are visible given scroll position and item height.
 ///
 /// Returns `(range_start, range_end)` -- a half-open slice into the item list.
-/// Both ends are clamped to `[0, total_items]`.
+/// Both ends are clamped to `[0, total_items]`. Non-finite `scroll_top`,
+/// `container_height`, or `item_height` inputs (uninitialized layout state)
+/// and non-positive `item_height` return the empty range `(0, 0)`.
 #[must_use]
 pub fn visible_range(
     scroll_top: f64,
@@ -21,7 +23,14 @@ pub fn visible_range(
     item_height: f64,
     overscan: usize,
 ) -> (usize, usize) {
-    if total_items == 0 || item_height <= 0.0 {
+    // WHY: `NaN <= 0.0` is false, so a plain sign check lets NaN through and
+    // the divisions below produce a garbage non-empty range.
+    if total_items == 0
+        || !scroll_top.is_finite()
+        || !container_height.is_finite()
+        || !item_height.is_finite()
+        || item_height <= 0.0
+    {
         return (0, 0);
     }
     #[expect(
@@ -84,38 +93,28 @@ pub fn VirtualScrollContainer(
     pad_top: f64,
     pad_bottom: f64,
     on_scroll: EventHandler<(f64, f64)>,
-    /// Optional `data-*` attribute used to target this element in eval.
+    /// ARIA label naming the scrolled content region (e.g. `"chat-messages"`).
     scroll_key: &'static str,
     children: Element,
 ) -> Element {
-    let key = scroll_key;
     rsx! {
         div {
             style: "flex: 1; overflow-y: auto; position: relative;",
             role: "region",
-            "aria-label": key,
-            "data-vscroll": key,
-            onscroll: move |_| {
-                let js = format!(
-                    r#"(function(){{
-                        var el = document.querySelector('[data-vscroll="{key}"]');
-                        if (el) return JSON.stringify({{top: el.scrollTop, h: el.clientHeight}});
-                        return '{{}}'
-                    }})()"#
-                );
-                spawn(async move {
-                    if let Ok(val) = document::eval(&js).await {
-                        let raw = val.to_string();
-                        let cleaned = raw.trim_matches('"').replace("\\\"", "\"");
-                        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&cleaned) {
-                            let top = parsed.get("top").and_then(|v| v.as_f64()).unwrap_or(0.0);
-                            let h = parsed.get("h").and_then(|v| v.as_f64()).unwrap_or(0.0);
-                            if h > 0.0 {
-                                on_scroll.call((top, h));
-                            }
-                        }
-                    }
-                });
+            "aria-label": scroll_key,
+            onscroll: move |evt: Event<ScrollData>| {
+                // WHY: ScrollData reads scrollTop/clientHeight off the
+                // element that dispatched THIS event, not a page-global
+                // `document.querySelector` lookup -- the prior
+                // implementation always resolved the FIRST DOM match for a
+                // selector, which broke with multiple
+                // VirtualScrollContainer instances mounted at once
+                // (issue #184.3).
+                let top = evt.scroll_top();
+                let height = f64::from(evt.client_height());
+                if height > 0.0 {
+                    on_scroll.call((top, height));
+                }
             },
 
             // Top spacer -- represents off-screen items above viewport
@@ -138,6 +137,52 @@ pub fn VirtualScrollContainer(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Regression test for issue #184.3: the prior onscroll handler resolved
+    /// its target element via a page-global `document.querySelector`, which
+    /// always returns the FIRST DOM match regardless of which instance
+    /// fired the event. Two instances with distinct `scroll_key`s must
+    /// render independent `aria-label`s and carry no shared selector target
+    /// for a future regression to collide on.
+    #[test]
+    fn two_instances_render_independent_labels_without_shared_selector() {
+        #[component]
+        fn Wrapper() -> Element {
+            rsx! {
+                div {
+                    VirtualScrollContainer {
+                        pad_top: 0.0,
+                        pad_bottom: 0.0,
+                        on_scroll: |_| {},
+                        scroll_key: "chat-messages",
+                        div { "chat item" }
+                    }
+                    VirtualScrollContainer {
+                        pad_top: 0.0,
+                        pad_bottom: 0.0,
+                        on_scroll: |_| {},
+                        scroll_key: "session-list",
+                        div { "session item" }
+                    }
+                }
+            }
+        }
+        let mut dom = VirtualDom::new(Wrapper);
+        dom.rebuild_in_place();
+        let html = dioxus_ssr::render(&dom);
+        assert!(
+            html.contains(r#"aria-label="chat-messages""#),
+            "expected first instance's aria-label in {html}"
+        );
+        assert!(
+            html.contains(r#"aria-label="session-list""#),
+            "expected second instance's aria-label in {html}"
+        );
+        assert!(
+            !html.contains("data-vscroll"),
+            "no page-global scroll-selector target should remain: {html}"
+        );
+    }
 
     #[test]
     fn visible_range_empty_list() {
@@ -252,18 +297,26 @@ mod tests {
     #[test]
     fn visible_range_returns_empty_when_scroll_top_is_nan() {
         let (s, e) = visible_range(f64::NAN, 600.0, 100, 80.0, 10);
-        // NaN/80 = NaN, cast to usize = 0, count = 9, end = 19
-        assert_eq!(s, 0);
-        assert_eq!(e, 19);
+        assert_eq!((s, e), (0, 0));
     }
 
     #[test]
     fn visible_range_returns_empty_when_item_height_is_nan() {
         let (s, e) = visible_range(0.0, 600.0, 100, f64::NAN, 10);
-        // Guard: NaN <= 0.0 is false, so it proceeds.
-        // NaN cast to usize = 0, count = 1 (container_height/NaN = NaN)
-        assert_eq!(s, 0);
-        assert_eq!(e, 11); // 0 + 1 + 10
+        assert_eq!((s, e), (0, 0));
+    }
+
+    #[test]
+    fn visible_range_returns_empty_when_container_height_is_nan() {
+        let (s, e) = visible_range(0.0, f64::NAN, 100, 80.0, 10);
+        assert_eq!((s, e), (0, 0));
+    }
+
+    #[test]
+    fn visible_range_returns_empty_when_inputs_are_infinite() {
+        assert_eq!(visible_range(f64::INFINITY, 600.0, 100, 80.0, 10), (0, 0));
+        assert_eq!(visible_range(0.0, f64::INFINITY, 100, 80.0, 10), (0, 0));
+        assert_eq!(visible_range(0.0, 600.0, 100, f64::INFINITY, 10), (0, 0));
     }
 
     #[test]

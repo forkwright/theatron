@@ -1,9 +1,10 @@
 //! syntect-backed code-block syntax highlighting for ratatui.
 //!
 //! Loads syntect's bundled syntaxes + themes once on construction. Picks
-//! `base16-ocean.{dark,light}` based on the active [`ThemeMode`]. Returns
-//! ratatui [`Line`]s with foreground colours, bold, and italic font styles.
-//! Falls back to plain text when the language is unrecognized.
+//! `base16-ocean.{dark,light}` based on the active [`ResolvedTheme`].
+//! Returns ratatui [`Line`]s with foreground colours, bold, and italic
+//! font styles. Falls back to plain text when the language is
+//! unrecognized.
 
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
@@ -12,7 +13,7 @@ use syntect::highlighting::{FontStyle, ThemeSet};
 use syntect::parsing::SyntaxSet;
 use syntect::util::LinesWithEndings;
 
-use crate::theme::ThemeMode;
+use crate::theme::ResolvedTheme;
 
 /// Lazily-loaded syntax highlighting resources.
 /// syntect's `SyntaxSet` + `ThemeSet` are expensive to build: load once.
@@ -24,12 +25,16 @@ pub struct Highlighter {
 
 impl Highlighter {
     /// Build a highlighter that uses syntect's `base16-ocean.{dark,light}`
-    /// theme matching the supplied [`ThemeMode`].
+    /// theme matching the supplied [`ResolvedTheme`].
     #[must_use]
-    pub fn new(mode: ThemeMode) -> Self {
-        let theme_name = match mode {
-            ThemeMode::Light => "base16-ocean.light",
-            ThemeMode::Dark => "base16-ocean.dark",
+    pub fn new(mode: ResolvedTheme) -> Self {
+        // WHY predicate instead of match: ResolvedTheme is
+        // #[non_exhaustive] in themelion; is_light keeps the dispatch
+        // total without a silent wildcard arm.
+        let theme_name = if mode.is_light() {
+            "base16-ocean.light"
+        } else {
+            "base16-ocean.dark"
         };
         Self {
             syntax_set: SyntaxSet::load_defaults_newlines(),
@@ -40,12 +45,19 @@ impl Highlighter {
 
     /// Highlight a code block, returning ratatui Lines.
     /// Falls back to plain text if the language isn't recognized.
+    ///
+    /// WHY sanitize here (#183): `code` is LLM-produced text rendered
+    /// verbatim into the terminal. Without stripping escape sequences and
+    /// control bytes at this boundary, a code block is a clean bypass of
+    /// `sanitize_for_display`'s declared security boundary for
+    /// attacker-influenced text.
     #[expect(
         clippy::indexing_slicing,
         reason = "theme_name is set in new() to a string constant guaranteed to exist in the default ThemeSet; key absence would be a programming error"
     )]
     pub fn highlight(&self, code: &str, lang: &str) -> Vec<Line<'static>> {
         let theme = &self.theme_set.themes[self.theme_name];
+        let sanitized = crate::sanitize::sanitize_for_display(code);
 
         let syntax = self
             .syntax_set
@@ -56,7 +68,7 @@ impl Highlighter {
         let mut h = HighlightLines::new(syntax, theme);
         let mut lines = Vec::new();
 
-        for line_str in LinesWithEndings::from(code) {
+        for line_str in LinesWithEndings::from(sanitized.as_ref()) {
             match h.highlight_line(line_str, &self.syntax_set) {
                 Ok(ranges) => {
                     let spans: Vec<Span<'static>> = ranges
@@ -101,14 +113,14 @@ mod tests {
 
     #[test]
     fn highlight_rust_produces_lines() {
-        let hl = Highlighter::new(ThemeMode::Dark);
+        let hl = Highlighter::new(ResolvedTheme::Dark);
         let lines = hl.highlight("let x = 42;", "rust");
         assert!(!lines.is_empty());
     }
 
     #[test]
     fn highlight_unknown_language_falls_back() {
-        let hl = Highlighter::new(ThemeMode::Dark);
+        let hl = Highlighter::new(ResolvedTheme::Dark);
         let lines = hl.highlight("some text", "nonexistent_language_xyz");
         assert!(!lines.is_empty());
         let text: String = lines[0].spans.iter().map(|s| s.content.as_ref()).collect();
@@ -117,14 +129,14 @@ mod tests {
 
     #[test]
     fn highlight_empty_string() {
-        let hl = Highlighter::new(ThemeMode::Dark);
+        let hl = Highlighter::new(ResolvedTheme::Dark);
         let lines = hl.highlight("", "rust");
         assert!(lines.len() <= 1);
     }
 
     #[test]
     fn highlight_multiline_code() {
-        let hl = Highlighter::new(ThemeMode::Dark);
+        let hl = Highlighter::new(ResolvedTheme::Dark);
         let code = "fn main() {\n    println!(\"hello\");\n}";
         let lines = hl.highlight(code, "rust");
         assert!(lines.len() >= 3);
@@ -132,22 +144,45 @@ mod tests {
 
     #[test]
     fn highlight_python() {
-        let hl = Highlighter::new(ThemeMode::Dark);
+        let hl = Highlighter::new(ResolvedTheme::Dark);
         let lines = hl.highlight("def hello():\n    pass", "python");
         assert!(!lines.is_empty());
     }
 
     #[test]
     fn highlight_bold_italic_styles() {
-        let hl = Highlighter::new(ThemeMode::Dark);
+        let hl = Highlighter::new(ResolvedTheme::Dark);
         let lines = hl.highlight("// comment\nlet x = 1;", "rust");
         assert!(lines.len() >= 2);
     }
 
     #[test]
     fn highlight_light_theme_produces_lines() {
-        let hl = Highlighter::new(ThemeMode::Light);
+        let hl = Highlighter::new(ResolvedTheme::Light);
         let lines = hl.highlight("let x = 42;", "rust");
         assert!(!lines.is_empty());
+    }
+
+    #[test]
+    fn highlight_sanitizes_control_characters_and_escape_sequences() {
+        // #183: an LLM-produced code block carrying a raw ANSI escape or C0
+        // control byte must not reach the terminal unsanitized.
+        let hl = Highlighter::new(ResolvedTheme::Dark);
+        let code = "let x = 1;\x07\x1b[31mrm -rf /\x1b[0m";
+        let lines = hl.highlight(code, "rust");
+        let text: String = lines
+            .iter()
+            .flat_map(|l| l.spans.iter())
+            .map(|s| s.content.as_ref())
+            .collect();
+        assert!(
+            !text.contains('\x1b'),
+            "escape sequences must be stripped from highlighted code"
+        );
+        assert!(
+            !text.contains('\x07'),
+            "BEL must be replaced with a control picture, not rendered raw"
+        );
+        assert!(text.contains("rm -rf /"), "surrounding text must survive");
     }
 }

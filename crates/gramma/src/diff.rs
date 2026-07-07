@@ -380,21 +380,24 @@ pub fn parse_unified_diff(path: &str, raw: &str) -> DiffFile {
             continue;
         }
 
-        // NOTE: Skip file-level headers (---, +++, diff, index).
-        if line.starts_with("---")
-            || line.starts_with("+++")
-            || line.starts_with("diff ")
+        // NOTE: Skip file-level headers. `diff`/`index` markers are never
+        // valid hunk content, but `---`/`+++` headers only appear before
+        // the first hunk — inside a hunk body those bytes are removed or
+        // added lines whose content starts with `--`/`++` (SQL/Haskell
+        // comments, Markdown separators, Haskell `++`).
+        if line.starts_with("diff ")
             || line.starts_with("index ")
+            || (current_hunk.is_none() && (line.starts_with("--- ") || line.starts_with("+++ ")))
         {
             continue;
         }
 
         if let Some(ref mut builder) = current_hunk {
             if let Some(stripped) = line.strip_prefix('+') {
-                additions += 1;
+                additions = additions.saturating_add(1);
                 builder.add_line(ChangeType::Add, stripped);
             } else if let Some(stripped) = line.strip_prefix('-') {
-                deletions += 1;
+                deletions = deletions.saturating_add(1);
                 builder.add_line(ChangeType::Remove, stripped);
             } else if let Some(stripped) = line.strip_prefix(' ') {
                 builder.add_line(ChangeType::Context, stripped);
@@ -504,8 +507,8 @@ fn parse_hunk_header(line: &str) -> Option<HunkHeader> {
     let new_part = rest.get(..end_idx).unwrap_or("");
     let context_label = rest.get(end_idx + 3..).unwrap_or("").trim().to_string();
 
-    let (old_start, old_count) = parse_range(old_part);
-    let (new_start, new_count) = parse_range(new_part);
+    let (old_start, old_count) = parse_range(old_part)?;
+    let (new_start, new_count) = parse_range(new_part)?;
 
     Some(HunkHeader {
         old_start,
@@ -517,11 +520,16 @@ fn parse_hunk_header(line: &str) -> Option<HunkHeader> {
 }
 
 /// Parse `start,count` or `start` (count defaults to 1).
-fn parse_range(s: &str) -> (u32, u32) {
+///
+/// Returns `None` if `start` or an explicit `count` fails to parse as
+/// `u32`. A malformed hunk header must be rejected by the caller
+/// rather than silently defaulted to line 1 — that would corrupt
+/// line-number attribution for every line in the hunk (#181).
+fn parse_range(s: &str) -> Option<(u32, u32)> {
     if let Some((start, count)) = s.split_once(',') {
-        (start.parse().unwrap_or(1), count.parse().unwrap_or(1))
+        Some((start.parse().ok()?, count.parse().ok()?))
     } else {
-        (s.parse().unwrap_or(1), 1)
+        Some((s.parse().ok()?, 1))
     }
 }
 
@@ -553,22 +561,25 @@ impl HunkBuilder {
     }
 
     fn add_line(&mut self, change_type: ChangeType, content: &str) {
+        // WHY: Saturating increments uphold the adversarial-input
+        // contract documented on `DiffStats::from_files` at the parse
+        // layer — no overflow panic (debug) or wrap (release).
         let (old_line_no, new_line_no) = match change_type {
             ChangeType::Context => {
                 let old = self.old_line;
                 let new = self.new_line;
-                self.old_line += 1;
-                self.new_line += 1;
+                self.old_line = self.old_line.saturating_add(1);
+                self.new_line = self.new_line.saturating_add(1);
                 (Some(old), Some(new))
             }
             ChangeType::Add => {
                 let new = self.new_line;
-                self.new_line += 1;
+                self.new_line = self.new_line.saturating_add(1);
                 (None, Some(new))
             }
             ChangeType::Remove => {
                 let old = self.old_line;
-                self.old_line += 1;
+                self.old_line = self.old_line.saturating_add(1);
                 (Some(old), None)
             }
         };
