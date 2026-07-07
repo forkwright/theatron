@@ -37,6 +37,7 @@ pub enum NotificationError {
 /// [`with_icon`]: NotificationRequest::with_icon
 /// [`with_body`]: NotificationRequest::with_body
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct NotificationRequest<'a> {
     /// Notification title (the prominent line).
     pub title: String,

@@ -239,8 +239,13 @@ fn write_fails_when_app_dir_is_removed() {
     std::fs::remove_dir_all(&app_dir).unwrap();
     let result = s.set("k", &"v".to_string());
     assert!(result.is_err());
+    // set() acquires the sibling lock file before writing; with the
+    // parent dir gone, lock-file creation is the first failing step.
     let err = result.unwrap_err().to_string();
-    assert!(err.contains("failed to write settings file"));
+    assert!(
+        err.contains("failed to lock settings file"),
+        "expected LockFile error, got: {err}"
+    );
 }
 
 #[test]
@@ -470,6 +475,44 @@ fn error_lookup_key_returns_some_only_for_deserialize_value() {
         source: std::io::Error::new(std::io::ErrorKind::NotFound, "x"),
     };
     assert_eq!(read_file.lookup_key(), None);
+}
+
+#[test]
+fn concurrent_writers_do_not_lose_keys() {
+    // Regression test for the unguarded read-modify-write race in
+    // set(): two handles sharing a path could both read_doc() the
+    // pre-write state, each insert a distinct key, and the second
+    // rename would silently drop the first writer's key. The
+    // advisory write lock serializes the full cycle, so after both
+    // threads finish every key must hold its final value.
+    let tmp = tempfile::tempdir().unwrap();
+    let a = Settings::open_at(tmp.path()).unwrap();
+    let b = a.clone();
+
+    std::thread::scope(|scope| {
+        scope.spawn(|| {
+            for i in 0..32_i64 {
+                a.set("alpha", &i).unwrap();
+            }
+        });
+        scope.spawn(|| {
+            for i in 0..32_i64 {
+                b.set("beta", &i).unwrap();
+            }
+        });
+    });
+
+    let verify = Settings::open_at(tmp.path()).unwrap();
+    assert_eq!(
+        verify.get::<i64>("alpha").unwrap(),
+        Some(31),
+        "writer A's key lost or stale — write lock failed to serialize"
+    );
+    assert_eq!(
+        verify.get::<i64>("beta").unwrap(),
+        Some(31),
+        "writer B's key lost or stale — write lock failed to serialize"
+    );
 }
 
 #[test]
