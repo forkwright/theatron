@@ -1,91 +1,79 @@
+# WHY: This file is DERIVED from deny.toml [[advisories.ignore]].
+# Do not edit the ignore list here; edit deny.toml and run
+# `kanon audit derive-ignores --apply`. See standards/SUPPLY-CHAIN.md.
 
 [[IgnoredVulns]]
 id = "RUSTSEC-2026-0009"
 reason = "time 0.3.45 RFC 2822 stack-exhaustion DoS. Transitive via tracing-appender 0.2.5 → bathron, ratatui-widgets 0.3.0 → ratatui/parodos, and mac-notification-sys 0.6.12 → notify-rust → bathron. None of these paths feed untrusted RFC 2822 input to time::format_description, so the DoS vector is unreachable in theatron. Fixed upstream in time 0.3.47; pending transitive bumps."
 
-
 [[IgnoredVulns]]
 id = "RUSTSEC-2024-0413"
 reason = "atk (gtk-rs GTK3 bindings) unmaintained. Transitive via gtk 0.18.2 → muda/tray-icon (notify-rust). GTK3 ecosystem migration to gtk4 is upstream-blocked on notify-rust/tray-icon."
-
 
 [[IgnoredVulns]]
 id = "RUSTSEC-2024-0416"
 reason = "atk-sys (gtk-rs GTK3 bindings) unmaintained. Same GTK3 chain as RUSTSEC-2024-0413."
 
-
 [[IgnoredVulns]]
 id = "RUSTSEC-2024-0412"
 reason = "gdk (gtk-rs GTK3 bindings) unmaintained. Same GTK3 chain as RUSTSEC-2024-0413."
-
 
 [[IgnoredVulns]]
 id = "RUSTSEC-2024-0418"
 reason = "gdk-sys (gtk-rs GTK3 bindings) unmaintained. Same GTK3 chain as RUSTSEC-2024-0413."
 
-
 [[IgnoredVulns]]
 id = "RUSTSEC-2024-0415"
 reason = "gtk (gtk-rs GTK3 bindings) unmaintained. Same GTK3 chain as RUSTSEC-2024-0413."
-
 
 [[IgnoredVulns]]
 id = "RUSTSEC-2024-0420"
 reason = "gtk-sys (gtk-rs GTK3 bindings) unmaintained. Same GTK3 chain as RUSTSEC-2024-0413."
 
-
 [[IgnoredVulns]]
 id = "RUSTSEC-2024-0419"
 reason = "gtk3-macros (gtk-rs GTK3 bindings) unmaintained. Same GTK3 chain as RUSTSEC-2024-0413."
-
 
 [[IgnoredVulns]]
 id = "RUSTSEC-2024-0436"
 reason = "paste unmaintained — transitive via ratatui/dioxus crate chains; no drop-in replacement adopted upstream."
 
-
 [[IgnoredVulns]]
 id = "RUSTSEC-2024-0370"
 reason = "proc-macro-error unmaintained — transitive via gtk3-macros (GTK3 chain). Resolves with GTK4 migration."
-
 
 [[IgnoredVulns]]
 id = "RUSTSEC-2024-0429"
 reason = "glib VariantStrIter unsoundness. Transitive via GTK3 chain (gtk 0.18.2 → muda/tray-icon → notify-rust). theatron does not call glib::VariantStrIter from any of its crates; vulnerability surface is unreachable. Resolves with GTK4 migration."
 
-
 [[IgnoredVulns]]
 id = "RUSTSEC-2025-0141"
 reason = "bincode 1.x unmaintained — transitive via dioxus/blitz storage paths; bincode 2.x is a breaking-change rewrite and direct deps have not migrated."
-
-
-
-
 
 [[IgnoredVulns]]
 id = "GHSA-97wc-2hqc-cjgr"
 reason = "smallbitvec 2.6.0 integer overflow in safe API leading to heap buffer overflow (CVE-2026-44983). Transitive via stylo -> blitz-dom -> dioxus-native -> mekhane. theatron does not directly construct SmallBitVec values; the vector requires large attacker-controlled inputs to the CSS layout engine. No fixed version available; pending upstream stylo/blitz-dom migration."
 
-
 [[IgnoredVulns]]
 id = "RUSTSEC-2026-0185"
 reason = "quinn-proto 0.11.14 remote memory exhaustion from unbounded out-of-order stream reassembly (GHSA-4w2j-m93h-cj5j). Transitive via reqwest 0.13.3 -> blitz-net -> dioxus-native -> mekhane. theatron does not directly control QUIC stream reassembly; the vector requires an adversarial server sending pathological out-of-order stream data. Fixed upstream in quinn-proto 0.11.15; pending reqwest/blitz-net pin bump."
-
 
 [[IgnoredVulns]]
 id = "RUSTSEC-2026-0186"
 reason = "memmap2 0.9.10 unchecked pointer offset unsoundness. Transitive via fontdb -> usvg -> anyrender_svg/blitz-dom -> dioxus-native -> mekhane. theatron does not directly construct memory maps; the vector requires theatron code to call memmap2 APIs with attacker-controlled offsets, which it does not. Fixed upstream in memmap2 0.9.11; pending fontdb/usvg transitive bump."
 
-
 [[IgnoredVulns]]
 id = "RUSTSEC-2026-0192"
 reason = "ttf-parser unmaintained — transitive via cosmic-text -> vello_shaders/blitz-dom -> dioxus-native -> mekhane. No maintained fork adopted by upstream; pending blitz-dom/cosmic-text migration."
 
-
 [[IgnoredVulns]]
 id = "RUSTSEC-2026-0194"
-reason = "quick-xml <0.41 dup-attribute quadratic DoS. Remaining transitive paths (zbus_xml/atspi -> 0.30, wayland-scanner -> 0.39) below fixed range; pending upstream releases. Mirrors deny.toml. Added: 2026-07-02."
+reason = "quick-xml duplicate-attribute quadratic DoS. Compatible tauri-winrt-notification 0.7.3 update removed the notify-rust Windows path. Remaining paths are quick-xml 0.30 via zbus_xml 4.0.0 -> zbus-lockstep 0.4.4 -> atspi-common 0.6.0 -> accesskit/dioxus-native and quick-xml 0.39 via wayland-scanner 0.31.10 -> wayland/winit -> dioxus-native; zbus_xml 5.1.1 and latest wayland-scanner 0.31.10 still depend on quick-xml 0.39, below the fixed >=0.41.0 range. Pending upstream Dioxus-native/accesskit/wayland stack releases."
 
 [[IgnoredVulns]]
 id = "RUSTSEC-2026-0195"
-reason = "quick-xml <0.41 NsReader namespace-allocation DoS. Same paths as RUSTSEC-2026-0194. Mirrors deny.toml. Added: 2026-07-02."
+reason = "quick-xml NsReader namespace allocation DoS. Compatible tauri-winrt-notification 0.7.3 update removed the notify-rust Windows path. Remaining paths are quick-xml 0.30 via zbus_xml 4.0.0 -> zbus-lockstep 0.4.4 -> atspi-common 0.6.0 -> accesskit/dioxus-native and quick-xml 0.39 via wayland-scanner 0.31.10 -> wayland/winit -> dioxus-native; zbus_xml 5.1.1 and latest wayland-scanner 0.31.10 still depend on quick-xml 0.39, below the fixed >=0.41.0 range. Pending upstream Dioxus-native/accesskit/wayland stack releases."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0206"
+reason = "rustybuzz 0.20.1 unmaintained (maintenance-status advisory, no vulnerability). Transitive text-shaping in the native GUI stack (parley/vello via Dioxus-native + Blitz). No maintained successor — rustybuzz is the canonical HarfBuzz Rust port; migration is upstream-blocked. Not a security surface (glyph shaping, not untrusted-input parsing)."
