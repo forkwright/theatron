@@ -8,6 +8,34 @@ formatting and theatron's [SemVer policy](http://forge.forkwright.com/forkwright
 The eight crates ship together at a single workspace version; one
 entry per release covers all eight.
 
+## [1.4.0](https://github.com/forkwright/theatron/compare/v1.3.0...v1.4.0) (2026-07-15)
+
+
+### Features
+
+* **gramma:** parse multi-file git diffs ([#12](https://github.com/forkwright/theatron/issues/12)) ([02fe29d](https://github.com/forkwright/theatron/commit/02fe29d8443a7a6b78b25c863e418d4c1703c6d6))
+* **parodos:** add centered rect helpers ([#8](https://github.com/forkwright/theatron/issues/8)) ([8ab71dc](https://github.com/forkwright/theatron/commit/8ab71dc9a49fa2d4cabdf120c30ec18953f28bfe)), closes [#7](https://github.com/forkwright/theatron/issues/7)
+* **parodos:** add meter string helper ([10307b0](https://github.com/forkwright/theatron/commit/10307b06c3b4ca377857a115b9e09d2f04ccd143))
+* **parodos:** add text truncation helpers ([7e532a6](https://github.com/forkwright/theatron/commit/7e532a6d5183f5032f8e3fb9618e08c6f744d689))
+* **skeue:** add badge style helper ([fa829f2](https://github.com/forkwright/theatron/commit/fa829f2af419b4b669dce6544840a477cdc37057))
+
+
+### Bug Fixes
+
+* **ci:** complete canonical CI baseline (pin actions, security.yml, release attestation) ([#2316](https://github.com/forkwright/theatron/issues/2316)) ([#161](https://github.com/forkwright/theatron/issues/161)) ([18b08b7](https://github.com/forkwright/theatron/commit/18b08b79cec73e14807a2120b882b9478755613a))
+* **deny:** accept rustybuzz unmaintained advisory (RUSTSEC-2026-0206) ([#210](https://github.com/forkwright/theatron/issues/210)) ([96464dc](https://github.com/forkwright/theatron/commit/96464dcbc2f69b9ced5c7d70053f7c53c362e5d3))
+* **deps:** revert codespan-reporting 0.11-&gt;0.12 to restore main build ([#162](https://github.com/forkwright/theatron/issues/162)) ([93a35ba](https://github.com/forkwright/theatron/commit/93a35ba7e3e35aa8c85ac38a580ae602311d8203))
+* **gate:** restore green kanon gate on theatron main (Refs [#164](https://github.com/forkwright/theatron/issues/164)) ([#165](https://github.com/forkwright/theatron/issues/165)) ([91bfa72](https://github.com/forkwright/theatron/commit/91bfa7298a14a5aba88b498d2f0b6194988086dd))
+* **keryx:** parse bare CR SSE line endings ([#170](https://github.com/forkwright/theatron/issues/170)) ([fa6f81c](https://github.com/forkwright/theatron/commit/fa6f81cab5cac4c62d0df2adfd41d5a7a5f86d25)), closes [#90](https://github.com/forkwright/theatron/issues/90)
+* **mekhane:** scope desktop optional deps ([#163](https://github.com/forkwright/theatron/issues/163)) ([d15f369](https://github.com/forkwright/theatron/commit/d15f3695344e124c185da5b1e9ead0abe80c490d)), closes [#95](https://github.com/forkwright/theatron/issues/95)
+* **parodos:** reject control characters in OSC 8 hyperlink URLs ([#172](https://github.com/forkwright/theatron/issues/172)) ([675629a](https://github.com/forkwright/theatron/commit/675629ab311110340c359dfc9f064b12e17ebf5f)), closes [#109](https://github.com/forkwright/theatron/issues/109)
+* **parodos:** score fuzzy matches by byte offset ([#168](https://github.com/forkwright/theatron/issues/168)) ([0507747](https://github.com/forkwright/theatron/commit/050774793be29035eee9b0f31f802eea97fd8d5f)), closes [#103](https://github.com/forkwright/theatron/issues/103)
+* **release:** adopt the proven fleet release-please shape — simple + workspace version extra-file ([#213](https://github.com/forkwright/theatron/issues/213)) ([e803863](https://github.com/forkwright/theatron/commit/e8038630c0a326e3265ca41eedd6341086823ee7))
+* **release:** seed release-please manifest to the released 1.3.0 ([#173](https://github.com/forkwright/theatron/issues/173)) ([e716614](https://github.com/forkwright/theatron/commit/e7166142f028cd60d7a567c349d652923dee2155))
+* resolve all open audit findings across 8 crates + v1.4.0 ([#189](https://github.com/forkwright/theatron/issues/189)) ([7a68881](https://github.com/forkwright/theatron/commit/7a6888167e7657d01341a2ecacfb17c57c63c6e6))
+* **security:** remediate quick-xml RUSTSEC-2026-0194/0195 ([#167](https://github.com/forkwright/theatron/issues/167)) ([e1e7830](https://github.com/forkwright/theatron/commit/e1e78307ce065c2223b1c301dbc90369346b5f35)), closes [#164](https://github.com/forkwright/theatron/issues/164)
+* **skeue:** filter non-finite samples before sparkline coordinate math ([5a048d0](https://github.com/forkwright/theatron/commit/5a048d07398c89c365bfce977d37e3b731fead95))
+
 ## [Unreleased]
 
 The next entry here flows into the next minor (v1.4) when demand
