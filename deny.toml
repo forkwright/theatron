@@ -120,3 +120,7 @@ allow-git = [
     "https://github.com/forkwright/epitelesis.git",
     "https://github.com/forkwright/logismos.git",
 ]
+
+[[advisories.ignore]]
+id = "RUSTSEC-2026-0206"
+reason = "rustybuzz 0.20.1 unmaintained (maintenance-status advisory, no vulnerability). Transitive text-shaping in the native GUI stack (parley/vello via Dioxus-native + Blitz). No maintained successor — rustybuzz is the canonical HarfBuzz Rust port; migration is upstream-blocked. Not a security surface (glyph shaping, not untrusted-input parsing)."

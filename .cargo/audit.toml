@@ -36,9 +36,12 @@ ignore = [
     "RUSTSEC-2026-0185",
     # memmap2 0.9.10 unchecked pointer offset unsoundness. Transitive via fontdb -> usvg -> anyrender_svg/blitz-dom -> dioxus-native -> mekhane. theatron does not directly construct memory maps; the vector requires theatron code to call memmap2 APIs with attacker-controlled offsets, which it does not. Fixed upstream in memmap2 0.9.11; pending fontdb/usvg transitive bump.
     "RUSTSEC-2026-0186",
-    # ttf-parser unmaintained — transitive via cosmic-text -> vello_shaders/blitz-dom -> dioxus-native -> mekhane. No maintained fork adopted upstream; pending blitz-dom/cosmic-text migration.
+    # ttf-parser unmaintained — transitive via cosmic-text -> vello_shaders/blitz-dom -> dioxus-native -> mekhane. No maintained fork adopted by upstream; pending blitz-dom/cosmic-text migration.
     "RUSTSEC-2026-0192",
-    # quick-xml <0.41 DoS advisories (0194 dup-attr quadratic, 0195 NsReader alloc). Remaining paths below fixed range; pending upstream. Mirrors deny.toml. Added: 2026-07-02.
+    # quick-xml duplicate-attribute quadratic DoS. Compatible tauri-winrt-notification 0.7.3 update removed the notify-rust Windows path. Remaining paths are quick-xml 0.30 via zbus_xml 4.0.0 -> zbus-lockstep 0.4.4 -> atspi-common 0.6.0 -> accesskit/dioxus-native and quick-xml 0.39 via wayland-scanner 0.31.10 -> wayland/winit -> dioxus-native; zbus_xml 5.1.1 and latest wayland-scanner 0.31.10 still depend on quick-xml 0.39, below the fixed >=0.41.0 range. Pending upstream Dioxus-native/accesskit/wayland stack releases.
     "RUSTSEC-2026-0194",
+    # quick-xml NsReader namespace allocation DoS. Compatible tauri-winrt-notification 0.7.3 update removed the notify-rust Windows path. Remaining paths are quick-xml 0.30 via zbus_xml 4.0.0 -> zbus-lockstep 0.4.4 -> atspi-common 0.6.0 -> accesskit/dioxus-native and quick-xml 0.39 via wayland-scanner 0.31.10 -> wayland/winit -> dioxus-native; zbus_xml 5.1.1 and latest wayland-scanner 0.31.10 still depend on quick-xml 0.39, below the fixed >=0.41.0 range. Pending upstream Dioxus-native/accesskit/wayland stack releases.
     "RUSTSEC-2026-0195",
+    # rustybuzz 0.20.1 unmaintained (maintenance-status advisory, no vulnerability). Transitive text-shaping in the native GUI stack (parley/vello via Dioxus-native + Blitz). No maintained successor — rustybuzz is the canonical HarfBuzz Rust port; migration is upstream-blocked. Not a security surface (glyph shaping, not untrusted-input parsing).
+    "RUSTSEC-2026-0206",
 ]
