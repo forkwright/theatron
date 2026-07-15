@@ -70,7 +70,7 @@ dioxus-native = "=0.7.9"
 # bumping muda independently produces a duplicate-version graph and
 # the two `MenuEvent` types stop being interchangeable.
 tray-icon = "0.24"
-muda = "0.17"
+muda = "0.19"
 global-hotkey = "0.8"
 image = { version = "0.25", default-features = false, features = ["png"] }
 
