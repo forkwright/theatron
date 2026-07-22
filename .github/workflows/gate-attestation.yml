@@ -1,3 +1,51 @@
+# WHY(kanon#2522): replaces theatron's trailer-only passthrough (previously
+# `uses: forkwright/.github/.github/workflows/gate-attestation.yml@961f4e0d...`
+# -- pure trailer verify, no full-build fallback, no doc-only exemption) with
+# the kanon-owned hybrid gate.
+#
+# WARNING(no-ai-attribution.yml is now redundant -- separate file, not an
+# inline job): theatron carries a STANDALONE
+# `.github/workflows/no-ai-attribution.yml` that passes through to
+# `forkwright/.github/.github/workflows/no-ai-attribution.yml@961f4e0d...`
+# on every PR. This predates (and is more decoupled than) the inline-job
+# pattern kanon#2522 generalizes -- it is its own file, its own job, its own
+# reusable-workflow call, entirely separate from gate-attestation.yml. Once
+# this caller's `ai_attribution_check: true` job lands, that file duplicates
+# the same policy check. Recommend deleting
+# `.github/workflows/no-ai-attribution.yml` in the same adoption PR (it is
+# NOT currently in required-status-checks -- contexts are
+# ["gate / gate-attestation","cargo deny","cargo audit","osv scanner /
+# osv-scan"], no "no-ai-attribution" entry -- so removing the file requires
+# no branch-protection PATCH, just the file deletion). Not deleted by this
+# authoring pass since the task scope here is caller-file authoring only;
+# flagging for the adoption PR.
+#
+# WARNING(UNVERIFIED, high risk -- first-ever build of this workspace on
+# plain ubuntu-latest): theatron has NO ci.yml / test / build workflow at
+# all. codeql.yml only triggers on push-to-main + a weekly schedule (never
+# on pull_request, so it doesn't exercise the PR path); security.yml
+# (cargo-deny/cargo-audit/osv-scanner) never compiles the workspace. This
+# means the `full-gate-build` fallback below will be the FIRST time
+# theatron's 8-crate + 3-example workspace (nightly toolchain; dioxus,
+# dioxus-native, tray-icon, muda, global-hotkey -- all Linux
+# GUI/OS-integration crates) gets built in a bare ubuntu-latest runner with
+# no historical apt-get line to crib from. glib-sys surfaced transitively on
+# below (fleet default) rather than guessing a package list with no
+# evidence -- expect the first non-docs-only PR's full-gate-build to
+# plausibly fail on missing system libraries (candidates a maintainer would
+# reach for: GTK/appindicator for tray-icon, libxdo for global-hotkey --
+# not asserted here as fact, since nothing in this repo confirms them).
+# Recommend deliberately exercising full-gate-build on the adoption PR
+# (temporarily strip the local Gate-Passed trailer, or push a throwaway
+# trailer-less commit) before relying on this path, and be ready to iterate
+# the first hosted build; libglib2.0-dev provides the glib/gio/gobject headers.
+#
+# NOTE: rust-toolchain.toml pins `channel = "nightly"` (workspace
+# rust-version is 1.86 -- a version floor, distinct from the toolchain
+# channel used to build) -- auto-detect applies, no rust_toolchain override.
+# No `git = "https://github.com/forkwright/..."` dependency in any of the 8
+# crate or 3 example Cargo.toml files (grepped directly) -- needs_fleet_repo_token
+# stays false.
 name: Gate Attestation
 
 on:
@@ -7,10 +55,27 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+# WHY no concurrency: block here: hybrid-gate.yml itself already declares
+# `concurrency: group: ${{ github.workflow }}-${{ github.ref }}` and its own
+# comment states callers must NOT also set a concurrency group with that
+# same key, or the shared group self-cancels.
 
 jobs:
   gate:
-    uses: forkwright/.github/.github/workflows/gate-attestation.yml@5be130bfebd5165d3221f1896f96b5ce6e93bf9b
+    uses: forkwright/.github/.github/workflows/hybrid-gate.yml@main
+    with:
+      fmt_cmd: "cargo fmt --all -- --check"
+      check_cmd: "cargo check --workspace --all-targets"
+      clippy_cmd: "cargo clippy --workspace --all-targets -- -D warnings"
+      nextest_cmd: "cargo nextest run --workspace"
+      # UNVERIFIED: no ci.yml exists to confirm whether theatron intends
+      # doctest coverage. Left at skip (fleet default) rather than invented.
+      doctest_cmd: ""
+      # UNVERIFIED: see WARNING above -- no apt-get precedent exists in this
+      # repo to derive a real value from.
+      system_packages: "libgtk-3-dev libappindicator3-dev libxdo-dev"
+      needs_fleet_repo_token: false
+      ai_attribution_check: true
+      docs_only_exemption: true
+      rust_cache_key: "gate-attestation"
+    secrets: inherit
