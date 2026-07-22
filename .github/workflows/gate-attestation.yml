@@ -29,7 +29,7 @@
 # theatron's 8-crate + 3-example workspace (nightly toolchain; dioxus,
 # dioxus-native, tray-icon, muda, global-hotkey -- all Linux
 # GUI/OS-integration crates) gets built in a bare ubuntu-latest runner with
-# no historical apt-get line to crib from. `system_packages` is left empty
+# no historical apt-get line to crib from. glib-sys surfaced transitively on
 # below (fleet default) rather than guessing a package list with no
 # evidence -- expect the first non-docs-only PR's full-gate-build to
 # plausibly fail on missing system libraries (candidates a maintainer would
@@ -38,7 +38,7 @@
 # Recommend deliberately exercising full-gate-build on the adoption PR
 # (temporarily strip the local Gate-Passed trailer, or push a throwaway
 # trailer-less commit) before relying on this path, and be ready to iterate
-# `system_packages` from the actual missing-package errors.
+# the first hosted build; libglib2.0-dev provides the glib/gio/gobject headers.
 #
 # NOTE: rust-toolchain.toml pins `channel = "nightly"` (workspace
 # rust-version is 1.86 -- a version floor, distinct from the toolchain
@@ -73,7 +73,7 @@ jobs:
       doctest_cmd: ""
       # UNVERIFIED: see WARNING above -- no apt-get precedent exists in this
       # repo to derive a real value from.
-      system_packages: ""
+      system_packages: "libglib2.0-dev"
       needs_fleet_repo_token: false
       ai_attribution_check: true
       docs_only_exemption: true
