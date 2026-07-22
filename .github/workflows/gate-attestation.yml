@@ -73,7 +73,7 @@ jobs:
       doctest_cmd: ""
       # UNVERIFIED: see WARNING above -- no apt-get precedent exists in this
       # repo to derive a real value from.
-      system_packages: "libgtk-3-dev libappindicator3-dev"
+      system_packages: "libgtk-3-dev libappindicator3-dev libxdo-dev"
       needs_fleet_repo_token: false
       ai_attribution_check: true
       docs_only_exemption: true
