@@ -8,6 +8,18 @@ formatting and theatron's [SemVer policy](http://forge.forkwright.com/forkwright
 The eight crates ship together at a single workspace version; one
 entry per release covers all eight.
 
+## [1.5.0](https://github.com/forkwright/theatron/compare/v1.4.1...v1.5.0) (2026-07-29)
+
+
+### Features
+
+* **bathron:** expose the durable-replace sequence as a primitive ([#240](https://github.com/forkwright/theatron/issues/240)) ([15bab1c](https://github.com/forkwright/theatron/commit/15bab1c826ef5b57ac0f75e947ac0147161fb4d5)), closes [#238](https://github.com/forkwright/theatron/issues/238)
+
+
+### Bug Fixes
+
+* **release:** hold intra-workspace path deps in version lockstep ([#237](https://github.com/forkwright/theatron/issues/237)) ([2fcc92b](https://github.com/forkwright/theatron/commit/2fcc92b0657e3c8783aab0f0b0aaa8a56e0e08c2)), closes [#220](https://github.com/forkwright/theatron/issues/220)
+
 ## [1.4.1](https://github.com/forkwright/theatron/compare/v1.4.0...v1.4.1) (2026-07-29)
 
 
