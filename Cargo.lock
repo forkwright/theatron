@@ -634,7 +634,7 @@ checksum = "b25655df2c3cdd83c5e5b293b88acd880332b2ddadd7c30ac43144fdc0033da9"
 
 [[package]]
 name = "bathron"
-version = "1.4.0"
+version = "1.4.1"
 dependencies = [
  "dirs",
  "fd-lock",
@@ -1104,7 +1104,7 @@ dependencies = [
  "heck 0.5.0",
  "proc-macro2",
  "quote",
- "syn 3.0.2",
+ "syn 3.0.3",
 ]
 
 [[package]]
@@ -2168,7 +2168,7 @@ dependencies = [
 
 [[package]]
 name = "dokimasia"
-version = "1.4.0"
+version = "1.4.1"
 dependencies = [
  "clap",
  "codespan-reporting 0.13.1",
@@ -3084,7 +3084,7 @@ dependencies = [
 
 [[package]]
 name = "gramma"
-version = "1.4.0"
+version = "1.4.1"
 dependencies = [
  "syntect",
 ]
@@ -3843,7 +3843,7 @@ dependencies = [
 
 [[package]]
 name = "keryx"
-version = "1.4.0"
+version = "1.4.1"
 dependencies = [
  "bytes",
  "futures-core",
@@ -4243,7 +4243,7 @@ checksum = "2532096657941c2fea9c289d370a250971c689d4f143798ff67113ec042024a5"
 
 [[package]]
 name = "mekhane"
-version = "1.4.0"
+version = "1.4.1"
 dependencies = [
  "dioxus",
  "dioxus-core",
@@ -5131,7 +5131,7 @@ dependencies = [
 
 [[package]]
 name = "parodos"
-version = "1.4.0"
+version = "1.4.1"
 dependencies = [
  "arboard",
  "base64 0.23.0",
@@ -6503,7 +6503,7 @@ checksum = "b2aa850e253778c88a04c3d7323b043aeda9d3e30d5971937c1855769763678e"
 
 [[package]]
 name = "skeue"
-version = "1.4.0"
+version = "1.4.1"
 dependencies = [
  "dioxus",
  "dioxus-ssr",
@@ -7190,7 +7190,7 @@ dependencies = [
 
 [[package]]
 name = "theatron-example-full-app"
-version = "1.4.0"
+version = "1.4.1"
 dependencies = [
  "bathron",
  "dioxus",
@@ -7207,7 +7207,7 @@ dependencies = [
 
 [[package]]
 name = "theatron-example-minimal"
-version = "1.4.0"
+version = "1.4.1"
 dependencies = [
  "dioxus",
  "dioxus-native",
@@ -7216,7 +7216,7 @@ dependencies = [
 
 [[package]]
 name = "theatron-example-tray-smoke"
-version = "1.4.0"
+version = "1.4.1"
 dependencies = [
  "dioxus",
  "mekhane",
@@ -7224,7 +7224,7 @@ dependencies = [
 
 [[package]]
 name = "themelion"
-version = "1.4.0"
+version = "1.4.1"
 dependencies = [
  "dioxus",
  "dioxus-ssr",

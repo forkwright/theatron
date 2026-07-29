@@ -126,6 +126,39 @@ impl Diagnostic {
             token: None,
         }
     }
+
+    /// Construct a version-lockstep error for an intra-workspace path
+    /// dependency whose `version` constraint has drifted from
+    /// `workspace.package.version`.
+    ///
+    /// Cargo's caret semantics let the workspace keep building while the
+    /// declared constraint names an older release line, so the drift is
+    /// invisible until a major bump stops satisfying it.
+    #[must_use]
+    pub fn version_lockstep_drift(
+        file: PathBuf,
+        line: u32,
+        column: u32,
+        byte_offset: usize,
+        byte_len: usize,
+        dependency: &str,
+        declared: &str,
+        workspace: &str,
+    ) -> Self {
+        Self {
+            file,
+            line,
+            column,
+            byte_offset,
+            byte_len,
+            severity: Severity::Error,
+            code: "version-lockstep-drift".to_string(),
+            message: format!(
+                "intra-workspace path dependency `{dependency}` declares version \"{declared}\" but workspace.package.version is \"{workspace}\" — the two must stay in lockstep"
+            ),
+            token: None,
+        }
+    }
 }
 
 #[cfg(test)]
