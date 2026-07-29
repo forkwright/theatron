@@ -8,6 +8,13 @@ formatting and theatron's [SemVer policy](http://forge.forkwright.com/forkwright
 The eight crates ship together at a single workspace version; one
 entry per release covers all eight.
 
+## [1.4.1](https://github.com/forkwright/theatron/compare/v1.4.0...v1.4.1) (2026-07-29)
+
+
+### Bug Fixes
+
+* **deps:** stop unifying codespan-reporting features into naga ([#234](https://github.com/forkwright/theatron/issues/234)) ([7c3fb43](https://github.com/forkwright/theatron/commit/7c3fb43c4c65744f18b7b77bfca0588e5115d359)), closes [#233](https://github.com/forkwright/theatron/issues/233)
+
 ## [1.4.0](https://github.com/forkwright/theatron/compare/v1.3.0...v1.4.0) (2026-07-15)
 
 
