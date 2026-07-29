@@ -4,6 +4,11 @@
 //! doctrine, patches against external deps must live in fleet forks under
 //! `forkwright/` rather than as workspace patch-blocks — those bit-rot and
 //! obscure the dependency graph.
+//!
+//! Also holds intra-workspace path dependencies in version lockstep with
+//! `workspace.package.version`. Cargo's caret semantics let those constraints
+//! name an older release line without breaking the build, so nothing else
+//! surfaces the drift.
 
 use std::path::Path;
 
@@ -91,8 +96,9 @@ fn split_dotted_keys(inner: &str) -> Vec<String> {
     keys
 }
 
-/// Lint a Cargo manifest source string, returning a diagnostic if a
-/// `[patch.crates-io]` table is present.
+/// Lint a Cargo manifest source string for `[patch.crates-io]` tables and
+/// for intra-workspace path dependencies whose version constraint has
+/// drifted from `workspace.package.version`.
 ///
 /// The `_registry` parameter is unused but required so the dispatch
 /// signature in `linter.rs::read_and_scan` matches the existing
@@ -108,7 +114,97 @@ pub(crate) fn lint_manifest(
         Err(_) => return Vec::new(),
     };
 
-    // Check for top-level `patch.crates-io` table.
+    let mut diagnostics = check_patch_crates_io(&parsed, source, path);
+    diagnostics.extend(check_version_lockstep(&parsed, source, path));
+    diagnostics
+}
+
+/// Report every intra-workspace path dependency whose declared `version`
+/// differs from `workspace.package.version`.
+///
+/// WHY this is enforced rather than left to review: the release automation
+/// bumps `workspace.package.version` and nothing else, so keeping these
+/// constraints correct otherwise depends on remembering an edit the release
+/// mechanism is guaranteed not to make. Cargo's caret semantics let a 1.4.0
+/// package satisfy a `1.3.0` requirement, so the drift builds green and
+/// stays invisible until the first major bump stops satisfying it.
+fn check_version_lockstep(parsed: &toml::Value, source: &str, path: &Path) -> Vec<Diagnostic> {
+    let Some(workspace) = parsed.get("workspace") else {
+        return Vec::new();
+    };
+    let Some(workspace_version) = workspace
+        .get("package")
+        .and_then(|package| package.get("version"))
+        .and_then(toml::Value::as_str)
+    else {
+        return Vec::new();
+    };
+    let Some(dependencies) = workspace
+        .get("dependencies")
+        .and_then(toml::Value::as_table)
+    else {
+        return Vec::new();
+    };
+
+    dependencies
+        .iter()
+        .filter_map(|(name, spec)| {
+            let table = spec.as_table()?;
+            table.get("path")?;
+            let declared = table.get("version")?.as_str()?;
+            if declared == workspace_version {
+                return None;
+            }
+            let (line, column, byte_offset, byte_len) = locate_dependency(source, name);
+            Some(Diagnostic::version_lockstep_drift(
+                path.to_path_buf(),
+                line,
+                column,
+                byte_offset,
+                byte_len,
+                name,
+                declared,
+                workspace_version,
+            ))
+        })
+        .collect()
+}
+
+/// Locate the declaration of workspace dependency `name` in the raw source,
+/// as `(line, column, byte_offset, byte_len)`.
+///
+/// Matches both spellings Cargo accepts: an inline `name = { ... }` entry and
+/// an expanded `[workspace.dependencies.name]` header. Falls back to the head
+/// of the file when neither is found, so a diagnostic is never dropped for
+/// want of a position.
+fn locate_dependency(source: &str, name: &str) -> (u32, u32, usize, usize) {
+    let expanded_header = format!("[workspace.dependencies.{name}]");
+    for (line_idx, line_start) in build_line_index(source).iter().enumerate() {
+        let line_end = source[*line_start..] // kanon:ignore RUST/indexing-slicing -- line_start comes from build_line_index(source), always in-bounds and at a char boundary
+            .find('\n')
+            .map_or(source.len(), |offset| line_start + offset);
+        let line = &source[*line_start..line_end]; // kanon:ignore RUST/indexing-slicing -- both bounds derive from build_line_index(source) and a `\n` search within it
+        let trimmed = line.trim_start();
+        let indent = line.len() - trimmed.len();
+        let is_inline = trimmed
+            .strip_prefix(name)
+            .is_some_and(|rest| rest.trim_start().starts_with('='));
+        if is_inline || trimmed.starts_with(&expanded_header) {
+            let column = u32::try_from(indent).unwrap_or(0) + 1;
+            let line_number = u32::try_from(line_idx).unwrap_or(0) + 1;
+            let span = if is_inline {
+                name.len()
+            } else {
+                expanded_header.len()
+            };
+            return (line_number, column, line_start + indent, span);
+        }
+    }
+    (1, 1, 0, 0)
+}
+
+/// Report a top-level `[patch.crates-io]` table, positioned at its header.
+fn check_patch_crates_io(parsed: &toml::Value, source: &str, path: &Path) -> Vec<Diagnostic> {
     let has_patch_crates_io = parsed
         .get("patch")
         .and_then(|p| p.get("crates-io"))
@@ -304,5 +400,125 @@ serde = { git = "https://example.com/serde" }
         let src = "this is :: not toml [[[";
         let diags = lint_manifest(&registry(), src, Path::new("Cargo.toml"));
         assert!(diags.is_empty());
+    }
+
+    #[test]
+    fn flags_drifted_inline_path_dependency() {
+        let src = r#"
+[workspace.package]
+version = "1.4.1"
+
+[workspace.dependencies]
+bathron = { version = "1.3.0", path = "crates/bathron" }
+"#;
+        let diags = lint_manifest(&registry(), src, Path::new("Cargo.toml"));
+        assert_eq!(diags.len(), 1, "{diags:?}");
+        assert_eq!(diags[0].code, "version-lockstep-drift");
+        assert_eq!(diags[0].line, 6, "must point at the declaration");
+        assert!(diags[0].message.contains("bathron"));
+    }
+
+    #[test]
+    fn flags_drifted_expanded_path_dependency() {
+        // The expanded-table spelling is the one a reader is least likely to
+        // notice, and it is how themelion is declared.
+        let src = r#"
+[workspace.package]
+version = "1.4.1"
+
+[workspace.dependencies.themelion]
+version = "1.3.0"
+path = "crates/themelion"
+"#;
+        let diags = lint_manifest(&registry(), src, Path::new("Cargo.toml"));
+        assert_eq!(diags.len(), 1, "{diags:?}");
+        assert_eq!(diags[0].line, 5, "must point at the table header");
+        let span = &src[diags[0].byte_offset..diags[0].byte_offset + diags[0].byte_len];
+        assert_eq!(span, "[workspace.dependencies.themelion]");
+    }
+
+    #[test]
+    fn matching_path_dependency_version_is_silent() {
+        let src = r#"
+[workspace.package]
+version = "1.4.1"
+
+[workspace.dependencies]
+bathron = { version = "1.4.1", path = "crates/bathron" }
+"#;
+        let diags = lint_manifest(&registry(), src, Path::new("Cargo.toml"));
+        assert!(diags.is_empty(), "{diags:?}");
+    }
+
+    #[test]
+    fn registry_dependency_version_is_out_of_scope() {
+        // Only path dependencies are held in lockstep — an external crate's
+        // version has nothing to do with the workspace version, and flagging
+        // it would make the check fire on everything.
+        let src = r#"
+[workspace.package]
+version = "1.4.1"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+"#;
+        let diags = lint_manifest(&registry(), src, Path::new("Cargo.toml"));
+        assert!(diags.is_empty(), "{diags:?}");
+    }
+
+    #[test]
+    fn path_dependency_without_a_version_is_out_of_scope() {
+        // Omitting `version` is the other coherent way to hold the invariant:
+        // identity then derives from workspace.package.version alone, and
+        // there is no second copy to drift.
+        let src = r#"
+[workspace.package]
+version = "1.4.1"
+
+[workspace.dependencies]
+bathron = { path = "crates/bathron" }
+"#;
+        let diags = lint_manifest(&registry(), src, Path::new("Cargo.toml"));
+        assert!(diags.is_empty(), "{diags:?}");
+    }
+
+    /// Walk up from this crate to the directory holding the manifest that
+    /// declares `[workspace]`.
+    ///
+    /// WHY not a fixed `../..` join: the depth is a property of the layout,
+    /// and a layout change would silently retarget the check at whatever
+    /// happened to be two levels up rather than failing.
+    fn workspace_root() -> std::path::PathBuf {
+        let mut dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        loop {
+            let manifest = dir.join("Cargo.toml");
+            if std::fs::read_to_string(&manifest)
+                .is_ok_and(|text| text.contains("\n[workspace]") || text.starts_with("[workspace]"))
+            {
+                return dir;
+            }
+            assert!(
+                dir.pop(),
+                "no [workspace] manifest above CARGO_MANIFEST_DIR"
+            );
+        }
+    }
+
+    #[test]
+    fn this_workspace_keeps_path_dependency_versions_in_lockstep() {
+        // WHY this runs against the real manifest rather than a fixture: the
+        // release automation bumps workspace.package.version and nothing
+        // else, so the invariant needs a check that fires on the repository
+        // itself after every release, not one that only proves the detector
+        // works. See #220 — v1.4 shipped with all eight constraints at 1.3.0
+        // and every gate green.
+        let root = workspace_root();
+        let manifest = root.join("Cargo.toml");
+        let source = std::fs::read_to_string(&manifest).expect("workspace manifest is readable");
+        let diags = lint_manifest(&registry(), &source, &manifest);
+        assert!(
+            diags.is_empty(),
+            "workspace manifest violates version lockstep: {diags:#?}"
+        );
     }
 }
