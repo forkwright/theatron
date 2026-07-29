@@ -6,12 +6,8 @@
 //! [`dirs`] crate), creates `<app>/` if missing, and points at
 //! `settings.toml` inside.
 //!
-//! Writes go through [`tempfile::NamedTempFile`] in the same
-//! directory then [`persist`] (rename) onto the target path so a
-//! crash mid-write cannot leave a half-flushed `settings.toml`. The
-//! tempfile is fsynced before rename (data durability) and, on unix,
-//! the parent directory is fsynced after rename (so the rename
-//! itself survives a power loss, not just the file's contents).
+//! Writes go through [`crate::atomic::write_atomic`], which owns the
+//! durable-replace sequence and its rationale.
 //!
 //! Mutations ([`Settings::set`], [`Settings::remove`]) hold an
 //! exclusive advisory lock on a sibling `settings.toml.lock` file for
@@ -26,12 +22,13 @@
 //! KV store (small documents, infrequent reads).
 //!
 //! [`dirs`]: https://docs.rs/dirs
-//! [`persist`]: tempfile::NamedTempFile::persist
 
 use std::path::{Path, PathBuf};
 
 use serde::{Serialize, de::DeserializeOwned};
 use snafu::{OptionExt, ResultExt, Snafu};
+
+use crate::atomic::AtomicWriteError;
 
 /// Errors from the settings subsystem.
 // kanon:ignore RUST/no-debug-derive-on-public-types -- variants carry filesystem paths and io::Error; no PII, credentials, or secret material.
@@ -244,36 +241,18 @@ impl Settings {
 
     fn write_doc(&self, doc: &toml::Table) -> Result<(), SettingsError> {
         let text = toml::to_string_pretty(doc).context(SerializeTomlSnafu)?;
-        let parent = self.file.parent().unwrap_or_else(|| Path::new("."));
-        let mut tmp = tempfile::NamedTempFile::new_in(parent).context(WriteFileSnafu {
-            path: self.file.clone(),
-        })?;
-        std::io::Write::write_all(&mut tmp, text.as_bytes()).context(WriteFileSnafu {
-            path: self.file.clone(),
-        })?;
-        // fsync the tempfile contents before rename so a power loss
-        // between rename and write-back can't surface a truncated
-        // file. as_file() exposes the underlying File for sync.
-        tmp.as_file().sync_all().context(WriteFileSnafu {
-            path: self.file.clone(),
-        })?;
-        tmp.persist(&self.file).context(PersistFileSnafu {
-            path: self.file.clone(),
-        })?;
-        // WHY: rename is only durable once the directory entry itself
-        // is flushed. Without this, a power loss right after persist()
-        // can revert the rename on some filesystems even though
-        // sync_all() above already flushed the tempfile's data —
-        // fsyncing the tempfile covers data durability, fsyncing the
-        // parent directory covers the rename itself. Not meaningful on
-        // Windows (no directory-as-file open), hence unix-only.
-        #[cfg(unix)]
-        std::fs::File::open(parent)
-            .and_then(|dir| dir.sync_all())
-            .context(WriteFileSnafu {
-                path: self.file.clone(),
-            })?;
-        Ok(())
+        crate::atomic::write_atomic(&self.file, text.as_bytes(), None).map_err(
+            |source| match source {
+                AtomicWriteError::Persist { path, source } => {
+                    SettingsError::PersistFile { path, source }
+                }
+                AtomicWriteError::Write { path, source }
+                | AtomicWriteError::SetMode { path, source }
+                | AtomicWriteError::SyncDir { path, source } => {
+                    SettingsError::WriteFile { path, source }
+                }
+            },
+        )
     }
 
     /// Read a value at `key`. Returns `Ok(None)` if the key is
