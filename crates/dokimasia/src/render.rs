@@ -59,7 +59,13 @@ where
                 file_id,
                 d.byte_offset..d.byte_offset + d.byte_len,
             )]);
-        term::emit(writer, &config, &files, &cd).map_err(|e| match e {
+        // WHY(theatron#233): `term::emit` is deprecated in
+        // codespan-reporting 0.13. Of the three replacements only
+        // `emit_to_write_style` keeps colour — `emit_to_io_write` and the
+        // deprecated `emit` both render through the crate's plain writer and
+        // would silently drop every style. `W: WriteColor` satisfies
+        // `WriteStyle` through the blanket impl the `termcolor` feature adds.
+        term::emit_to_write_style(writer, &config, &files, &cd).map_err(|e| match e {
             codespan_reporting::files::Error::Io(io_err) => io_err,
             other => io::Error::other(other.to_string()),
         })?;
@@ -97,7 +103,7 @@ mod tests {
     use std::collections::HashMap;
     use std::path::PathBuf;
 
-    use codespan_reporting::term::termcolor::NoColor;
+    use codespan_reporting::term::termcolor::{Ansi, NoColor};
 
     use super::*;
 
@@ -114,9 +120,9 @@ mod tests {
 
     #[test]
     fn render_human_tolerates_out_of_range_span() {
-        // The non-IO arm of the `term::emit` error map (`other =>
+        // The non-IO arm of the `emit_to_write_style` error map (`other =>
         // io::Error::other(...)`) is unreachable via this function's public
-        // surface with the vendored codespan-reporting 0.11.1:
+        // surface with codespan-reporting 0.13:
         // `SimpleFiles`'s `Files` impl never constructs `IndexTooLarge`,
         // `ColumnTooLarge`, or `InvalidCharBoundary` (dead in that crate
         // version's own source), `FileMissing` can't occur because every
@@ -182,6 +188,40 @@ mod tests {
         let out = String::from_utf8(buf).expect("utf8");
         assert!(out.contains("warning"), "expected warning label: {out}");
         assert!(out.contains("file-read-error"), "expected code: {out}");
+    }
+
+    #[test]
+    fn render_human_emits_colour_to_a_colour_capable_writer() {
+        // WHY(theatron#233): codespan-reporting 0.13 offers three
+        // replacements for the deprecated `term::emit`, and two of them
+        // (`emit_to_io_write` and `emit` itself) render through a plain
+        // writer that discards every style. Swapping to either compiles,
+        // passes every other test in this module — they all write through
+        // `NoColor` — and silently strips colour from the CLI. This test is
+        // the one that fires on that swap.
+        let src = "div { color: var(--missing); }\n".to_string();
+        let mut sources: HashMap<PathBuf, String> = HashMap::new();
+        sources.insert(PathBuf::from("a.css"), src);
+        let diags = vec![diag_undoc("a.css", 1, 14, 13, 9, "--missing")];
+
+        let mut colour: Vec<u8> = Vec::new();
+        render_human(&diags, &mut Ansi::new(&mut colour), |p| sources[p].clone()).expect("render");
+        let colour = String::from_utf8(colour).expect("utf8");
+        assert!(
+            colour.contains('\u{1b}'),
+            "a colour-capable writer must receive escape sequences: {colour:?}"
+        );
+
+        let mut plain: Vec<u8> = Vec::new();
+        render_human(&diags, &mut NoColor::new(&mut plain), |p| {
+            sources[p].clone()
+        })
+        .expect("render");
+        let plain = String::from_utf8(plain).expect("utf8");
+        assert!(
+            !plain.contains('\u{1b}'),
+            "a colour-suppressing writer must receive none: {plain:?}"
+        );
     }
 
     #[test]
