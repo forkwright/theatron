@@ -12,7 +12,8 @@
 //!
 //! - `notifications` — desktop-notification dispatch via `notify-rust`.
 //! - `dialogs` — file open / save dialogs via `rfd`.
-//! - `settings` — TOML-backed operator-tier KV store (atomic writes).
+//! - `atomic-write` — durable whole-file replacement ([`atomic`]).
+//! - `settings` — TOML-backed operator-tier KV store, built on `atomic-write`.
 //! - `logging` — `tracing-subscriber` init with daily-rotated file
 //!   appender via `tracing-appender`.
 //!
@@ -30,6 +31,9 @@ pub mod notifications;
 
 #[cfg(feature = "dialogs")]
 pub mod dialogs;
+
+#[cfg(feature = "atomic-write")]
+pub mod atomic;
 
 #[cfg(feature = "settings")]
 pub mod settings;

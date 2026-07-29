@@ -13,7 +13,8 @@ authors.workspace = true
 default = []
 notifications = ["dep:notify-rust"]
 dialogs = ["dep:rfd"]
-settings = ["dep:toml", "dep:dirs", "dep:tempfile", "dep:fd-lock"]
+atomic-write = ["dep:tempfile"]
+settings = ["atomic-write", "dep:toml", "dep:dirs", "dep:fd-lock"]
 logging = [
     "dep:tracing",
     "dep:tracing-subscriber",
