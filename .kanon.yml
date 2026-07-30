@@ -8,6 +8,9 @@ thresholds: {dep_count_warn: 1000, dep_count_error: 1500}
 # compute — is therefore already satisfied by the callee. The check has no `uses:` resolution,
 # so it cannot see the delegation and fires on every hybrid-gate caller.
 # WARNING: this is the ONLY lint violation on theatron's main, and `kanon gate` requires ZERO
-# violations under strict_warnings. Without this entry no theatron branch can ever be stamped,
-# which makes every branch and every bot PR in this repo permanently unmergeable.
+# violations under strict_warnings, so without this entry no theatron branch can be stamped
+# locally. That is a cost, not a block: gate-attestation.yml calls the hybrid gate, whose
+# `full-gate-build` job runs on exactly the condition `check-trailer.outputs.found != 'true'`,
+# so an untrailered PR routes to a hosted rebuild instead of failing. Omitting this entry
+# would force that rebuild on every PR, including bot PRs that can carry no trailer at all.
 suppress: [{rule: MANIFEST/dep-count, files: [Cargo.lock]}, {rule: RUST/indexing-slicing, files: [crates/dokimasia/src/css.rs]}, {rule: RUST/indexing-slicing, files: [crates/bathron/src/notifications.rs]}, {rule: ARCHITECTURE/trait-impl-colocation, files: [crates/parodos/src/env.rs]}, {rule: YAML/missing-concurrency, files: [.github/workflows/gate-attestation.yml]}]
