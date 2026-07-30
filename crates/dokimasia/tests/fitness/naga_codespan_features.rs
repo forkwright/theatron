@@ -33,10 +33,19 @@
 //! pass on the state it exists to catch. Package identity is unaffected by
 //! that limitation.
 //!
-//! NOTE: measured both ways before being relied on. With the workspace pin at
-//! `"0.12"` naga and `dokimasia` share `codespan-reporting 0.12.0` and this
-//! test fails; at `"0.13"` naga keeps `0.12.0` while `dokimasia` takes
-//! `0.13.1` and it passes.
+//! NOTE: measured both ways before being relied on. At the current `"0.13"`
+//! pin naga keeps `0.12.0` while `dokimasia` takes `0.13.1`, and this test
+//! passes. At `"0.12"` the resolve graph puts `dokimasia` and naga on a single
+//! `codespan-reporting 0.12.0`, so `shared` is non-empty and the assertion
+//! fires.
+//!
+//! WARNING: that second measurement is read from `cargo metadata` directly,
+//! not by running this test, and it cannot be taken by running it. Since
+//! theatron#234 `dokimasia` calls `term::emit_to_write_style`, which
+//! `codespan-reporting` 0.12 does not provide, so at that pin the crate fails
+//! to compile and the test binary never builds. Restoring the pin is therefore
+//! not a way to rehearse this failure — compare the resolve-graph edges
+//! instead.
 
 use std::collections::BTreeMap;
 use std::process::Command;
