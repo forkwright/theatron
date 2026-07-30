@@ -72,8 +72,12 @@ jobs:
       # UNVERIFIED: no ci.yml exists to confirm whether theatron intends
       # doctest coverage. Left at skip (fleet default) rather than invented.
       doctest_cmd: ""
-      # UNVERIFIED: see WARNING above -- no apt-get precedent exists in this
-      # repo to derive a real value from.
+      # WHY these three: GTK and appindicator for tray-icon, libxdo for
+      # global-hotkey. Derived by iterating the first hosted builds, not guessed
+      # -- #228, #229, #231 and #232 are untrailered Dependabot PRs that merged
+      # through full-gate-build with this list, so it is the measured value. See
+      # the NOTE at the top of this file, which supersedes the speculative
+      # WARNING this comment used to point at.
       system_packages: "libgtk-3-dev libappindicator3-dev libxdo-dev"
       needs_fleet_repo_token: false
       ai_attribution_check: true
