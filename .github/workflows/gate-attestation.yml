@@ -20,25 +20,16 @@
 # authoring pass since the task scope here is caller-file authoring only;
 # flagging for the adoption PR.
 #
-# WARNING(UNVERIFIED, high risk -- first-ever build of this workspace on
-# plain ubuntu-latest): theatron has NO ci.yml / test / build workflow at
-# all. codeql.yml only triggers on push-to-main + a weekly schedule (never
-# on pull_request, so it doesn't exercise the PR path); security.yml
-# (cargo-deny/cargo-audit/osv-scanner) never compiles the workspace. This
-# means the `full-gate-build` fallback below will be the FIRST time
-# theatron's 8-crate + 3-example workspace (nightly toolchain; dioxus,
-# dioxus-native, tray-icon, muda, global-hotkey -- all Linux
-# GUI/OS-integration crates) gets built in a bare ubuntu-latest runner with
-# no historical apt-get line to crib from. glib-sys surfaced transitively on
-# below (fleet default) rather than guessing a package list with no
-# evidence -- expect the first non-docs-only PR's full-gate-build to
-# plausibly fail on missing system libraries (candidates a maintainer would
-# reach for: GTK/appindicator for tray-icon, libxdo for global-hotkey --
-# not asserted here as fact, since nothing in this repo confirms them).
-# Recommend deliberately exercising full-gate-build on the adoption PR
-# (temporarily strip the local Gate-Passed trailer, or push a throwaway
-# trailer-less commit) before relying on this path, and be ready to iterate
-# the first hosted build; libglib2.0-dev provides the glib/gio/gobject headers.
+# NOTE: `full-gate-build` is this repo's only compiling CI job -- codeql.yml
+# runs on push-to-main plus a weekly schedule but never on pull_request, and
+# security.yml (cargo-deny/cargo-audit/osv-scanner) never compiles the
+# workspace. The system_packages list below was derived by iterating the first
+# hosted builds, as the superseded warning here recommended; it is no longer
+# speculative. Dependabot PRs cannot carry a Gate-Passed trailer, so every one
+# that merges does so through full-gate-build -- #228, #229, #231 and #232
+# landing that way is the standing evidence this path builds the 8-crate +
+# 3-example workspace (nightly toolchain; dioxus, dioxus-native, tray-icon,
+# muda, global-hotkey) on a bare ubuntu-latest runner.
 #
 # NOTE: rust-toolchain.toml pins `channel = "nightly"` (workspace
 # rust-version is 1.86 -- a version floor, distinct from the toolchain
@@ -50,6 +41,16 @@ name: Gate Attestation
 
 on:
   pull_request:
+    branches: [main]
+  # WHY push-to-main is a trigger and not just pull_request: a squash merge
+  # does not carry the source commits' trailers, so no commit on main has a
+  # Gate-Passed trailer -- check-trailer finds none and routes to
+  # full-gate-build, which is what actually compiles the workspace. Without
+  # this, nothing ever builds main: #217 merged a codespan-reporting bump that
+  # broke every naga 26 build on 2026-07-22 and stayed invisible for six days,
+  # until five unrelated Dependabot PRs inherited the break and #234 had to
+  # diagnose it. Matches aletheia's caller, the reference adoption.
+  push:
     branches: [main]
 
 permissions:
@@ -71,8 +72,12 @@ jobs:
       # UNVERIFIED: no ci.yml exists to confirm whether theatron intends
       # doctest coverage. Left at skip (fleet default) rather than invented.
       doctest_cmd: ""
-      # UNVERIFIED: see WARNING above -- no apt-get precedent exists in this
-      # repo to derive a real value from.
+      # WHY these three: GTK and appindicator for tray-icon, libxdo for
+      # global-hotkey. Derived by iterating the first hosted builds, not guessed
+      # -- #228, #229, #231 and #232 are untrailered Dependabot PRs that merged
+      # through full-gate-build with this list, so it is the measured value. See
+      # the NOTE at the top of this file, which supersedes the speculative
+      # WARNING this comment used to point at.
       system_packages: "libgtk-3-dev libappindicator3-dev libxdo-dev"
       needs_fleet_repo_token: false
       ai_attribution_check: true
