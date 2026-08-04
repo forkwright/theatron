@@ -8,6 +8,14 @@ formatting and theatron's [SemVer policy](http://forge.forkwright.com/forkwright
 The eight crates ship together at a single workspace version; one
 entry per release covers all eight.
 
+## [1.5.1](https://github.com/forkwright/theatron/compare/v1.5.0...v1.5.1) (2026-08-04)
+
+
+### Bug Fixes
+
+* **deps:** bump event-listener to 5.4.2 for RUSTSEC-2026-0221 ([#244](https://github.com/forkwright/theatron/issues/244)) ([f0b54ef](https://github.com/forkwright/theatron/commit/f0b54efd5fe7c23c6dc4ef1f6136d45eb96a63f5))
+* **naga:** guard naga/codespan feature configuration ([#243](https://github.com/forkwright/theatron/issues/243)) ([9c9a6f4](https://github.com/forkwright/theatron/commit/9c9a6f4e87ca1ecc85be5ead3dd78e1c20883275)), closes [#233](https://github.com/forkwright/theatron/issues/233)
+
 ## [1.5.0](https://github.com/forkwright/theatron/compare/v1.4.1...v1.5.0) (2026-07-29)
 
 
