@@ -295,7 +295,10 @@ mod tests {
 
     #[test]
     fn bar_positions_empty_input() {
-        assert!(bar_positions(&[], 100.0, 20.0).is_empty());
+        assert_eq!(
+            bar_positions(&[], 100.0, 20.0),
+            [] as [(f64, f64, f64, f64); 0]
+        );
     }
 
     #[test]
@@ -387,22 +390,34 @@ mod tests {
 
     #[test]
     fn bar_positions_returns_empty_when_width_is_zero() {
-        assert!(bar_positions(&[1.0, 2.0], 0.0, 20.0).is_empty());
+        assert_eq!(
+            bar_positions(&[1.0, 2.0], 0.0, 20.0),
+            [] as [(f64, f64, f64, f64); 0]
+        );
     }
 
     #[test]
     fn bar_positions_returns_empty_when_height_is_zero() {
-        assert!(bar_positions(&[1.0, 2.0], 100.0, 0.0).is_empty());
+        assert_eq!(
+            bar_positions(&[1.0, 2.0], 100.0, 0.0),
+            [] as [(f64, f64, f64, f64); 0]
+        );
     }
 
     #[test]
     fn bar_positions_returns_empty_when_width_is_negative() {
-        assert!(bar_positions(&[1.0, 2.0], -10.0, 20.0).is_empty());
+        assert_eq!(
+            bar_positions(&[1.0, 2.0], -10.0, 20.0),
+            [] as [(f64, f64, f64, f64); 0]
+        );
     }
 
     #[test]
     fn bar_positions_returns_empty_when_height_is_negative() {
-        assert!(bar_positions(&[1.0, 2.0], 100.0, -5.0).is_empty());
+        assert_eq!(
+            bar_positions(&[1.0, 2.0], 100.0, -5.0),
+            [] as [(f64, f64, f64, f64); 0]
+        );
     }
 
     #[test]
@@ -489,12 +504,18 @@ mod tests {
 
     #[test]
     fn bar_positions_returns_empty_for_all_nan() {
-        assert!(bar_positions(&[f64::NAN, f64::NAN], 100.0, 20.0).is_empty());
+        assert_eq!(
+            bar_positions(&[f64::NAN, f64::NAN], 100.0, 20.0),
+            [] as [(f64, f64, f64, f64); 0]
+        );
     }
 
     #[test]
     fn bar_positions_returns_empty_for_all_inf() {
-        assert!(bar_positions(&[f64::INFINITY, f64::NEG_INFINITY], 100.0, 20.0).is_empty());
+        assert_eq!(
+            bar_positions(&[f64::INFINITY, f64::NEG_INFINITY], 100.0, 20.0),
+            [] as [(f64, f64, f64, f64); 0]
+        );
     }
 
     #[test]

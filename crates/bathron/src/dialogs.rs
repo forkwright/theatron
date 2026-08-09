@@ -159,7 +159,7 @@ mod tests {
     fn filter_empty_extensions() {
         let f = FileFilter::new("All", &[]);
         assert_eq!(f.name, "All");
-        assert!(f.extensions.is_empty());
+        assert_eq!(f.extensions, [] as [String; 0]);
     }
 
     #[test]

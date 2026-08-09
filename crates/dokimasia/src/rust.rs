@@ -376,14 +376,14 @@ fn render() {
     fn ignores_byte_string_literals() {
         let src = "const B: &[u8] = b\"var(--bad)\";\n";
         let diags = lint_rust(&registry(), src, Path::new("a.rs"));
-        assert!(diags.is_empty());
+        assert_eq!(diags, [] as [Diagnostic; 0]);
     }
 
     #[test]
     fn unparseable_source_returns_empty() {
         let src = "this is not rust !!!";
         let diags = lint_rust(&registry(), src, Path::new("a.rs"));
-        assert!(diags.is_empty());
+        assert_eq!(diags, [] as [Diagnostic; 0]);
     }
 
     #[test]
@@ -406,7 +406,7 @@ fn render() {}
 fn old() {}
 "#;
         let diags = lint_rust(&registry(), src, Path::new("a.rs"));
-        assert!(diags.is_empty());
+        assert_eq!(diags, [] as [Diagnostic; 0]);
     }
 
     #[test]
@@ -452,7 +452,7 @@ mod also_tests {
 }
 "#;
         let diags = lint_rust(&registry(), src, Path::new("a.rs"));
-        assert!(diags.is_empty());
+        assert_eq!(diags, [] as [Diagnostic; 0]);
     }
 
     #[test]
@@ -496,7 +496,7 @@ const PROD: &str = "color: var(--bogus-prod);";
 const BOGUS: &str = "color: var(--bogus-const);";
 "#;
         let diags = lint_rust(&registry(), src, Path::new("a.rs"));
-        assert!(diags.is_empty());
+        assert_eq!(diags, [] as [Diagnostic; 0]);
     }
 
     // ---- cfg(test) on non-Item AST layers (QA #176) ---
@@ -534,7 +534,7 @@ impl Widget {
 }
 "#;
         let diags = lint_rust(&registry(), src, Path::new("a.rs"));
-        assert!(diags.is_empty());
+        assert_eq!(diags, [] as [Diagnostic; 0]);
     }
 
     #[test]

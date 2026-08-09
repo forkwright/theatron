@@ -173,7 +173,7 @@ mod tests {
         let mut buf: Vec<u8> = Vec::new();
         let mut writer = NoColor::new(&mut buf);
         render_human(&[], &mut writer, |_| String::new()).expect("render");
-        assert!(buf.is_empty());
+        assert_eq!(buf, [] as [u8; 0]);
     }
 
     #[test]

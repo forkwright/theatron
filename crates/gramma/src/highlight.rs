@@ -186,20 +186,20 @@ mod tests {
         let lines = highlight_code(code, "rust");
         assert_eq!(lines.len(), 3);
         for line in &lines {
-            assert!(!line.is_empty());
+            assert_ne!(line.as_slice(), &[]);
         }
     }
 
     #[test]
     fn highlight_code_unknown_language_falls_back_to_plain() {
         let lines = highlight_code("some random text", "nonexistent-lang-xyz");
-        assert!(!lines.is_empty());
+        assert_ne!(lines, [] as [Vec<HighlightedSpan>; 0]);
     }
 
     #[test]
     fn highlight_code_empty_input_yields_empty_output() {
         let lines = highlight_code("", "rust");
-        assert!(lines.is_empty());
+        assert_eq!(lines, [] as [Vec<HighlightedSpan>; 0]);
     }
 
     #[test]
@@ -218,8 +218,9 @@ mod tests {
         let lines = highlight_code("fn main() {}", "rust");
         // 'fn' should hit the keyword scope and be bold.
         let bold_spans: Vec<_> = lines.iter().flatten().filter(|s| s.bold).collect();
-        assert!(
-            !bold_spans.is_empty(),
+        assert_ne!(
+            bold_spans,
+            [] as [&HighlightedSpan; 0],
             "expected at least one bold span (keyword), got none"
         );
     }
@@ -252,7 +253,11 @@ mod tests {
     fn highlight_code_single_line_no_trailing_newline() {
         let lines = highlight_code("let x = 1;", "rust");
         assert_eq!(lines.len(), 1, "single line without \\n -> 1 line slot");
-        assert!(!lines[0].is_empty(), "tokens present on the single line");
+        assert_ne!(
+            lines[0],
+            [] as [HighlightedSpan; 0],
+            "tokens present on the single line"
+        );
     }
 
     #[test]
@@ -298,7 +303,7 @@ mod tests {
             .and_then(|line| line.first())
             .expect("expected at least one span");
         // text is non-empty for any keyword-bearing input
-        assert!(!first_span.text.is_empty());
+        assert_ne!(first_span.text, "");
         // color is a CSS-style hex string (#rrggbb)
         assert!(first_span.color.starts_with('#'));
         assert_eq!(first_span.color.len(), 7);
@@ -359,6 +364,6 @@ mod tests {
         // Fallback path for unknown lang must handle multi-byte UTF-8
         // without panicking on byte indexing.
         let lines = highlight_code("héllo wörld 你好", "no-such-lang");
-        assert!(!lines.is_empty());
+        assert_ne!(lines, [] as [Vec<HighlightedSpan>; 0]);
     }
 }

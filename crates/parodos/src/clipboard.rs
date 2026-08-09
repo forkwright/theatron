@@ -245,7 +245,6 @@ mod tests {
         let text = "test clipboard content";
         let encoded =
             base64::Engine::encode(&base64::engine::general_purpose::STANDARD, text.as_bytes());
-        assert!(!encoded.is_empty());
         let decoded =
             base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &encoded).unwrap();
         assert_eq!(String::from_utf8(decoded).unwrap(), text);

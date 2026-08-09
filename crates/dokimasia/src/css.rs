@@ -220,7 +220,7 @@ mod tests {
     fn skips_documented_token() {
         let src = "div { color: var(--accent); }";
         let diags = lint_css(&registry(), src, Path::new("a.css"));
-        assert!(diags.is_empty());
+        assert_eq!(diags, [] as [Diagnostic; 0]);
     }
 
     #[test]
@@ -270,14 +270,14 @@ mod tests {
     fn ignores_var_inside_single_quoted_string() {
         let src = "div { content: 'var(--missing)'; }";
         let diags = lint_css(&registry(), src, Path::new("a.css"));
-        assert!(diags.is_empty());
+        assert_eq!(diags, [] as [Diagnostic; 0]);
     }
 
     #[test]
     fn ignores_var_inside_block_comment() {
         let src = "div { /* var(--missing) example */ color: red; }";
         let diags = lint_css(&registry(), src, Path::new("a.css"));
-        assert!(diags.is_empty());
+        assert_eq!(diags, [] as [Diagnostic; 0]);
     }
 
     #[test]
@@ -294,7 +294,7 @@ mod tests {
         // Backslash-escape the quote — the masker must not exit the string early.
         let src = r#"div { content: "say \"var(--missing)\""; }"#;
         let diags = lint_css(&registry(), src, Path::new("a.css"));
-        assert!(diags.is_empty());
+        assert_eq!(diags, [] as [Diagnostic; 0]);
     }
 
     #[test]
@@ -302,14 +302,14 @@ mod tests {
         // Hostile input — we must not panic and must not flag inside the string.
         let src = "div { content: \"var(--missing)";
         let diags = lint_css(&registry(), src, Path::new("a.css"));
-        assert!(diags.is_empty());
+        assert_eq!(diags, [] as [Diagnostic; 0]);
     }
 
     #[test]
     fn unterminated_comment_is_masked_to_eof() {
         let src = "div { /* var(--missing)";
         let diags = lint_css(&registry(), src, Path::new("a.css"));
-        assert!(diags.is_empty());
+        assert_eq!(diags, [] as [Diagnostic; 0]);
     }
 
     #[test]
