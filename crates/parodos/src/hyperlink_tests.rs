@@ -147,56 +147,53 @@ fn supports_hyperlinks_does_not_panic() {
     );
 }
 
+/// In-memory [`Env`] for terminal-detection tests.
+struct TestEnv {
+    vars: std::collections::HashMap<String, String>,
+}
+
+impl TestEnv {
+    fn new(pairs: &[(&str, &str)]) -> Self {
+        Self {
+            vars: pairs
+                .iter()
+                .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
+                .collect(),
+        }
+    }
+}
+
+impl Env for TestEnv {
+    fn var(&self, name: &str) -> Option<String> {
+        self.vars.get(name).cloned()
+    }
+}
+
 #[test]
-#[expect(
-    unsafe_code,
-    reason = "test-only env mutation in single-threaded test context"
-)]
 fn probe_detects_ghostty_resources_dir() {
-    // WHY: Use the raw probe (not cached) to test detection logic.
-    // SAFETY: test-only env mutation; env vars are not read concurrently here.
-    unsafe { std::env::set_var("GHOSTTY_RESOURCES_DIR", "/usr/share/ghostty") };
-    let result = probe_hyperlink_support();
-    unsafe { std::env::remove_var("GHOSTTY_RESOURCES_DIR") };
+    let env = TestEnv::new(&[("GHOSTTY_RESOURCES_DIR", "/usr/share/ghostty")]);
+    let result = probe_hyperlink_support(&env);
     assert!(result, "should detect Ghostty via GHOSTTY_RESOURCES_DIR");
 }
 
 #[test]
-#[expect(
-    unsafe_code,
-    reason = "test-only env mutation in single-threaded test context"
-)]
 fn probe_detects_wezterm_pane() {
-    // SAFETY: test-only env mutation; env vars are not read concurrently here.
-    unsafe { std::env::set_var("WEZTERM_PANE", "1") };
-    let result = probe_hyperlink_support();
-    unsafe { std::env::remove_var("WEZTERM_PANE") };
+    let env = TestEnv::new(&[("WEZTERM_PANE", "1")]);
+    let result = probe_hyperlink_support(&env);
     assert!(result, "should detect WezTerm via WEZTERM_PANE");
 }
 
 #[test]
-#[expect(
-    unsafe_code,
-    reason = "test-only env mutation in single-threaded test context"
-)]
 fn probe_detects_kitty_window_id() {
-    // SAFETY: test-only env mutation; env vars are not read concurrently here.
-    unsafe { std::env::set_var("KITTY_WINDOW_ID", "3") };
-    let result = probe_hyperlink_support();
-    unsafe { std::env::remove_var("KITTY_WINDOW_ID") };
+    let env = TestEnv::new(&[("KITTY_WINDOW_ID", "3")]);
+    let result = probe_hyperlink_support(&env);
     assert!(result, "should detect Kitty via KITTY_WINDOW_ID");
 }
 
 #[test]
-#[expect(
-    unsafe_code,
-    reason = "test-only env mutation in single-threaded test context"
-)]
 fn probe_detects_windows_terminal() {
-    // SAFETY: test-only env mutation; env vars are not read concurrently here.
-    unsafe { std::env::set_var("WT_SESSION", "some-uuid") };
-    let result = probe_hyperlink_support();
-    unsafe { std::env::remove_var("WT_SESSION") };
+    let env = TestEnv::new(&[("WT_SESSION", "some-uuid")]);
+    let result = probe_hyperlink_support(&env);
     assert!(result, "should detect Windows Terminal via WT_SESSION");
 }
 
@@ -269,42 +266,39 @@ fn ftp_scheme_not_detected() {
 // --- Additional terminal detection ---
 
 #[test]
-#[expect(
-    unsafe_code,
-    reason = "test-only env mutation in single-threaded test context"
-)]
 fn probe_detects_iterm_app() {
-    // SAFETY: test-only env mutation; env vars are not read concurrently here.
-    unsafe { std::env::set_var("TERM_PROGRAM", "iTerm.app") };
-    let result = probe_hyperlink_support();
-    unsafe { std::env::remove_var("TERM_PROGRAM") };
+    let env = TestEnv::new(&[("TERM_PROGRAM", "iTerm.app")]);
+    let result = probe_hyperlink_support(&env);
     assert!(result, "should detect iTerm via TERM_PROGRAM=iTerm.app");
 }
 
 #[test]
-#[expect(
-    unsafe_code,
-    reason = "test-only env mutation in single-threaded test context"
-)]
 fn probe_detects_foot_via_term_env() {
-    // SAFETY: test-only env mutation; env vars are not read concurrently here.
-    unsafe { std::env::set_var("TERM", "foot") };
-    let result = probe_hyperlink_support();
-    unsafe { std::env::remove_var("TERM") };
+    let env = TestEnv::new(&[("TERM", "foot")]);
+    let result = probe_hyperlink_support(&env);
     assert!(result, "should detect foot terminal via TERM=foot");
 }
 
 #[test]
-#[expect(
-    unsafe_code,
-    reason = "test-only env mutation in single-threaded test context"
-)]
 fn probe_detects_alacritty_socket() {
-    // SAFETY: test-only env mutation; env vars are not read concurrently here.
-    unsafe { std::env::set_var("ALACRITTY_SOCKET", "/run/user/1000/alacritty.sock") };
-    let result = probe_hyperlink_support();
-    unsafe { std::env::remove_var("ALACRITTY_SOCKET") };
+    let env = TestEnv::new(&[("ALACRITTY_SOCKET", "/run/user/1000/alacritty.sock")]);
+    let result = probe_hyperlink_support(&env);
     assert!(result, "should detect Alacritty via ALACRITTY_SOCKET");
+}
+
+#[test]
+fn probe_rejects_unknown_terminal_without_supported_signals() {
+    let env = TestEnv::new(&[("TERM_PROGRAM", "unknown-terminal")]);
+    assert!(!probe_hyperlink_support(&env));
+}
+
+#[test]
+fn probe_continues_after_unknown_term_program() {
+    let env = TestEnv::new(&[
+        ("TERM_PROGRAM", "unknown-terminal"),
+        ("WT_SESSION", "some-uuid"),
+    ]);
+    assert!(probe_hyperlink_support(&env));
 }
 
 // --- Additional file path detection ---
@@ -424,7 +418,7 @@ fn detect_file_paths_finds_multiple_paths() {
 }
 
 #[test]
-fn detect_file_paths_ignores_path_without_line_number() {
+fn detect_file_paths_detects_path_without_line_number() {
     let paths = detect_file_paths("edit src/main.rs");
     assert_eq!(paths.len(), 1);
     assert!(paths[0].3.contains("main.rs"));

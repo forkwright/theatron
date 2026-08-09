@@ -101,13 +101,11 @@ pub const fn osc8_close() -> &'static str {
 /// derivatives. Callers should degrade gracefully (underline + colour only).
 #[must_use]
 pub fn supports_hyperlinks() -> bool {
-    static CACHE: LazyLock<bool> = LazyLock::new(probe_hyperlink_support);
+    static CACHE: LazyLock<bool> = LazyLock::new(|| probe_hyperlink_support(&RealEnv));
     *CACHE
 }
 
-fn probe_hyperlink_support() -> bool {
-    let env = RealEnv;
-
+fn probe_hyperlink_support(env: &impl Env) -> bool {
     // NOTE: TERM_PROGRAM: most reliable signal on macOS and some Linux terminals
     if let Some(prog) = env.var("TERM_PROGRAM") {
         match prog.as_str() {
