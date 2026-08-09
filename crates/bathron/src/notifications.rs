@@ -198,7 +198,7 @@ mod tests {
     fn request_builder_defaults() {
         let req = NotificationRequest::new("hello");
         assert_eq!(req.title, "hello");
-        assert!(req.body.is_empty());
+        assert_eq!(req.body, "");
         assert!(req.icon.is_none());
     }
 

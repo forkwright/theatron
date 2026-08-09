@@ -226,6 +226,7 @@ fn decode_simple_escape(escape: u8) -> Option<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::DiffHunk;
 
     #[test]
     fn parse_git_diff_splits_multi_file_git_diff() {
@@ -274,7 +275,7 @@ mod tests {
 
         assert_eq!(files.len(), 1);
         assert_eq!(files[0].path, "assets/logo.png");
-        assert!(files[0].hunks.is_empty());
+        assert_eq!(files[0].hunks, [] as [DiffHunk; 0]);
         assert_eq!(files[0].additions, 0);
         assert_eq!(files[0].deletions, 0);
     }
@@ -287,14 +288,14 @@ mod tests {
 
         assert_eq!(files.len(), 1);
         assert_eq!(files[0].path, "assets/site logo.png");
-        assert!(files[0].hunks.is_empty());
+        assert_eq!(files[0].hunks, [] as [DiffHunk; 0]);
     }
 
     #[test]
     fn parse_git_diff_ignores_malformed_input_without_file_paths() {
         let files = parse_git_diff("not a diff\n@@ -1 +1 @@\n-old\n+new\n");
 
-        assert!(files.is_empty());
+        assert_eq!(files, [] as [DiffFile; 0]);
     }
 
     #[test]
@@ -359,7 +360,7 @@ mod tests {
 
         let files = parse_git_diff(raw);
 
-        assert!(files.is_empty());
+        assert_eq!(files, [] as [DiffFile; 0]);
     }
 
     #[test]
@@ -375,7 +376,7 @@ mod tests {
 
         assert_eq!(files.len(), 1);
         assert_eq!(files[0].path, "my file.txt");
-        assert!(files[0].hunks.is_empty());
+        assert_eq!(files[0].hunks, [] as [DiffHunk; 0]);
     }
 
     #[test]

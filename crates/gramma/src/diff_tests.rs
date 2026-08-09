@@ -175,7 +175,7 @@ fn tokenize_splits_on_punctuation() {
 #[test]
 fn parse_empty_diff_produces_no_hunks() {
     let diff = parse_unified_diff("empty.rs", "");
-    assert!(diff.hunks.is_empty());
+    assert_eq!(diff.hunks, [] as [DiffHunk; 0]);
     assert_eq!(diff.additions, 0);
     assert_eq!(diff.deletions, 0);
 }
@@ -219,7 +219,7 @@ fn parse_unified_diff_creates_empty_hunk_when_header_has_no_lines() {
     let raw = "@@ -1,0 +1,0 @@\n@@ -5,1 +5,1 @@\n foo\n";
     let diff = parse_unified_diff("file.rs", raw);
     assert_eq!(diff.hunks.len(), 2);
-    assert!(diff.hunks[0].lines.is_empty());
+    assert_eq!(diff.hunks[0].lines, [] as [DiffLine; 0]);
     assert_eq!(diff.hunks[1].lines.len(), 1);
 }
 
@@ -259,7 +259,7 @@ fn parse_unified_diff_handles_context_lines_omitting_leading_space() {
 #[test]
 fn parse_unified_diff_returns_empty_diff_file_for_gibberish_input() {
     let diff = parse_unified_diff("file.rs", "this is not a diff\nhello world");
-    assert!(diff.hunks.is_empty());
+    assert_eq!(diff.hunks, [] as [DiffHunk; 0]);
     assert_eq!(diff.additions, 0);
     assert_eq!(diff.deletions, 0);
 }
@@ -336,7 +336,7 @@ fn parse_unified_diff_rolls_multi_file_headers_into_single_diff_file() {
 #[test]
 fn align_side_by_side_returns_empty_vec_when_given_empty_slice() {
     let rows = align_side_by_side(&[]);
-    assert!(rows.is_empty());
+    assert_eq!(rows, [] as [SideBySideRow; 0]);
 }
 
 #[test]
@@ -696,8 +696,8 @@ fn compute_word_diffs_populates_spans_when_token_count_is_within_limit() {
         },
     ];
     compute_word_diffs(&mut lines);
-    assert!(!lines[0].word_spans.is_empty());
-    assert!(!lines[1].word_spans.is_empty());
+    assert_ne!(lines[0].word_spans, [] as [WordSpan; 0]);
+    assert_ne!(lines[1].word_spans, [] as [WordSpan; 0]);
 }
 
 #[test]
@@ -761,7 +761,7 @@ fn merge_spans_passes_through_alternating_flags_without_merging() {
 
 #[test]
 fn tokenize_returns_empty_for_empty_string() {
-    assert!(tokenize("").is_empty());
+    assert_eq!(tokenize(""), [] as [&str; 0]);
 }
 
 #[test]

@@ -125,7 +125,7 @@ mod tests {
     fn empty_pattern_matches_everything() {
         let result = fuzzy_match("hello", "").unwrap();
         assert_eq!(result.score, 0);
-        assert!(result.indices.is_empty());
+        assert_eq!(result.indices, [] as [usize; 0]);
     }
 
     #[test]

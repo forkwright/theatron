@@ -375,7 +375,7 @@ version = "0.1.0"
 serde = "1"
 "#;
         let diags = lint_manifest(&registry(), src, Path::new("Cargo.toml"));
-        assert!(diags.is_empty());
+        assert_eq!(diags, [] as [Diagnostic; 0]);
     }
 
     #[test]
@@ -390,7 +390,7 @@ version = "0.1.0"
 serde = { git = "https://example.com/serde" }
 "#;
         let diags = lint_manifest(&registry(), src, Path::new("Cargo.toml"));
-        assert!(diags.is_empty());
+        assert_eq!(diags, [] as [Diagnostic; 0]);
     }
 
     #[test]
@@ -399,7 +399,7 @@ serde = { git = "https://example.com/serde" }
         // not double-report them as lint findings.
         let src = "this is :: not toml [[[";
         let diags = lint_manifest(&registry(), src, Path::new("Cargo.toml"));
-        assert!(diags.is_empty());
+        assert_eq!(diags, [] as [Diagnostic; 0]);
     }
 
     #[test]

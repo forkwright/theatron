@@ -70,7 +70,10 @@ fn detects_multiple_urls() {
 
 #[test]
 fn no_urls_returns_empty() {
-    assert!(detect_urls("just plain text here").is_empty());
+    assert_eq!(
+        detect_urls("just plain text here"),
+        [] as [(usize, usize, &str); 0]
+    );
 }
 
 #[test]
@@ -213,7 +216,7 @@ fn detects_rust_file_path() {
 fn ignores_non_source_extension() {
     // NOTE: .bin files are not in SOURCE_EXTS
     let paths = detect_file_paths("target/debug/aletheia.bin");
-    assert!(paths.is_empty());
+    assert_eq!(paths, [] as [(usize, usize, &str, String); 0]);
 }
 
 // --- Additional URL edge cases ---
@@ -257,7 +260,10 @@ fn empty_text_has_no_urls() {
 #[test]
 fn ftp_scheme_not_detected() {
     // Only http/https are matched; ftp:// must not appear in results
-    assert!(detect_urls("ftp://example.com/file").is_empty());
+    assert_eq!(
+        detect_urls("ftp://example.com/file"),
+        [] as [(usize, usize, &str); 0]
+    );
 }
 
 // --- Additional terminal detection ---
@@ -427,13 +433,13 @@ fn detect_file_paths_ignores_path_without_line_number() {
 #[test]
 fn detect_file_paths_ignores_invalid_extension() {
     let paths = detect_file_paths("file.exe");
-    assert!(paths.is_empty());
+    assert_eq!(paths, [] as [(usize, usize, &str, String); 0]);
 }
 
 #[test]
 fn detect_file_paths_ignores_path_with_spaces() {
     let paths = detect_file_paths("src/my file.rs");
-    assert!(paths.is_empty());
+    assert_eq!(paths, [] as [(usize, usize, &str, String); 0]);
 }
 
 #[test]

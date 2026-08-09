@@ -178,7 +178,7 @@ mod tests {
         std::fs::write(&path, "var(--bad)").unwrap();
         let linter = Linter::new(registry());
         let diags = linter.lint_file(&path);
-        assert!(diags.is_empty());
+        assert_eq!(diags, [] as [Diagnostic; 0]);
     }
 
     #[test]

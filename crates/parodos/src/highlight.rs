@@ -115,14 +115,14 @@ mod tests {
     fn highlight_rust_produces_lines() {
         let hl = Highlighter::new(ResolvedTheme::Dark);
         let lines = hl.highlight("let x = 42;", "rust");
-        assert!(!lines.is_empty());
+        assert_ne!(lines, [] as [ratatui::prelude::Line<'_>; 0]);
     }
 
     #[test]
     fn highlight_unknown_language_falls_back() {
         let hl = Highlighter::new(ResolvedTheme::Dark);
         let lines = hl.highlight("some text", "nonexistent_language_xyz");
-        assert!(!lines.is_empty());
+        assert_ne!(lines, [] as [ratatui::prelude::Line<'_>; 0]);
         let text: String = lines[0].spans.iter().map(|s| s.content.as_ref()).collect();
         assert!(text.contains("some text"));
     }
@@ -146,7 +146,7 @@ mod tests {
     fn highlight_python() {
         let hl = Highlighter::new(ResolvedTheme::Dark);
         let lines = hl.highlight("def hello():\n    pass", "python");
-        assert!(!lines.is_empty());
+        assert_ne!(lines, [] as [ratatui::prelude::Line<'_>; 0]);
     }
 
     #[test]
@@ -160,7 +160,7 @@ mod tests {
     fn highlight_light_theme_produces_lines() {
         let hl = Highlighter::new(ResolvedTheme::Light);
         let lines = hl.highlight("let x = 42;", "rust");
-        assert!(!lines.is_empty());
+        assert_ne!(lines, [] as [ratatui::prelude::Line<'_>; 0]);
     }
 
     #[test]

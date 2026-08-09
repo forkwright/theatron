@@ -229,6 +229,9 @@ mod tests {
 
         assert_eq!(span_text(&out), "…");
         assert_eq!(out[0].style, style);
-        assert!(truncate_spans_cols(vec![Span::raw("hello")], 0).is_empty());
+        assert_eq!(
+            truncate_spans_cols(vec![Span::raw("hello")], 0),
+            [] as [Span<'_>; 0]
+        );
     }
 }

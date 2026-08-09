@@ -19,14 +19,14 @@ fn resolved_as_str_matches_css_selectors() {
 #[test]
 fn labels_are_nonempty() {
     for mode in [ThemeMode::Dark, ThemeMode::Light, ThemeMode::System] {
-        assert!(!mode.label().is_empty());
+        assert_ne!(mode.label(), "");
     }
 }
 
 #[test]
 fn icons_are_nonempty() {
     for mode in [ThemeMode::Dark, ThemeMode::Light, ThemeMode::System] {
-        assert!(!mode.icon().is_empty());
+        assert_ne!(mode.icon(), "");
     }
 }
 
