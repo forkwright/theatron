@@ -200,10 +200,10 @@ fn probe_osc52(env: &impl Env) -> bool {
 
     // Generic xterm / screen TERM families — most modern members
     // support OSC 52.
-    if let Some(term) = env.var("TERM") {
-        if term.starts_with("xterm") || term.starts_with("screen") || term.starts_with("tmux") {
-            return true;
-        }
+    if let Some(term) = env.var("TERM")
+        && (term.starts_with("xterm") || term.starts_with("screen") || term.starts_with("tmux"))
+    {
+        return true;
     }
 
     false
