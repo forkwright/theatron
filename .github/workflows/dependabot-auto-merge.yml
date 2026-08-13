@@ -13,4 +13,4 @@ concurrency:
 
 jobs:
   dependabot-auto-merge:
-    uses: forkwright/.github/.github/workflows/dependabot-auto-merge.yml@961f4e0d8ef84ac93303e9fb1ea4123c98b5dab1
+    uses: forkwright/.github/.github/workflows/dependabot-auto-merge.yml@54f1af7c711546304409593695e1258a91004453
