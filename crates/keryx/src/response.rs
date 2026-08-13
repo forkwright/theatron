@@ -167,7 +167,24 @@ where
 /// Looks for top-level `message` or `error` string fields (in that
 /// order). Returns `None` when the body isn't JSON, is JSON but has
 /// neither field, or the field exists but isn't a string.
-fn extract_body_message(body: &str) -> Option<String> {
+///
+/// # Examples
+///
+/// ```
+/// use keryx::response::extract_body_message;
+///
+/// assert_eq!(
+///     extract_body_message(r#"{"message": "bad request"}"#).as_deref(),
+///     Some("bad request"),
+/// );
+/// assert_eq!(extract_body_message("not json"), None);
+/// ```
+// WHY pub: a caller that reads an error body outside this crate's own request
+// path -- an SSE reconnect loop, for one -- otherwise reimplements this exact
+// field precedence, and the second copy is free to disagree about which field
+// wins. Cross-crate reuse is the criterion this repo sets for `pub`.
+#[must_use = "returns the extracted message; discarding it does no work"]
+pub fn extract_body_message(body: &str) -> Option<String> {
     let value: serde_json::Value = serde_json::from_str(body).ok()?;
     value
         .get("message")
