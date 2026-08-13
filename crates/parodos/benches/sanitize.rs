@@ -22,7 +22,11 @@ fn dirty(base: &str, period: usize) -> String {
         out.push(ch);
         since_last += ch.len_utf8();
         if since_last >= period {
-            out.push_str(if idx % 2 == 0 { "\x1b[31m" } else { "\x1b[0m" });
+            out.push_str(if idx.is_multiple_of(2) {
+                "\x1b[31m"
+            } else {
+                "\x1b[0m"
+            });
             idx += 1;
             since_last = 0;
         }

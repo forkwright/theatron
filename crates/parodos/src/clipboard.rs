@@ -53,20 +53,20 @@ pub fn read_from_clipboard() -> ClipboardContent {
         Ok(mut clipboard) => {
             // WHY: try image first -- if the clipboard holds an image and we ask for text,
             // some platforms return the file path instead of the actual image data.
-            if let Ok(img) = clipboard.get_image() {
-                // WHY: arboard returns dimensions as usize; clipboard images are
-                // bounded by screen size and always fit in u32. Skip the image
-                // on impossible overflow rather than truncate silently.
-                if let (Ok(width), Ok(height)) =
+            //
+            // WHY: arboard returns dimensions as usize; clipboard images are
+            // bounded by screen size and always fit in u32. Skip the image
+            // on impossible overflow rather than truncate silently.
+            if let Ok(img) = clipboard.get_image()
+                && let (Ok(width), Ok(height)) =
                     (u32::try_from(img.width), u32::try_from(img.height))
-                    && let Some(png_data) = rgba_to_png(&img.bytes, width, height)
-                {
-                    return ClipboardContent::Image {
-                        png_data,
-                        width,
-                        height,
-                    };
-                }
+                && let Some(png_data) = rgba_to_png(&img.bytes, width, height)
+            {
+                return ClipboardContent::Image {
+                    png_data,
+                    width,
+                    height,
+                };
             }
             resolve_text_read(clipboard.get_text(), read_system_clipboard_text)
         }
