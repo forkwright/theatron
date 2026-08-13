@@ -2007,9 +2007,9 @@ dependencies = [
 
 [[package]]
 name = "dioxus-native"
-version = "0.7.9"
+version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a27795b6b4c12e2dc6ef284f80dd647d5aecda4c0b75948ba4ecde7f83c526d4"
+checksum = "6d022085082d379df7f453cc465a7cfb75926c5e23d5781dbcbdf5df269840e5"
 dependencies = [
  "anyrender",
  "anyrender_vello",
