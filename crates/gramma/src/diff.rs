@@ -766,11 +766,11 @@ fn lcs_val(table: &[Vec<u32>], i: usize, j: usize) -> u32 {
 /// Merge adjacent spans with the same `changed` flag.
 fn merge_spans(input: &[WordSpan], output: &mut Vec<WordSpan>) {
     for span in input {
-        if let Some(last) = output.last_mut() {
-            if last.changed == span.changed {
-                last.text.push_str(&span.text);
-                continue;
-            }
+        if let Some(last) = output.last_mut()
+            && last.changed == span.changed
+        {
+            last.text.push_str(&span.text);
+            continue;
         }
         output.push(span.clone());
     }
