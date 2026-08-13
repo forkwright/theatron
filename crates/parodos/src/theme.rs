@@ -637,21 +637,20 @@ impl Theme {
 /// Format: `fg;bg` or `fg;X;bg` where values are ANSI color indices.
 /// Indices 0-6 are dark colors, 7+ are light. Defaults to dark when unset.
 fn detect_background(env: &impl Env) -> ResolvedTheme {
-    if let Some(val) = env.var("COLORFGBG") {
-        // WHY: Some terminals emit three values (e.g., "15;0;0"). The background
-        // is always the last component.
-        if let Some(bg_str) = val.rsplit(';').next()
-            && let Ok(bg) = bg_str.parse::<u8>()
-        {
-            // WHY: doc-declared boundary is "0-6 dark, 7+ light" (#183) --
-            // index 7 (white/light gray) is the conventional COLORFGBG light
-            // signal, so the cutoff is `>= 7`, not `>= 8`.
-            return if bg >= 7 {
-                ResolvedTheme::Light
-            } else {
-                ResolvedTheme::Dark
-            };
-        }
+    // WHY: Some terminals emit three values (e.g., "15;0;0"). The background
+    // is always the last component.
+    if let Some(val) = env.var("COLORFGBG")
+        && let Some(bg_str) = val.rsplit(';').next()
+        && let Ok(bg) = bg_str.parse::<u8>()
+    {
+        // WHY: doc-declared boundary is "0-6 dark, 7+ light" (#183) --
+        // index 7 (white/light gray) is the conventional COLORFGBG light
+        // signal, so the cutoff is `>= 7`, not `>= 8`.
+        return if bg >= 7 {
+            ResolvedTheme::Light
+        } else {
+            ResolvedTheme::Dark
+        };
     }
     ResolvedTheme::Dark
 }
