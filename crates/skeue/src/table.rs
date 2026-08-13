@@ -126,7 +126,7 @@ fn alignment_css(align: Option<TableAlignment>) -> &'static str {
 }
 
 fn row_bg(idx: usize) -> &'static str {
-    if idx % 2 == 0 {
+    if idx.is_multiple_of(2) {
         "var(--bg-surface)"
     } else {
         "var(--bg)"

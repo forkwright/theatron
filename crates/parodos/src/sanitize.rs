@@ -750,7 +750,7 @@ mod tests {
         input.push('\x01'); // trip needs_sanitization on the very first byte
         while input.len() < 2 * 1024 * 1024 {
             input.push('a');
-            if input.len() % 97 == 0 {
+            if input.len().is_multiple_of(97) {
                 input.push('\u{00E9}');
             }
         }
