@@ -8,6 +8,18 @@ formatting and theatron's [SemVer policy](http://forge.forkwright.com/forkwright
 The eight crates ship together at a single workspace version; one
 entry per release covers all eight.
 
+## [1.6.0](https://github.com/forkwright/theatron/compare/v1.5.1...v1.6.0) (2026-08-13)
+
+
+### Features
+
+* **keryx:** expose extract_body_message for cross-crate reuse ([#258](https://github.com/forkwright/theatron/issues/258)) ([3e00b2c](https://github.com/forkwright/theatron/commit/3e00b2cff45ea0e39b918c2df88f12de1bf2f664))
+
+
+### Bug Fixes
+
+* **deps:** raise the MSRV floor that was pinning a vulnerable lru ([#259](https://github.com/forkwright/theatron/issues/259)) ([f35e0f7](https://github.com/forkwright/theatron/commit/f35e0f70ce7e5695e90f701adbc774c358903139))
+
 ## [1.5.1](https://github.com/forkwright/theatron/compare/v1.5.0...v1.5.1) (2026-08-04)
 
 
