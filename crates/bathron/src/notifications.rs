@@ -176,14 +176,14 @@ pub fn send(req: NotificationRequest<'_>) -> Result<NotificationHandle, Notifica
     if !body.is_empty() {
         n.body(&body);
     }
-    if let Some(icon_bytes) = icon {
-        // notify-rust takes &str; if the caller passed UTF-8 bytes
-        // representing a path or freedesktop name, honor it. Otherwise
-        // skip silently — raw image bytes aren't part of the desktop
-        // notification protocol on most platforms.
-        if let Ok(icon_str) = std::str::from_utf8(icon_bytes) {
-            n.icon(icon_str);
-        }
+    // notify-rust takes &str; if the caller passed UTF-8 bytes
+    // representing a path or freedesktop name, honor it. Otherwise
+    // skip silently — raw image bytes aren't part of the desktop
+    // notification protocol on most platforms.
+    if let Some(icon_bytes) = icon
+        && let Ok(icon_str) = std::str::from_utf8(icon_bytes)
+    {
+        n.icon(icon_str);
     }
 
     let inner = dispatch_with_timeout(DISPATCH_TIMEOUT, move || n.show())?;
