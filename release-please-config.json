@@ -22,6 +22,14 @@
           "type": "toml",
           "path": "Cargo.lock",
           "jsonpath": "$.package[?(!@.source)].version"
+        },
+        {
+          "type": "generic",
+          "path": "README.md"
+        },
+        {
+          "type": "generic",
+          "path": "_meta/INTEGRATION.md"
         }
       ]
     }

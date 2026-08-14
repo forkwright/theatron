@@ -18,8 +18,8 @@ members = [
 version = "1.6.0"
 edition = "2024"
 license = "Apache-2.0 OR MIT"
-homepage = "https://forge.forkwright.com/forkwright/theatron"
-repository = "https://forge.forkwright.com/forkwright/theatron"
+homepage = "https://github.com/forkwright/theatron"
+repository = "https://github.com/forkwright/theatron"
 rust-version = "1.88"
 authors = ["forkwright"]
 

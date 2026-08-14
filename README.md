@@ -14,12 +14,11 @@ DESIGN-TOKENS.md), HTTP/SSE, OS integration. Consumed by:
 
 ## Status
 
-**v1.0.0 released 2026-05-02.** Public API frozen across all eight
-crates per the [theatron SemVer policy](http://forge.forkwright.com/forkwright/kanon/tree/main/projects/theatron/SEMVER.md)
-(`kanon/projects/theatron/SEMVER.md`). Consumers pin a single git tag
-and inherit additive minors / non-breaking patches until v2.0.
+The public API is frozen across all eight crates per the theatron SemVer policy
+(`kanon/projects/theatron/SEMVER.md`). Consumers pin a single git tag and inherit
+additive minors / non-breaking patches until v2.0.
 
-Full plan: [`kanon/projects/chalkeion/`](http://forge.forkwright.com/forkwright/kanon/tree/main/projects/chalkeion).
+Full plan: `kanon/projects/chalkeion/`.
 
 ## Quickstart
 
@@ -27,8 +26,12 @@ Add to your consumer `Cargo.toml`:
 
 ```toml
 [dependencies]
-themelion = { git = "http://forge.forkwright.com/forkwright/theatron.git", tag = "v1.3.0" }
-mekhane  = { git = "http://forge.forkwright.com/forkwright/theatron.git", tag = "v1.3.0" }
+# WHY the trailing annotations: release-please rewrites the tag on each release,
+# so this snippet cannot go stale. They are TOML comments and safe to paste.
+# A block-scoped annotation would be wrong here -- it rewrites EVERY semver
+# between its markers, which would stamp theatron's version onto the dioxus pins.
+themelion = { git = "https://github.com/forkwright/theatron.git", tag = "v1.6.0" } # x-release-please-version
+mekhane  = { git = "https://github.com/forkwright/theatron.git", tag = "v1.6.0" } # x-release-please-version
 dioxus   = "=0.7.6"
 dioxus-native = "=0.7.6"
 ```

@@ -2,7 +2,7 @@
 
 This file is the authoritative release-note record for theatron's
 eight-crate set. Entries follow [Keep a Changelog](https://keepachangelog.com)
-formatting and theatron's [SemVer policy](http://forge.forkwright.com/forkwright/kanon/tree/main/projects/theatron/SEMVER.md)
+formatting and theatron's SemVer policy
 (`kanon/projects/theatron/SEMVER.md`).
 
 The eight crates ship together at a single workspace version; one
