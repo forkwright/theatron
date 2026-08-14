@@ -19,10 +19,10 @@
 //!
 //! [`version`] is unconditional.
 //!
-//! See the [theatron repository](https://forge.forkwright.com/forkwright/theatron)
+//! See the [theatron repository](https://github.com/forkwright/theatron)
 //! for the broader roadmap.
 //!
-//! [`mekhane`]: https://forge.forkwright.com/forkwright/theatron/src/branch/main/crates/mekhane
+//! [`mekhane`]: https://github.com/forkwright/theatron/tree/main/crates/mekhane
 
 #![deny(missing_docs, clippy::all, clippy::pedantic)]
 

@@ -14,14 +14,17 @@ single tag; never mix-and-match versions across crates.
 # a single-crate project).
 
 [workspace.dependencies]
-themelion = { git = "http://forge.forkwright.com/forkwright/theatron.git", tag = "v1.0.0" }
-mekhane   = { git = "http://forge.forkwright.com/forkwright/theatron.git", tag = "v1.0.0" }
-bathron   = { git = "http://forge.forkwright.com/forkwright/theatron.git", tag = "v1.0.0" }
-keryx     = { git = "http://forge.forkwright.com/forkwright/theatron.git", tag = "v1.0.0" }
-skeue     = { git = "http://forge.forkwright.com/forkwright/theatron.git", tag = "v1.0.0" }
-gramma    = { git = "http://forge.forkwright.com/forkwright/theatron.git", tag = "v1.0.0" }
-parodos   = { git = "http://forge.forkwright.com/forkwright/theatron.git", tag = "v1.0.0" }
-dokimasia = { git = "http://forge.forkwright.com/forkwright/theatron.git", tag = "v1.0.0" }
+# The tags below are rewritten by release-please on each release, so this
+# snippet cannot drift from the shipped version. The annotations are TOML
+# comments and safe to paste.
+themelion = { git = "https://github.com/forkwright/theatron.git", tag = "v1.6.0" } # x-release-please-version
+mekhane   = { git = "https://github.com/forkwright/theatron.git", tag = "v1.6.0" } # x-release-please-version
+bathron   = { git = "https://github.com/forkwright/theatron.git", tag = "v1.6.0" } # x-release-please-version
+keryx     = { git = "https://github.com/forkwright/theatron.git", tag = "v1.6.0" } # x-release-please-version
+skeue     = { git = "https://github.com/forkwright/theatron.git", tag = "v1.6.0" } # x-release-please-version
+gramma    = { git = "https://github.com/forkwright/theatron.git", tag = "v1.6.0" } # x-release-please-version
+parodos   = { git = "https://github.com/forkwright/theatron.git", tag = "v1.6.0" } # x-release-please-version
+dokimasia = { git = "https://github.com/forkwright/theatron.git", tag = "v1.6.0" } # x-release-please-version
 
 # Pin Dioxus to the same exact patch theatron resolves to. EventHandler<T>
 # is a different concrete type at every patch release; mismatched pins
