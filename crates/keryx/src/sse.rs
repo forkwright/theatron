@@ -171,12 +171,12 @@ where
             "event" => {
                 self.current_event = Some(value.to_string());
             }
-            "id" => {
-                // WHY: WHATWG SSE spec — an id field value containing
-                // U+0000 NULL must be ignored, not stored.
-                if !value.contains('\0') {
-                    self.current_id = Some(value.to_string());
-                }
+            // WHY: WHATWG SSE spec — an id field value containing U+0000 NULL
+            // must be ignored, not stored. Expressed as a guard rather than an
+            // inner `if` so a NUL-bearing id falls through to the ignore arm,
+            // which is the same outcome by a shorter path.
+            "id" if !value.contains('\0') => {
+                self.current_id = Some(value.to_string());
             }
             "retry" => {
                 if let Ok(ms) = value.parse::<u64>() {
