@@ -1,0 +1,23 @@
+# Canonical commit identity.
+#
+# WHY: this repo is public and its history carries four distinct author
+# identities for one person -- two personal addresses and an unrelated
+# venture's. A mailmap remaps them at read time in `git log`, `git shortlog`,
+# `git blame` and GitHub's contributor views, without rewriting history: the
+# exposure is already published, so a rewrite would un-publish nothing while
+# invalidating every existing clone.
+#
+# WARNING: a mailmap resolves the AUTHOR and COMMITTER identity fields. It does
+# not edit `Co-authored-by:` trailers, which live in the raw commit message and
+# are what a GitHub squash-merge writes. Checking `%ae`/`%ce` alone therefore
+# reports a clean repo while the address is still present in the body -- grep
+# the message body, not the identity fields.
+#
+# Bot identities (forge-bot, github-actions, dependabot) are deliberately NOT
+# mapped: they are separate actors, not alternate spellings of the maintainer.
+
+Cody Kickertz <cody@forkwright.com> <cody.kickertz@pm.me>
+Cody Kickertz <cody@forkwright.com> <cody.kickertz@gmail.com>
+Cody Kickertz <cody@forkwright.com> <admin@ardentleatherworks.com>
+Cody Kickertz <cody@forkwright.com> <admin@forkwright.dev>
+Cody Kickertz <cody@forkwright.com> <forkwright@users.noreply.github.com>
