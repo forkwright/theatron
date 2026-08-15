@@ -15,7 +15,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.6.0"
+version = "1.6.1"
 edition = "2024"
 license = "Apache-2.0 OR MIT"
 homepage = "https://github.com/forkwright/theatron"
@@ -37,13 +37,13 @@ authors = ["forkwright"]
 #
 # themelion is declared as an expanded table at the end of this section
 # (default-features = false — see the WHY there).
-bathron = { version = "1.6.0", path = "crates/bathron" }
-keryx = { version = "1.6.0", path = "crates/keryx" }
-skeue = { version = "1.6.0", path = "crates/skeue" }
-gramma = { version = "1.6.0", path = "crates/gramma" }
-mekhane = { version = "1.6.0", path = "crates/mekhane" }
-parodos = { version = "1.6.0", path = "crates/parodos" }
-dokimasia = { version = "1.6.0", path = "crates/dokimasia" }
+bathron = { version = "1.6.1", path = "crates/bathron" }
+keryx = { version = "1.6.1", path = "crates/keryx" }
+skeue = { version = "1.6.1", path = "crates/skeue" }
+gramma = { version = "1.6.1", path = "crates/gramma" }
+mekhane = { version = "1.6.1", path = "crates/mekhane" }
+parodos = { version = "1.6.1", path = "crates/parodos" }
+dokimasia = { version = "1.6.1", path = "crates/dokimasia" }
 
 # UI framework
 # WHY: Pin dioxus to an exact patch version, fleet-wide. Dioxus
@@ -156,7 +156,7 @@ toml = { version = "1.1", default-features = false, features = [
 # opt back in with `features = ["dioxus"]`. Expanded table (not inline)
 # per TOML/inline-table-too-long.
 [workspace.dependencies.themelion]
-version = "1.6.0"
+version = "1.6.1"
 path = "crates/themelion"
 default-features = false
 
