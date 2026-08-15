@@ -8,6 +8,13 @@ formatting and theatron's SemVer policy
 The eight crates ship together at a single workspace version; one
 entry per release covers all eight.
 
+## [1.6.1](https://github.com/forkwright/theatron/compare/v1.6.0...v1.6.1) (2026-08-15)
+
+
+### Bug Fixes
+
+* **repo:** collapse the stale commit identities to one canonical author ([#263](https://github.com/forkwright/theatron/issues/263)) ([8a47e08](https://github.com/forkwright/theatron/commit/8a47e080aa4d921c03853599b38e8fc8529ee766))
+
 ## [1.6.0](https://github.com/forkwright/theatron/compare/v1.5.1...v1.6.0) (2026-08-13)
 
 
