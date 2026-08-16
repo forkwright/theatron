@@ -1,3 +1,13 @@
+# WARNING: an exact version, not `stable`. `stable` names whatever each host last
+# downloaded, so it differs between a developer's machine and CI and drifts on its
+# own over time -- metis resolved it to 1.95.0 while CI installed 1.97.1, putting
+# two minor versions of new clippy lints between a local check and the gate that
+# merges it. Under `-D warnings` those lints are invisible locally and fatal in CI,
+# and the failure reads as a broken local tool rather than a version gap.
+#
+# 1.97.1 is the fleet pin (kanon, typikon) and the current stable. Raising it is a
+# deliberate act with its own PR, so the lint fallout arrives on its own and never
+# mixes into an unrelated diff. Canon: kanon#3336.
 [toolchain]
-channel = "stable"
+channel = "1.97.1"
 components = ["rustfmt", "clippy"]
