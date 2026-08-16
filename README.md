@@ -30,8 +30,8 @@ Add to your consumer `Cargo.toml`:
 # so this snippet cannot go stale. They are TOML comments and safe to paste.
 # A block-scoped annotation would be wrong here -- it rewrites EVERY semver
 # between its markers, which would stamp theatron's version onto the dioxus pins.
-themelion = { git = "https://github.com/forkwright/theatron.git", tag = "v1.6.1" } # x-release-please-version
-mekhane  = { git = "https://github.com/forkwright/theatron.git", tag = "v1.6.1" } # x-release-please-version
+themelion = { git = "https://github.com/forkwright/theatron.git", tag = "v1.6.2" } # x-release-please-version
+mekhane  = { git = "https://github.com/forkwright/theatron.git", tag = "v1.6.2" } # x-release-please-version
 dioxus   = "=0.7.6"
 dioxus-native = "=0.7.6"
 ```
