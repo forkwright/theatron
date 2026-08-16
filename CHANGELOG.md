@@ -8,6 +8,13 @@ formatting and theatron's SemVer policy
 The eight crates ship together at a single workspace version; one
 entry per release covers all eight.
 
+## [1.6.2](https://github.com/forkwright/theatron/compare/v1.6.1...v1.6.2) (2026-08-16)
+
+
+### Bug Fixes
+
+* **toolchain:** build on stable rather than nightly ([#266](https://github.com/forkwright/theatron/issues/266)) ([9906675](https://github.com/forkwright/theatron/commit/9906675f3dedcce171f7f78a5f69b9692abfa5d1))
+
 ## [1.6.1](https://github.com/forkwright/theatron/compare/v1.6.0...v1.6.1) (2026-08-15)
 
 
