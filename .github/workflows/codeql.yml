@@ -19,7 +19,7 @@ jobs:
       security-events: write
       contents: read
       actions: read
-    uses: forkwright/.github/.github/workflows/codeql.yml@54f1af7c711546304409593695e1258a91004453
+    uses: forkwright/.github/.github/workflows/codeql.yml@bdbc9617a20369d1dca732344032027119808253
     with:
       analyze_actions: true
       analyze_rust: true
