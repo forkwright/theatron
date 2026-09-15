@@ -30,7 +30,7 @@ snafu = { workspace = true }
 notify-rust = { version = "4", optional = true }
 rfd = { version = "0.17", optional = true }
 toml = { workspace = true, optional = true, features = ["display"] }
-dirs = { version = "6", optional = true }
+dirs = { version = "7", optional = true }
 fd-lock = { version = "4", optional = true }
 tempfile = { version = "3", optional = true }
 tracing = { workspace = true, optional = true }
