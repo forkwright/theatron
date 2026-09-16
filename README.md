@@ -2,7 +2,7 @@
 
 *θέατρον  -  place for viewing*
 
-Fleet desktop UI infrastructure for the forkwright/menos ecosystem.
+Fleet desktop UI infrastructure for the forkwright ecosystem.
 Dioxus + Blitz primitives, theme provider, components (per kanon
 DESIGN-TOKENS.md), HTTP/SSE, OS integration. Consumed by:
 

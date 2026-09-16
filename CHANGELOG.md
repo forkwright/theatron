@@ -207,8 +207,8 @@ channel set to `nightly` (the pre-PR-#89 implicit default).
 ### Added (since v1.1.0)
 
 - **`keryx::response` module — `ensure_success` + `decode_json` helpers**
-  (consumer-pull, ranks #1 + #2 STRONG in
-  `~/menos-ops/research-archive/2026-05-04-theatron-v1.2-consumer-pull.md`).
+  (consumer-pull, ranks #1 + #2 STRONG in the 2026-05-04 consumer-pull
+  research note).
   Two async helpers that make the v1.1 `ApiError` variants reachable
   from `reqwest::Response` without per-consumer status-table
   boilerplate:
@@ -235,8 +235,7 @@ channel set to `nightly` (the pre-PR-#89 implicit default).
   Replaces `skene`'s local `encode_path` (~24 endpoint-builder call
   sites at `aletheia/crates/theatron/skene/src/api/client.rs`) and
   consolidates the implementation as keryx substrate. Surfaced as
-  STRONG candidate #1 in the 2026-05-09 consumer-pull rescan
-  (`~/menos-ops/research-archive/2026-05-09-theatron-v1.2-consumer-pull-rescan.md`).
+  STRONG candidate #1 in the 2026-05-09 consumer-pull rescan.
 - **`gramma::syntax::language_from_path(path: &str) -> &'static str`**
   and **`gramma::syntax::language_from_extension(ext: &str) -> &'static str`** —
   file-path-to-syntect-language resolution covering 30+ extensions
