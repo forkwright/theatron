@@ -1,6 +1,6 @@
 <!--
 scope: theatron repo conventions (Dioxus desktop UI crates)
-defers_to: ~/menos-ops/CLAUDE.md for machine topology; ~/.claude/CLAUDE.md for operator principles
+defers_to: ~/.claude/CLAUDE.md for operator principles
 tightens: per-crate CLAUDE.md files under crates/*/ can narrow conventions within their blast radius
 -->
 
@@ -12,11 +12,11 @@ Repo-level conventions for AI coding agents working on Theatron. Key crates: the
 
 ## Standards
 
-Universal: fleet standards via `~/dev/kanon/crates/basanos/standards/`
+Universal: fleet standards at `kanon/crates/basanos/standards/`
 
 ## Structure
 
-Workspace of 8 Greek-named crates providing desktop UI infrastructure for the forkwright/menos ecosystem.
+Workspace of 8 Greek-named crates providing desktop UI infrastructure for the forkwright ecosystem.
 
 ## Commands
 

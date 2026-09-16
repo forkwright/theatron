@@ -40,7 +40,7 @@ consequences = "Consumer upgrades stay simple and breaking changes require v2."
 id = "D-linux-first"
 title = "Linux-first through Phase 5"
 status = "accepted"
-context = "menos/fleet consumers run on Linux and cross-platform support would dilute the first stable cut."
+context = "Fleet consumers run on Linux and cross-platform support would dilute the first stable cut."
 decision = "Keep macOS and Windows out of scope through Phase 5."
 consequences = "APIs can harden around the immediate consumer path."
 
